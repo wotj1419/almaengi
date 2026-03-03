@@ -1,0 +1,35 @@
+# 1. 기본 설정: 모든 텍스트 파일은 무조건 LF로 통일
+* text=auto eol=lf
+
+# 2. 윈도우 배치 파일만 예외적으로 CRLF 허용
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 3. 리눅스/맥 쉘 스크립트
+*.sh text eol=lf
+gradlew text eol=lf
+
+# 4. 바이너리 파일 (이미지, 압축파일, 폰트 등은 텍스트 변환 금지)
+*.jar binary
+*.war binary
+*.ear binary
+*.zip binary
+*.tar.gz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+
+# 5. 언어 통계 제외 (GitHub 그래프 관리용)
+# 락 파일이나 빌드된 파일이 언어 통계를 잡아먹지 않게 설정
+*.lock linguist-generated
+package-lock.json linguist-generated
+yarn.lock linguist-generated
+/frontend/dist/** linguist-generated
+/backend/build/** linguist-generated
