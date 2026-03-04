@@ -1,0 +1,29 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/almaengi # TODO: 실제 로컬 DB 이름으로 변경
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true # 콘솔에서 SQL을 보기 좋게 정렬
+        use_sql_comments: true # 어떤 리포지토리 메서드가 쿼리를 발생시켰는지 주석 추가
+
+# Springdoc / Swagger UI 설정 (추후 추가 시)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace

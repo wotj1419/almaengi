@@ -54,7 +54,6 @@ yarn-error.log*
 
 # Backend Config
 application-secret.yml
-application-dev.yml
 
 # AI Server Config
 ai/.env*
