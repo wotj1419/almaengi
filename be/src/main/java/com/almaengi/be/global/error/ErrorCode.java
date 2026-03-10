@@ -14,7 +14,24 @@ public enum ErrorCode {
 
     // User 도메인 예시
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "해당 사용자를 찾을 수 없습니다."),
-    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다.");
+    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다."),
+    UNAUTHORIZED_ROLE(HttpStatus.FORBIDDEN, "U003", "접근 권한이 없는 역할입니다."),
+
+    // Store 도메인
+    STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "해당 매장을 찾을 수 없습니다."),
+    STORE_EMPLOYEE_NOT_FOUND(HttpStatus.NOT_FOUND, "S002", "해당 매장의 직원을 찾을 수 없습니다."),
+
+    // Auction 도메인
+    AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "해당 구인 경매를 찾을 수 없습니다."),
+    AUCTION_NOT_IN_PROGRESS(HttpStatus.BAD_REQUEST, "A002", "현재 진행 중인 경매가 아닙니다."),
+    INVALID_MIN_WAGE(HttpStatus.BAD_REQUEST, "A003", "하한가는 법정 최저시급 이상이어야 합니다."),
+    INVALID_MAX_WAGE(HttpStatus.BAD_REQUEST, "A004", "상한가는 하한가 이상이어야 합니다."),
+    INVALID_BID_WAGE(HttpStatus.BAD_REQUEST, "A005", "희망 시급은 상한가와 하한가 사이여야 합니다."),
+    NO_SELECTED_BIDDER(HttpStatus.BAD_REQUEST, "A006", "선택된 지원자가 없습니다."),
+    INVALID_BID_SELECTION(HttpStatus.BAD_REQUEST, "A007", "유효하지 않은 입찰 정보가 포함되어 있습니다."),
+    AUCTION_LOCK_TIMEOUT(HttpStatus.TOO_MANY_REQUESTS, "A008", "현재 접속량이 많아 처리가 지연되고 있습니다. 잠시 후 다시 시도해주세요."),
+    AUCTION_LOCK_INTERRUPTED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "Redisson Lock 처리 중 스레드 인터럽트가 발생했습니다."),
+    INVALID_TIME_FORMAT(HttpStatus.BAD_REQUEST, "A010", "잘못된 시간 형식입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
