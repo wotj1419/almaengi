@@ -17,6 +17,7 @@ $RECYCLE.BIN/
 # VS Code
 .vscode/
 *.code-workspace
+!.vscode/settings.json
 
 ### 3. Build & Dependencies (Backend & Frontend) ###
 # Gradle (Backend)
