@@ -19,7 +19,7 @@ import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
-import com.almaengi.be.domain.user.type.UserRole;
+import com.almaengi.be.domain.user.type.Role;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +66,7 @@ public class AuctionService {
         // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (owner.getRole() != UserRole.OWNER) {
+        if (owner.getRole() != Role.OWNER) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
         }
 
@@ -110,12 +110,12 @@ public class AuctionService {
      * 역경매 제약 없음: 상/하한가 범위 내이면 자유롭게 제출 가능.
      */
     @Transactional
-    public void bidAuction(Long auctionId, Long albaId, AuctionRequestDto.Bid request) {
+    public void bidAuction(Long auctionId, Long employeeId, AuctionRequestDto.Bid request) {
 
         // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
-        User alba = userRepository.findById(albaId)
+        User employee = userRepository.findById(employeeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (alba.getRole() != UserRole.ALBA) {
+        if (employee.getRole() != Role.EMPLOYEE) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
         }
 
@@ -123,7 +123,7 @@ public class AuctionService {
         ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
-        StoreEmployee bidder = storeEmployeeRepository.findByStoreIdAndUserId(auction.getStore().getId(), alba.getId())
+        StoreEmployee bidder = storeEmployeeRepository.findByStoreIdAndUserId(auction.getStore().getId(), employee.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
 
         if (auction.getStatus() != AuctionStatus.IN_PROGRESS) {
@@ -278,7 +278,7 @@ public class AuctionService {
         // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (owner.getRole() != UserRole.OWNER) {
+        if (owner.getRole() != Role.OWNER) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
         }
 
@@ -360,13 +360,13 @@ public class AuctionService {
      * [Phase 3-5: 경매 추가 로직 구현 (목록/상세 조회)]
      * 특정 경매(구인 공고)의 상세 정보를 조회합니다.
      * 사장님(OWNER)인 경우 지원자 목록(Bidders)까지 추가로 조회하여 반환하고,
-     * 알바생(ALBA)인 경우 공고 기본 정보만 반환합니다.
+     * 알바생(employee)인 경우 공고 기본 정보만 반환합니다.
      */
     public AuctionResponseDto.Detail getAuctionDetail(Long auctionId, Long userId) {
         // 1. 임시 계정 확인 및 역할 분기
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        UserRole role = user.getRole();
+        Role role = user.getRole();
 
         ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
@@ -380,7 +380,7 @@ public class AuctionService {
         AuctionResponseDto.Bidders biddersInfo = null;
 
         // 권한 분기: 사장님(OWNER)일 때만 지원자 목록도 조회하여 담기
-        if (role == UserRole.OWNER) {
+        if (role == Role.OWNER) {
             biddersInfo = getAuctionBidders(auctionId);
         }
 
