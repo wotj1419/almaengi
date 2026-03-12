@@ -29,7 +29,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, ErrorCode.INVALID_INPUT_VALUE.getHttpStatus());
     }
 
-    // 3. 그 외 서버 내부 에러 처리 (개발자가 미처 생각하지 못한 에러를 잡아내기 위함)
+    // 3. IllegalArgumentException 처리 (잘못된 인자 전달 시 400 반환)
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.error("IllegalArgumentException : {}", e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(
+                ErrorCode.INVALID_INPUT_VALUE.getCode(),
+                ErrorCode.INVALID_INPUT_VALUE.getMessage()
+        );
+        return new ResponseEntity<>(response, ErrorCode.INVALID_INPUT_VALUE.getHttpStatus());
+    }
+
+    // 4. 그 외 서버 내부 에러 처리 (개발자가 미처 생각하지 못한 에러를 잡아내기 위함)
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Exception : {}", e.getMessage(), e);

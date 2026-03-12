@@ -28,6 +28,8 @@ spring:
     properties:
       hibernate:
         default_batch_fetch_size: 1000 # 컬렉션 조회를 배치로 처리하여 N+1 쿼리 문제 해결
+        jdbc:
+          time_zone: Asia/Seoul
 
 server:
   port: 8080
@@ -41,3 +43,7 @@ logging:
 app:
   auction:
     legal-minimum-wage: 10320
+
+jwt:
+  access-token-expiry: 1800000      # 30분
+  refresh-token-expiry: 604800000   # 7일

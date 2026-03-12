@@ -22,6 +22,10 @@ spring:
       ddl-auto: validate # 프로덕션 환경에서는 절대 update나 create를 사용하지 마세요
     show-sql: false
 
+app:
+  cookie:
+    secure: true
+
 logging:
   file:
     name: logs/application.log # 프로덕션 환경에서는 파일에 로그 기록

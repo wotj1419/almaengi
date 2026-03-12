@@ -33,7 +33,7 @@ import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
-import com.almaengi.be.domain.user.type.UserRole;
+import com.almaengi.be.domain.user.type.Role;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 
@@ -66,10 +66,10 @@ class AuctionServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(auctionService, "legalMinimumWage", 10320);
 
-        owner = User.builder().email("owner@test.com").name("사장님").role(UserRole.OWNER).build();
+        owner = User.builder().email("owner@test.com").name("사장님").role(Role.OWNER).build();
         ReflectionTestUtils.setField(owner, "id", 1L);
 
-        alba = User.builder().email("alba@test.com").name("알바생").role(UserRole.ALBA).build();
+        alba = User.builder().email("alba@test.com").name("알바생").role(Role.EMPLOYEE).build();
         ReflectionTestUtils.setField(alba, "id", 2L);
 
         store = Store.builder().name("알맹이 편의점").build();
