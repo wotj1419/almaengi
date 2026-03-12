@@ -74,3 +74,6 @@ __snapshots__/
 # Misc
 .eslintcache
 .stylelintcache
+
+# FCM
+almaengi-c2bba-firebase-adminsdk-fbsvc-adedb0478d.json

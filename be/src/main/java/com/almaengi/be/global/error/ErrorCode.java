@@ -16,6 +16,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "해당 사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다."),
     UNAUTHORIZED_ROLE(HttpStatus.FORBIDDEN, "U003", "접근 권한이 없는 역할입니다."),
+    UNAUTHORIZED_USER(HttpStatus.FORBIDDEN, "U004", "접근 권한이 없는 유저입니다."),
 
     // Store 도메인
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "해당 매장을 찾을 수 없습니다."),
@@ -41,7 +42,10 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A105", "유효하지 않은 토큰입니다."),
     REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "A106", "리프레시 토큰이 만료되었습니다."),
     REFRESH_TOKEN_MISMATCH(HttpStatus.UNAUTHORIZED, "A107", "리프레시 토큰이 일치하지 않습니다."),
-    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "A108", "비밀번호 형식이 올바르지 않습니다.");
+    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "A108", "비밀번호 형식이 올바르지 않습니다."),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "존재하지 않는 알림입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
