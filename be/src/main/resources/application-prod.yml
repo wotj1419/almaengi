@@ -16,10 +16,11 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: validate # 프로덕션 환경에서는 절대 update나 create를 사용하지 마세요
+      ddl-auto: validate
     show-sql: false
 
 app:
@@ -28,6 +29,6 @@ app:
 
 logging:
   file:
-    name: logs/application.log # 프로덕션 환경에서는 파일에 로그 기록
+    name: logs/application.log
   level:
     root: info

@@ -11,6 +11,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
+      workbox: {
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/v3\/api-docs(?:\/|$)/,
+          /^\/swagger-ui(?:\/|$)/,
+          /^\/webjars(?:\/|$)/,
+          /^\/swagger-resources(?:\/|$)/,
+        ],
+      },
       manifest: {
         name: 'Almaengi',
         short_name: 'Almaengi',
