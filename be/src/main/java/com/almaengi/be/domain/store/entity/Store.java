@@ -1,6 +1,7 @@
 package com.almaengi.be.domain.store.entity;
 
 import com.almaengi.be.domain.user.entity.User;
+import com.almaengi.be.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -15,7 +16,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "stores")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Store {
+public class Store extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,13 +31,40 @@ public class Store {
     @Column(name = "store_name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "address", length = 255)
+    @Column(nullable = false, length = 255)
     private String address;
 
+    @Column(length = 20)
+    private String phone;
+
+    @Column(name = "qr_code", nullable = false)
+    private String qrCode;
+
+    @Column(name = "is_over_5_employees", nullable = false)
+    private Boolean isOver5Employees = false;
+
+    @Column(name = "is_closed", nullable = false)
+    private Boolean isClosed = false;
+
+
     @Builder
-    public Store(User owner, String name, String address) {
+    public Store(User owner, String name, String address, String phone, Boolean isOver5Employees, String qrCode) {
         this.owner = owner;
         this.name = name;
         this.address = address;
+        this.phone = phone;
+        this.isOver5Employees = (isOver5Employees != null) ? isOver5Employees : true;
+        this.qrCode = qrCode;
+    }
+
+    public void updateStoreInfo(String name, String address, String phone, Boolean isOver5Employees) {
+        if(name != null) this.name = name;
+        if(address != null) this.address = address;
+        if(phone != null) this.phone = phone;
+        if(isOver5Employees != null) this.isOver5Employees = isOver5Employees;
+    }
+
+    public void closeStore() {
+        this.isClosed = true;
     }
 }
