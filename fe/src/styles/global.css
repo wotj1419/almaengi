@@ -1,6 +1,6 @@
+/* Tailwind v4 Preflight가 리셋을 처리하므로 수동 리셋 불필요
+   * { margin/padding: 0 } 은 Tailwind 유틸리티를 덮어쓰므로 사용 금지 */
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
@@ -16,19 +16,131 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+
+  /* ══════════════════════════════════
+     디자인 토큰 (Design Tokens)
+     ══════════════════════════════════ */
+
+  /* ── 색상: 브랜드 ── */
+  --color-primary: #d5f368;
+
+  /* ── 색상: 배경 ── */
+  --color-bg-base: #f0efeb;
+  --color-bg-dark: #1a1a1a;
+  --color-bg-card: #f7f5f3;
+  --color-bg-surface: #f3f4f6;
+  --color-bg-body: #f5f5f5;
+  --color-bg-white: #ffffff;
+
+  /* ── 색상: 텍스트 ── */
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #374151;
+  --color-text-muted: #6b7280;
+  --color-text-placeholder: #9ca3af;
+  --color-text-light: #94a3b8;
+
+  /* ── 색상: 상태 (근무 현황) ── */
+  --color-status-green-dot: #65a30d;
+  --color-status-green-bg: #ebfbbc;
+  --color-status-green-border: #d5f368;
+
+  --color-status-orange-dot: #f6723f;
+  --color-status-orange-bg: #fde6d1;
+  --color-status-orange-border: #fad4a8;
+
+  --color-status-purple-dot: #8b5cf6;
+  --color-status-purple-bg: #e9e1fa;
+  --color-status-purple-border: #d0c1f6;
+
+  --color-status-grey-dot: #6b7280;
+  --color-status-grey-bg: #e7e7e7;
+  --color-status-grey-border: #d1d5db;
+
+  /* ── 색상: 상태 뱃지 (StatusBadge 카드) ── */
+  --color-badge-green-bg: #e9f5c5;
+  --color-badge-green-text: #111827;
+  --color-badge-orange-bg: #fff2e6;
+  --color-badge-orange-text: #f6723f;
+  --color-badge-purple-bg: #f5efff;
+  --color-badge-purple-text: #8b5cf6;
+
+  /* ── 색상: 액션 카드 ── */
+  --color-action-todo: #d5f367;
+  --color-action-schedule: #3b82f6;
+  --color-action-schedule-text: #f5f8fe;
+  --color-action-board: #ffddb6;
+  --color-action-attendance: #e7d6ff;
+
+  /* ── 색상: 위험/알림 ── */
+  --color-danger: #ef4444;
+  --color-warning: #f6723f;
+  --color-badge-new: #f54c4c;
+
+  /* ── 색상: 아이콘 ── */
+  --color-icon-default: #5e5e5e;
+  --color-icon-dark: #292929;
+  --color-icon-muted: #374957;
+  --color-icon-light: #ededed;
+
+  /* ── 색상: 보더 ── */
+  --color-border-light: #f1f5f9;
+  --color-border-muted: #d1d5db;
+
+  /* ── 폰트 크기 ── */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 25px;
+  --text-3xl: 32px;
+
+  /* ── 간격 (padding, margin, gap) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 15px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 30px;
+
+  /* ── 둥글기 ── */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 15px;
+  --radius-xl: 20px;
+
+  /* ── z-index ── */
+  --z-content: 10;
+  --z-nav: 50;
+  --z-bottom-sheet: 100;
+  --z-modal: 200;
+
+  /* ── 그림자 ── */
+  --shadow-card:
+    0px 5.782px 8.673px -1.735px rgba(0, 0, 0, 0.1),
+    0px 2.313px 3.469px -2.313px rgba(0, 0, 0, 0.1);
+  --shadow-badge: 0px 0.578px 1.156px 0px rgba(0, 0, 0, 0.05);
+  --shadow-alert:
+    0px 5.78px 8.67px 0px rgba(0, 0, 0, 0.1),
+    0px 2.31px 3.47px 0px rgba(0, 0, 0, 0.1);
+  --shadow-nav: 0px -4px 12px 0px rgba(0, 0, 0, 0.08);
 }
 
 body {
   min-height: 100dvh;
   overflow-x: hidden;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-body);
 }
 
 /* 앱 컨테이너 - 모바일 우선, 768px 이상에서 600px 고정 */
 #root {
   min-height: 100dvh;
   margin: 0 auto;
-  background-color: #ffffff;
+  background-color: var(--color-bg-white);
 }
 
 @media (min-width: 768px) {
@@ -36,4 +148,18 @@ body {
     max-width: 600px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
   }
+}
+
+/* 바텀시트 슬라이드업 애니메이션 */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }
