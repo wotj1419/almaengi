@@ -1,6 +1,7 @@
 package com.almaengi.be.domain.store.entity;
 
 import com.almaengi.be.domain.user.entity.User;
+import com.almaengi.be.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -15,10 +16,12 @@ import com.almaengi.be.domain.store.type.TaxType;
  * 매장에 소속된 알바생(Store_Employees) 정보를 담는 엔티티입니다.
  */
 @Entity
-@Table(name = "store_employees")
+@Table(name = "store_employees", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_store_employees_store_user", columnNames = {"store_id", "user_id"})
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StoreEmployee {
+public class StoreEmployee extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,40 +39,37 @@ public class StoreEmployee {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
+    @Column(nullable = false, length = 20)
     private StoreEmployeeStatus status;
 
-    @Column(name = "position", length = 50)
+    @Column(length = 50)
     private String position;
 
-    @Column(name = "hourly_wage")
+    @Column(name = "hourly_wage",  nullable = false)
     private Integer hourlyWage;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tax_type", length = 20)
-    private TaxType taxType;
+    @Column(name = "tax_type", nullable = false, length = 20)
+    private TaxType taxType = TaxType.INCOME_3_3;
 
-    @Column(name = "is_4insurances")
-    private Boolean is4insurances;
+    @Column(name = "worked_minutes", nullable = false)
+    private Integer workedMinutes = 0;
 
-    @Column(name = "worked_minutes")
-    private Integer workedMinutes;
-
-    @Column(name = "will_working_minutes")
-    private Integer willWorkingMinutes;
+    @Column(name = "will_working_minutes", nullable = false)
+    private Integer willWorkingMinutes = 0;
 
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
-    @Column(name = "dependents_count")
+    @Column(name = "dependents_count", nullable = false)
     private Integer dependentsCount;
 
-    @Column(name = "include_holiday_pay")
+    @Column(name = "include_holiday_pay", nullable = false)
     private Boolean includeHolidayPay;
 
     @Builder
     public StoreEmployee(Store store, User user, StoreEmployeeStatus status, String position, Integer hourlyWage,
-            TaxType taxType, Boolean is4insurances, Integer workedMinutes, Integer willWorkingMinutes,
+            TaxType taxType, Integer workedMinutes, Integer willWorkingMinutes,
             LocalDate hireDate, Integer dependentsCount, Boolean includeHolidayPay) {
         this.store = store;
         this.user = user;
@@ -77,7 +77,6 @@ public class StoreEmployee {
         this.position = position;
         this.hourlyWage = hourlyWage;
         this.taxType = taxType;
-        this.is4insurances = is4insurances;
         this.workedMinutes = workedMinutes;
         this.willWorkingMinutes = willWorkingMinutes;
         this.hireDate = hireDate;
@@ -93,5 +92,18 @@ public class StoreEmployee {
             this.willWorkingMinutes = 0;
         }
         this.willWorkingMinutes += minutesToAdd;
+    }
+
+    // 변경이 필요한 직원 정보를 업데이트하는 비지니스 메서드
+    public void updateEmployeeInfo(String position, Integer hourlyWage, TaxType taxType, Boolean includeHolidayPay) {
+        if(position != null) this.position = position;
+        if(hourlyWage != null) this.hourlyWage = hourlyWage;
+        if(taxType != null) this.taxType = taxType;
+        if(includeHolidayPay != null) this.includeHolidayPay = includeHolidayPay;
+    }
+
+    // 직원 상태 변경(퇴사 등)
+    public void changeStatus(StoreEmployeeStatus status) {
+        this.status = status;
     }
 }

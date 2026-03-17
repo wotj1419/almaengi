@@ -46,7 +46,6 @@ public class Store extends BaseTimeEntity {
     @Column(name = "is_closed", nullable = false)
     private Boolean isClosed = false;
 
-
     @Builder
     public Store(User owner, String name, String address, String phone, Boolean isOver5Employees, String qrCode) {
         this.owner = owner;
