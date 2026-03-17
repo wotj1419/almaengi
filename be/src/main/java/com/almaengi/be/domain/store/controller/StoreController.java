@@ -18,6 +18,7 @@ import java.util.List;
 public class StoreController implements StoreControllerDocs {
     private final StoreService storeService;
 
+    @Override
     @PostMapping
     public ApiResponse<StoreResponseDto.StoreInfo> createStore(@AuthUser Long userId,
                                                                @Valid @RequestBody StoreRequestDto.Create request) {
@@ -26,18 +27,21 @@ public class StoreController implements StoreControllerDocs {
         return ApiResponse.success(response);
     }
 
+    @Override
     @GetMapping
     public ApiResponse<List<StoreResponseDto.StoreInfo>> getMyStores(@AuthUser Long userId) {
         List<StoreResponseDto.StoreInfo> response = storeService.getMyStores(userId);
         return ApiResponse.success(response);
     }
 
+    @Override
     @GetMapping("/{storeId}")
     public ApiResponse<StoreResponseDto.StoreInfo> getStore(@AuthUser Long userId, @PathVariable("storeId") Long storeId) {
         StoreResponseDto.StoreInfo response = storeService.getStore(userId, storeId);
         return ApiResponse.success(response);
     }
 
+    @Override
     @PutMapping("/{storeId}")
     public ApiResponse<StoreResponseDto.StoreInfo> updateStore(@AuthUser Long userId, @PathVariable("storeId") Long storeId,
                                                                @Valid @RequestBody StoreRequestDto.Update request) {
@@ -45,6 +49,7 @@ public class StoreController implements StoreControllerDocs {
         return ApiResponse.success(response);
     }
 
+    @Override
     @DeleteMapping("/{storeId}")
     public ApiResponse<Void>  deleteStore(@AuthUser Long userId, @PathVariable("storeId") Long storeId) {
         storeService.deleteStore(userId, storeId);
