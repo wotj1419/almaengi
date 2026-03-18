@@ -61,4 +61,27 @@ public class AuctionRequestDto {
         @Schema(description = "사장님이 선택한 최종 낙찰자들의 지원서(AuctionBid) ID 목록", example = "[10, 15]")
         private List<Long> selectedBidIds;
     }
+
+    /**
+     * 사장님이 진행 중 경매 정보를 수정할 때 사용하는 요청 DTO.
+     * (필드 구조는 등록과 동일)
+     */
+    @Schema(description = "사장님이 진행 중 경매 정보를 수정할 때 사용하는 요청 DTO")
+    @Getter
+    public static class Update {
+        @Schema(description = "대타를 구할 날짜 (YYYY-MM-DD)", example = "2026-03-20")
+        private LocalDate targetDate;
+        @Schema(description = "대타 근무 시작 시간 (HH:mm)", type = "string", example = "18:00")
+        private LocalTime targetStartTime;
+        @Schema(description = "대타 근무 종료 시간 (HH:mm)", type = "string", example = "23:59")
+        private LocalTime targetEndTime;
+        @Schema(description = "경매 입찰이 마감되는 일시", type = "string", example = "2026-03-19T18:00:00")
+        private LocalDateTime deadline;
+        @Schema(description = "사장님이 제시하는 하한가(선택). 미입력시 법정 최저시급 적용", example = "10320", nullable = true)
+        private Integer minWage;
+        @Schema(description = "사장님이 제시하는 상한가 한계치", example = "15000")
+        private Integer maxWage;
+        @Schema(description = "대타 모집 필요 인원 수", example = "1")
+        private Integer recruitCount;
+    }
 }

@@ -12,6 +12,8 @@ import com.almaengi.be.domain.auction.repository.AuctionBidRepository;
 import com.almaengi.be.domain.auction.repository.AuctionWinnerRepository;
 import com.almaengi.be.domain.auction.repository.ShiftAuctionRepository;
 import com.almaengi.be.domain.auction.type.AuctionStatus;
+import com.almaengi.be.domain.notification.service.NotificationService;
+import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
@@ -28,12 +30,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.time.temporal.ChronoUnit;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Duration;
+import java.util.stream.Collectors;
 
 /**
  * 대타 스케줄 경매의 핵심 비즈니스 로직을 담당하는 서비스입니다.
@@ -52,7 +56,9 @@ public class AuctionService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
 
-    // 법정 최저시급 (2026년 기준)
+    private final NotificationService notificationService;
+
+    // 법정 최저시급
     @Value("${app.auction.legal-minimum-wage}")
     private int legalMinimumWage;
 
@@ -64,14 +70,13 @@ public class AuctionService {
     public Long registerAuction(Long ownerId, Long storeId, AuctionRequestDto.Register request) {
 
         // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User owner = getUserOrThrow(ownerId);
         if (owner.getRole() != Role.OWNER) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
         }
+        Store store = getStoreOrThrow(storeId);
 
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+        validateAuctionDateConstraints(request.getTargetDate(), request.getDeadline());
 
         // 1. 하한가(minWage) 처리: 미입력 시 법정 최저시급 적용, 입력 시 법정 최저시급 이상인지 검증
         int minWage = (request.getMinWage() != null) ? request.getMinWage() : legalMinimumWage;
@@ -113,19 +118,15 @@ public class AuctionService {
     public void bidAuction(Long auctionId, Long employeeId, AuctionRequestDto.Bid request) {
 
         // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
-        User employee = userRepository.findById(employeeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User employee = getUserOrThrow(employeeId);
         if (employee.getRole() != Role.EMPLOYEE) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
         }
 
         // 1. 해당 알바생(User)이 해당 공고(Store)의 직원인지 검증 및 객체 조회
-        ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
-
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
         StoreEmployee bidder = storeEmployeeRepository.findByStoreIdAndUserId(auction.getStore().getId(), employee.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
-
         if (auction.getStatus() != AuctionStatus.IN_PROGRESS) {
             // 이미 마감되었거나 취소된 경우
             throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
@@ -162,14 +163,225 @@ public class AuctionService {
     }
 
     /**
+     * [Phase 3-4: 낙찰 확정 및 경매 마감]
+     * 사장님이 해당 경매를 통하여 특정 지원자(들)를 선택했을 때의 동작.
+     */
+    @Transactional
+    public AuctionResponseDto.CloseResult closeAuction(Long auctionId, Long ownerId, AuctionRequestDto.Close request) {
+        // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
+        User owner = getUserOrThrow(ownerId);
+        if (owner.getRole() != Role.OWNER) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
+        }
+
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
+        if (auction.getStatus() != AuctionStatus.IN_PROGRESS) {
+            throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
+        }
+
+        List<Long> selectedBidIds = request.getSelectedBidIds();
+        if (selectedBidIds == null || selectedBidIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.NO_SELECTED_BIDDER); // 선택된 지원자가 없으면 에러
+        }
+
+        Set<Long> uniqueBidIds = new LinkedHashSet<>(selectedBidIds);
+        if(uniqueBidIds.size() != selectedBidIds.size()
+        || uniqueBidIds.size() > auction.getRecruitCount())
+            throw new BusinessException(ErrorCode.INVALID_BID_SELECTION);
+
+        List<AuctionBid> winningBids = auctionBidRepository.findAllById(uniqueBidIds);
+        if(winningBids.size() != uniqueBidIds.size())
+            throw new BusinessException(ErrorCode.INVALID_BID_SELECTION);
+
+        boolean hasForeignBid = winningBids.stream()
+                .anyMatch(bid -> !bid.getShiftAuction().getId().equals(auctionId));
+        if(hasForeignBid)
+            throw new BusinessException(ErrorCode.INVALID_BID_SELECTION);
+
+        // 해당 경매의 근무 시간(분) 계산
+        int auctionMinutes = calculateAuctionMinutes(auction.getTargetStartTime(), auction.getTargetEndTime());
+
+        // 다수 낙찰자 데이터 저장, 예정 출근 기록 생성 및 예정 시간 업데이트
+        for (AuctionBid bid : winningBids) {
+            StoreEmployee winnerEmployee = bid.getBidder();
+
+            // 1. 낙찰 매핑 데이터 저장
+            AuctionWinner winner = AuctionWinner.builder()
+                    .shiftAuction(auction)
+                    .storeEmployee(winnerEmployee)
+                    .build();
+            auctionWinnerRepository.save(winner);
+
+            // 2. 확정된 알바생의 '예정 출근 기록' 생성 (Attendances)
+            Attendance newAttendance = Attendance.builder()
+                    .employee(winnerEmployee)
+                    .targetDate(auction.getTargetDate())
+                    .scheduledStartTime(auction.getTargetStartTime())
+                    .scheduledEndTime(auction.getTargetEndTime())
+                    .status(AttendanceStatus.ABSENT) // 기본값은 "결근"
+                    .build();
+            attendanceRepository.save(newAttendance);
+
+            // 3. 낙찰자의 예정 근무 시간 증가
+            winnerEmployee.addWillWorkingMinutes(auctionMinutes);
+        }
+
+        // 상태를 'CLOSED'로 변경
+        auction.closeAuction();
+
+        Map<Long, AuctionBid> bidMap = winningBids.stream()
+                        .collect(Collectors.toMap(AuctionBid::getId, b->b));
+
+        List<AuctionResponseDto.ClosedWinner> winners = uniqueBidIds.stream()
+                        .map(bidId -> {
+                            AuctionBid bid = bidMap.get(bidId);
+                            return AuctionResponseDto.ClosedWinner.builder()
+                                    .bidId(bid.getId())
+                                    .employeeId(bid.getBidder().getId())
+                                    .employeeName(bid.getBidder().getUser().getName())
+                                    .bidWage(bid.getBidWage())
+                                    .build();
+                        }).toList();
+
+        notifyAuctionWinners(auction, winningBids); // 푸시 알림 + 알림함 저장
+        log.info("경매 마감 - AuctionID: {}, 선택된 인원 수: {}", auctionId, winningBids.size());
+
+        return AuctionResponseDto.CloseResult.builder()
+                .auctionId(auctionId)
+                .status(auction.getStatus())
+                .winners(winners)
+                .build();
+    }
+
+    /**
+     * [Phase 3-5: 경매 추가 로직 구현 (목록/상세 조회)]
+     * 사장님 자신의 매장에 등록된 경매(대타 구인) 전체 목록을 조회합니다.
+     */
+    public List<AuctionResponseDto.Auction> getAuctions(Long storeId) {
+        // 매장에 등록된 모든 공고 조회
+        List<ShiftAuction> auctions = shiftAuctionRepository.findAllByStoreId(storeId);
+
+        List<AuctionResponseDto.Auction> response = new ArrayList<>();
+        for (ShiftAuction auction : auctions) {
+            // 각 공고에 대한 낙찰자(Winner) ID 목록 조회
+            List<Long> winnerIds = auctionWinnerRepository.findAllByShiftAuctionId(auction.getId()).stream()
+                    .map(winner -> winner.getStoreEmployee().getId())
+                    .toList();
+
+            response.add(AuctionResponseDto.Auction.from(auction, winnerIds));
+        }
+
+        return response;
+    }
+
+    /**
+     * [Phase 3-5: 경매 추가 로직 구현 (목록/상세 조회)]
+     * 특정 경매(구인 공고)의 상세 정보를 조회합니다.
+     * 사장님(OWNER)인 경우 지원자 목록(Bidders)까지 추가로 조회하여 반환하고,
+     * 알바생(employee)인 경우 공고 기본 정보만 반환합니다.
+     */
+    public AuctionResponseDto.Detail getAuctionDetail(Long auctionId, Long userId) {
+        // 1. 임시 계정 확인 및 역할 분기
+        User user = getUserOrThrow(userId);
+        Role role = user.getRole();
+
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
+
+        // 해당 공고의 낙찰자(Winner) ID 목록 조회
+        List<Long> winnerIds = auctionWinnerRepository.findAllByShiftAuctionId(auctionId).stream()
+                .map(winner -> winner.getStoreEmployee().getId())
+                .toList();
+
+        AuctionResponseDto.Auction auctionInfo = AuctionResponseDto.Auction.from(auction, winnerIds);
+        AuctionResponseDto.Bidders biddersInfo = null;
+
+        // 권한 분기: 사장님(OWNER)일 때만 지원자 목록도 조회하여 담기
+        if (role == Role.OWNER && auction.getStore().getOwner().getId().equals(userId)) {
+            biddersInfo = getAuctionBidders(auctionId);
+        }
+
+        return AuctionResponseDto.Detail.builder()
+                .auction(auctionInfo)
+                .bidders(biddersInfo)
+                .build();
+    }
+
+    @Transactional
+    public void updateAuction(Long auctionId, Long ownerId, AuctionRequestDto.Update request) {
+        User owner = getUserOrThrow(ownerId);
+        if(owner.getRole() != Role.OWNER)
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
+
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
+        if(auction.getStatus() != AuctionStatus.IN_PROGRESS)
+            throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
+
+        validateAuctionDateConstraints(request.getTargetDate(), request.getDeadline());
+
+        int minWage = (request.getMinWage() != null) ? request.getMinWage() : legalMinimumWage;
+        if(minWage < legalMinimumWage)
+            throw new BusinessException(ErrorCode.INVALID_MIN_WAGE);
+        int maxWage = request.getMaxWage();
+        if(maxWage < minWage) throw new BusinessException(ErrorCode.INVALID_MAX_WAGE);
+
+        int recruitCount = (request.getRecruitCount() != null && request.getRecruitCount() > 0)
+                        ? request.getRecruitCount() : 1;
+
+        auction.updateAuctionInfo(
+                request.getTargetDate(),
+                request.getTargetStartTime(),
+                request.getTargetEndTime(),
+                request.getDeadline(),
+                minWage, maxWage, recruitCount
+        );
+    }
+
+    @Transactional
+    public void deleteAuction(Long auctionId, Long ownerId) {
+        User owner = getUserOrThrow(ownerId);
+        if(owner.getRole() != Role.OWNER)
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
+
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
+        if(auction.getStatus() != AuctionStatus.IN_PROGRESS)
+            throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
+
+        auction.cancelAuction();
+    }
+
+
+    private Store getStoreOrThrow(Long storeId) {
+        return storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+    }
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+    private ShiftAuction getShiftAuctionOrThrow(Long auctionId) {
+        return shiftAuctionRepository.findById(auctionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
+    }
+    private void validateAuctionDateConstraints(LocalDate targetDate, LocalDateTime deadline) {
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (targetDate == null || targetDate.isBefore(today)) {
+            throw new BusinessException(ErrorCode.INVALID_TARGET_DATE);
+        }
+        if(deadline == null || !deadline.isAfter(now)) {
+            throw new BusinessException(ErrorCode.INVALID_DEADLINE);
+        }
+    }
+
+    /**
      * [Phase 3-3: 지원자 목록 조회]
      * 사장님이 특정 경매(구인 공고)에 지원한 알바생 목록을 조회합니다.
      * 주휴수당 발생 여부에 따라 3가지 그룹으로 분류하여 반환합니다.
      */
     private AuctionResponseDto.Bidders getAuctionBidders(Long auctionId) {
         // 1. 공고 확인
-        ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
+        ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
 
         // 2. 공고 시간(분 단위) 계산
         int auctionMinutes = calculateAuctionMinutes(auction.getTargetStartTime(), auction.getTargetEndTime());
@@ -269,124 +481,29 @@ public class AuctionService {
         return tags;
     }
 
-    /**
-     * [Phase 3-4: 낙찰 확정 및 경매 마감]
-     * 사장님이 해당 경매를 통하여 특정 지원자(들)를 선택했을 때의 동작.
-     */
-    @Transactional
-    public void closeAuction(Long auctionId, Long ownerId, AuctionRequestDto.Close request) {
-        // 1. 임시 계정 확인 및 권한 체크 (추후 Security Auth 객체로 대체)
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (owner.getRole() != Role.OWNER) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
+    private void notifyAuctionWinners(ShiftAuction auction, List<AuctionBid> winningBids) {
+        String title = "경매 낙찰 안내";
+        String timeRange = formatTimeRange(auction.getTargetStartTime(), auction.getTargetEndTime());
+
+        for(AuctionBid bid : winningBids) {
+           User receiver = bid.getBidder().getUser();
+
+           String body = String.format(
+                   "%s 근무(%s)가 시급 %,d원으로 낙찰 확정 되었습니다.",
+                   auction.getTargetDate(),
+                   timeRange,
+                   bid.getBidWage()
+           );
+           try {
+               notificationService.sendNotification(receiver, NotificationType.AUCTION, title, body, auction.getId());
+           } catch(Exception e) {
+               log.warn("낙찰 알림 발송 실패 - auctionId: {}, bidId: {}, receiverId: {}, reason: {}",
+                       auction.getId(), bid.getId(), bid.getBidder().getUser().getId(), e.getMessage(), e);
+           }
         }
-
-        ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
-
-        if (auction.getStatus() != AuctionStatus.IN_PROGRESS) {
-            throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
-        }
-
-        List<Long> selectedBidIds = request.getSelectedBidIds();
-        if (selectedBidIds == null || selectedBidIds.isEmpty()) {
-            throw new BusinessException(ErrorCode.NO_SELECTED_BIDDER); // 선택된 지원자가 없으면 에러
-        }
-
-        // 선택된 모든 입찰 내역 조회
-        List<AuctionBid> winningBids = auctionBidRepository.findAllById(selectedBidIds);
-        if (winningBids.size() != selectedBidIds.size()) {
-            throw new BusinessException(ErrorCode.INVALID_BID_SELECTION); // 유효하지 않은 bidId가 포함된 경우
-        }
-
-        // 해당 경매의 소요 시간(분) 계산
-        int auctionMinutes = calculateAuctionMinutes(auction.getTargetStartTime(), auction.getTargetEndTime());
-
-        // 다수 낙찰자 데이터 저장, 예정 출근 기록 생성 및 예정 시간 업데이트
-        for (AuctionBid bid : winningBids) {
-            StoreEmployee winnerEmployee = bid.getBidder();
-
-            // 1. 낙찰 매핑 데이터 저장
-            AuctionWinner winner = AuctionWinner.builder()
-                    .shiftAuction(auction)
-                    .storeEmployee(winnerEmployee)
-                    .build();
-            auctionWinnerRepository.save(winner);
-
-            // 2. 확정된 알바생의 '예정 출근 기록' 생성 (Attendances)
-            Attendance newAttendance = Attendance.builder()
-                    .employee(winnerEmployee)
-                    .targetDate(auction.getTargetDate())
-                    .scheduledStartTime(auction.getTargetStartTime())
-                    .scheduledEndTime(auction.getTargetEndTime())
-                    .status(AttendanceStatus.ABSENT) // 기본값은 "결근"
-                    .build();
-            attendanceRepository.save(newAttendance);
-
-            // 3. 낙찰자의 예정 근무 시간 증가
-            winnerEmployee.addWillWorkingMinutes(auctionMinutes);
-        }
-
-        // 상태를 'CLOSED'로 변경
-        auction.closeAuction();
-        shiftAuctionRepository.save(auction);
-
-        log.info("경매 마감 - AuctionID: {}, 선택된 인원 수: {}", auctionId, winningBids.size());
     }
-
-    /**
-     * [Phase 3-5: 경매 추가 로직 구현 (목록/상세 조회)]
-     * 사장님 자신의 매장에 등록된 경매(대타 구인) 전체 목록을 조회합니다.
-     */
-    public List<AuctionResponseDto.Auction> getAuctions(Long storeId) {
-        // 매장에 등록된 모든 공고 조회
-        List<ShiftAuction> auctions = shiftAuctionRepository.findAllByStoreId(storeId);
-
-        List<AuctionResponseDto.Auction> response = new ArrayList<>();
-        for (ShiftAuction auction : auctions) {
-            // 각 공고에 대한 낙찰자(Winner) ID 목록 조회
-            List<Long> winnerIds = auctionWinnerRepository.findAllByShiftAuctionId(auction.getId()).stream()
-                    .map(winner -> winner.getStoreEmployee().getId())
-                    .toList();
-
-            response.add(AuctionResponseDto.Auction.from(auction, winnerIds));
-        }
-
-        return response;
-    }
-
-    /**
-     * [Phase 3-5: 경매 추가 로직 구현 (목록/상세 조회)]
-     * 특정 경매(구인 공고)의 상세 정보를 조회합니다.
-     * 사장님(OWNER)인 경우 지원자 목록(Bidders)까지 추가로 조회하여 반환하고,
-     * 알바생(employee)인 경우 공고 기본 정보만 반환합니다.
-     */
-    public AuctionResponseDto.Detail getAuctionDetail(Long auctionId, Long userId) {
-        // 1. 임시 계정 확인 및 역할 분기
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        Role role = user.getRole();
-
-        ShiftAuction auction = shiftAuctionRepository.findById(auctionId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
-
-        // 해당 공고의 낙찰자(Winner) ID 목록 조회
-        List<Long> winnerIds = auctionWinnerRepository.findAllByShiftAuctionId(auctionId).stream()
-                .map(winner -> winner.getStoreEmployee().getId())
-                .toList();
-
-        AuctionResponseDto.Auction auctionInfo = AuctionResponseDto.Auction.from(auction, winnerIds);
-        AuctionResponseDto.Bidders biddersInfo = null;
-
-        // 권한 분기: 사장님(OWNER)일 때만 지원자 목록도 조회하여 담기
-        if (role == Role.OWNER) {
-            biddersInfo = getAuctionBidders(auctionId);
-        }
-
-        return AuctionResponseDto.Detail.builder()
-                .auction(auctionInfo)
-                .bidders(biddersInfo)
-                .build();
+    private String formatTimeRange(LocalTime start, LocalTime end) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+        return start.format(formatter) + " - " + end.format(formatter);
     }
 }
