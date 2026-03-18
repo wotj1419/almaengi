@@ -1,0 +1,11 @@
+{
+  "store_id": 1,
+  "owner_id": 1,
+  "store_name": "부산갈매기 싸피점",
+  "address": "광주광역시 광산구 오선동 123-4",
+  "phone": "02-1234-5678",
+  "is_over_5_employees": false,
+  "is_closed": false,
+  "created_at": "2025-01-15T00:00:00+09:00",
+  "updated_at": "2025-01-15T00:00:00+09:00"
+}

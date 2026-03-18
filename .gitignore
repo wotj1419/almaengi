@@ -59,10 +59,13 @@ application-secret.yml
 
 # AI Server Config
 ai/.env*
-!ai/.env.example 
-ai/.venv
+!ai/.env.example
+ai/.venv/
 ai/**/__pycache__/
-ai/**/*.pyc
+ai/**/*.py[cod]
+ai/**/*.egg-info/
+ai/qdrant_data/
+ai/redis_data/
 
 ### 6. Docker & Others ###
 docker-data/
