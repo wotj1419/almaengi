@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import AuctionLayout from '@/features/auction/layouts/AuctionLayout';
 import { ROUTES } from '@/constants/routes';
 import HomePage from '@/features/home/pages/HomePage';
 import SchedulePage from '@/features/schedule/pages/SchedulePage';
@@ -7,6 +8,10 @@ import PayrollPage from '@/features/payroll/pages/PayrollPage';
 import StorePage from '@/features/store/pages/StorePage';
 import TodoPage from '@/features/todo/pages/TodoPage';
 import AuctionPage from '@/features/auction/pages/AuctionPage';
+import AuctionDetailPage from '@/features/auction/pages/AuctionDetailPage';
+import AuctionRegisterPage from '@/features/auction/pages/AuctionRegisterPage';
+import AuctionEditPage from '@/features/auction/pages/AuctionEditPage';
+import AuctionResultPage from '@/features/auction/pages/AuctionResultPage';
 import BoardPage from '@/features/board/pages/BoardPage';
 import AttendancePage from '@/features/attendance/pages/AttendancePage';
 import ChatbotPage from '@/features/chatbot/pages/ChatbotPage';
@@ -23,7 +28,13 @@ export default function AppRouter() {
       <Route path={ROUTES.PAYROLL} element={<PayrollPage />} />
       <Route path={ROUTES.STORE} element={<StorePage />} />
       <Route path={ROUTES.TODO} element={<TodoPage />} />
-      <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
+      <Route element={<AuctionLayout />}>
+        <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
+        <Route path="/auction/register" element={<AuctionRegisterPage />} />
+        <Route path="/auction/edit/:id" element={<AuctionEditPage />} />
+        <Route path="/auction/result/:id" element={<AuctionResultPage />} />
+        <Route path="/auction/:id" element={<AuctionDetailPage />} />
+      </Route>
       <Route path={ROUTES.BOARD} element={<BoardPage />} />
       <Route path={ROUTES.ATTENDANCE} element={<AttendancePage />} />
       <Route path={ROUTES.CHATBOT} element={<ChatbotPage />} />

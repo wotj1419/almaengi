@@ -1,30 +1,33 @@
-import { House, Calendar, Users, Wallet, Store } from 'lucide-react';
+﻿import { House, Calendar, Users, Wallet, Store } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 
-type NavItem = {
+interface NavItem {
+  key: string;
   label: string;
-  iconName: string;
   path: string;
-};
+  iconName: 'house' | 'calendar' | 'users' | 'wallet' | 'store';
+}
 
 const navItems: NavItem[] = [
-  { label: '홈', iconName: 'house', path: ROUTES.HOME },
-  { label: '스케줄', iconName: 'calendar', path: ROUTES.SCHEDULE },
-  { label: '직원', iconName: 'users', path: ROUTES.EMPLOYEE },
-  { label: '급여', iconName: 'wallet', path: ROUTES.PAYROLL },
-  { label: '매장', iconName: 'store', path: ROUTES.STORE },
+  { key: 'home', label: '홈', path: ROUTES.HOME, iconName: 'house' },
+  { key: 'schedule', label: '스케줄', path: ROUTES.SCHEDULE, iconName: 'calendar' },
+  { key: 'staff', label: '직원', path: ROUTES.EMPLOYEE, iconName: 'users' },
+  { key: 'salary', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
+  { key: 'store', label: '매장', path: ROUTES.STORE, iconName: 'store' },
 ];
 
-function NavIcon({ iconName, active }: { iconName: string; active: boolean }) {
-  const color = active
-    ? 'var(--color-text-primary)'
-    : 'var(--color-text-light)';
+interface BottomNavProps {
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+}
+
+function NavIcon({ iconName, active }: { iconName: NavItem['iconName']; active: boolean }) {
+  const color = active ? 'var(--color-text-primary)' : 'var(--color-text-light)';
+
   switch (iconName) {
     case 'house':
-      return (
-        <House size={30} color={color} strokeWidth={2} strokeLinejoin="bevel" />
-      );
+      return <House size={30} color={color} strokeWidth={2} strokeLinejoin="bevel" />;
     case 'calendar':
       return (
         <Calendar
@@ -52,9 +55,21 @@ function NavIcon({ iconName, active }: { iconName: string; active: boolean }) {
   }
 }
 
-export default function BottomNav() {
+export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const currentTab =
+    activeTab ??
+    navItems.find((item) => item.path === location.pathname)?.key ??
+    'home';
+
+  const handleClick = (item: NavItem) => {
+    if (onTabChange) {
+      onTabChange(item.key);
+    }
+    navigate(item.path);
+  };
 
   return (
     <div
@@ -67,24 +82,25 @@ export default function BottomNav() {
       }}
     >
       {navItems.map((item) => {
-        const active = location.pathname === item.path;
+        const isActive = currentTab === item.key;
+
         return (
-          <div
-            key={item.label}
+          <button
+            key={item.key}
             className="flex flex-col gap-[3px] items-center shrink-0 cursor-pointer"
-            onClick={() => navigate(item.path)}
+            onClick={() => handleClick(item)}
           >
             <div
-              className={`flex items-center justify-center h-[38px] w-[60px] rounded-full ${active ? 'bg-[var(--color-primary)]' : ''}`}
+              className={`flex items-center justify-center h-[38px] w-[60px] rounded-full ${isActive ? 'bg-[var(--color-primary)]' : ''}`}
             >
-              <NavIcon iconName={item.iconName} active={active} />
+              <NavIcon iconName={item.iconName} active={isActive} />
             </div>
             <span
-              className={`text-[length:var(--text-xs)] font-bold leading-tight ${active ? 'text-[color:var(--color-text-primary)]' : 'text-[color:var(--color-text-light)]'}`}
+              className={`text-[length:var(--text-xs)] font-bold leading-tight ${isActive ? 'text-[color:var(--color-text-primary)]' : 'text-[color:var(--color-text-light)]'}`}
             >
               {item.label}
             </span>
-          </div>
+          </button>
         );
       })}
     </div>

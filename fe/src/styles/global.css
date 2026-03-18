@@ -1,5 +1,5 @@
-/* Tailwind v4 Preflight가 리셋을 처리하므로 수동 리셋 불필요
-   * { margin/padding: 0 } 은 Tailwind 유틸리티를 덮어쓰므로 사용 금지 */
+/* Tailwind v4 Preflight가 기본 여백을 제거하므로 box-sizing만 전역 설정
+   * { margin/padding: 0 } 은 Tailwind 유틸리티를 통해 적용 */
 * {
   box-sizing: border-box;
 }
@@ -17,14 +17,14 @@
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 
-  /* ══════════════════════════════════
+  /* ═══════════════════════════════════
      디자인 토큰 (Design Tokens)
-     ══════════════════════════════════ */
+     ═══════════════════════════════════ */
 
-  /* ── 색상: 브랜드 ── */
+  /* 🎨 색상: 프라이머리 */
   --color-primary: #d5f368;
 
-  /* ── 색상: 배경 ── */
+  /* 🎨 색상: 배경색 */
   --color-bg-base: #f0efeb;
   --color-bg-dark: #1a1a1a;
   --color-bg-card: #f7f5f3;
@@ -32,14 +32,14 @@
   --color-bg-body: #f5f5f5;
   --color-bg-white: #ffffff;
 
-  /* ── 색상: 텍스트 ── */
+  /* 🎨 색상: 텍스트 */
   --color-text-primary: #1f2937;
   --color-text-secondary: #374151;
   --color-text-muted: #6b7280;
   --color-text-placeholder: #9ca3af;
   --color-text-light: #94a3b8;
 
-  /* ── 색상: 상태 (근무 현황) ── */
+  /* 🎨 색상: 상태 (홈 화면 상태 뱃지) */
   --color-status-green-dot: #65a30d;
   --color-status-green-bg: #ebfbbc;
   --color-status-green-border: #d5f368;
@@ -56,7 +56,7 @@
   --color-status-grey-bg: #e7e7e7;
   --color-status-grey-border: #d1d5db;
 
-  /* ── 색상: 상태 뱃지 (StatusBadge 카드) ── */
+  /* 🎨 색상: 상태 뱃지 (StatusBadge 컴포넌트) */
   --color-badge-green-bg: #e9f5c5;
   --color-badge-green-text: #111827;
   --color-badge-orange-bg: #fff2e6;
@@ -64,29 +64,29 @@
   --color-badge-purple-bg: #f5efff;
   --color-badge-purple-text: #8b5cf6;
 
-  /* ── 색상: 액션 카드 ── */
+  /* 🎨 색상: 액션 카드 */
   --color-action-todo: #d5f367;
   --color-action-schedule: #3b82f6;
   --color-action-schedule-text: #f5f8fe;
   --color-action-board: #ffddb6;
   --color-action-attendance: #e7d6ff;
 
-  /* ── 색상: 위험/알림 ── */
+  /* 🎨 색상: 위험/경고 */
   --color-danger: #ef4444;
   --color-warning: #f6723f;
   --color-badge-new: #f54c4c;
 
-  /* ── 색상: 아이콘 ── */
+  /* 🎨 색상: 아이콘 */
   --color-icon-default: #5e5e5e;
   --color-icon-dark: #292929;
   --color-icon-muted: #374957;
   --color-icon-light: #ededed;
 
-  /* ── 색상: 보더 ── */
+  /* 🎨 색상: 테두리 */
   --color-border-light: #f1f5f9;
   --color-border-muted: #d1d5db;
 
-  /* ── 폰트 크기 ── */
+  /* 🎨 폰트 사이즈 */
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -96,7 +96,7 @@
   --text-2xl: 25px;
   --text-3xl: 32px;
 
-  /* ── 간격 (padding, margin, gap) ── */
+  /* 🎨 간격 (padding, margin, gap) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 10px;
@@ -107,19 +107,19 @@
   --space-8: 24px;
   --space-9: 30px;
 
-  /* ── 둥글기 ── */
+  /* 🎨 테두리 반경 */
   --radius-sm: 10px;
   --radius-md: 12px;
   --radius-lg: 15px;
   --radius-xl: 20px;
 
-  /* ── z-index ── */
+  /* 🎨 z-index */
   --z-content: 10;
   --z-nav: 50;
   --z-bottom-sheet: 100;
   --z-modal: 200;
 
-  /* ── 그림자 ── */
+  /* 🎨 그림자 */
   --shadow-card:
     0px 5.782px 8.673px -1.735px rgba(0, 0, 0, 0.1),
     0px 2.313px 3.469px -2.313px rgba(0, 0, 0, 0.1);
@@ -136,21 +136,22 @@ body {
   background-color: var(--color-bg-body);
 }
 
-/* 앱 컨테이너 - 모바일 우선, 768px 이상에서 600px 고정 */
+/* 반응형 레이아웃 - 모바일(360px~), 800px 이상에서 최대 너비 고정 */
 #root {
   min-height: 100dvh;
   margin: 0 auto;
+  position: relative;
   background-color: var(--color-bg-white);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 800px) {
   #root {
-    max-width: 600px;
+    max-width: 800px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
   }
 }
 
-/* 바텀시트 슬라이드업 애니메이션 */
+/* 슬라이드업 애니메이션 */
 @keyframes slide-up {
   from {
     transform: translateY(100%);
@@ -162,4 +163,9 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* 스크롤바 숨김 (WebKit) */
+.overflow-y-auto::-webkit-scrollbar {
+  display: none;
 }

@@ -1,37 +1,40 @@
-interface ConfirmModalProps {
+﻿interface ConfirmModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
+  message?: string;
+  title?: string;
   description?: string;
   confirmText?: string;
   cancelText?: string;
+  onConfirm: () => void;
+  onClose: () => void;
 }
 
 export default function ConfirmModal({
   isOpen,
-  onClose,
-  onConfirm,
+  message,
   title,
   description,
   confirmText = '확인',
   cancelText = '취소',
+  onConfirm,
+  onClose,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
+  const primaryText = message ?? title ?? '';
+  const secondaryText = message ? undefined : description;
+
   return (
     <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center">
-      {/* 딤 배경 */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      {/* 모달 */}
       <div className="relative bg-white rounded-[var(--radius-lg)] w-[85%] max-w-[510px] overflow-hidden">
         <div className="flex flex-col items-center gap-[var(--space-1)] pt-[var(--space-8)] pb-[var(--space-6)]">
           <span className="text-[length:var(--text-lg)] font-bold text-[color:var(--color-text-primary)]">
-            {title}
+            {primaryText}
           </span>
-          {description && (
+          {secondaryText && (
             <span className="text-[length:var(--text-base)] text-[color:var(--color-text-muted)]">
-              {description}
+              {secondaryText}
             </span>
           )}
         </div>
