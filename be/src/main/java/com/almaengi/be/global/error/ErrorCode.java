@@ -36,6 +36,8 @@ public enum ErrorCode {
     AUCTION_LOCK_TIMEOUT(HttpStatus.TOO_MANY_REQUESTS, "A008", "현재 접속량이 많아 처리가 지연되고 있습니다. 잠시 후 다시 시도해주세요."),
     AUCTION_LOCK_INTERRUPTED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "Redisson Lock 처리 중 스레드 인터럽트가 발생했습니다."),
     INVALID_TIME_FORMAT(HttpStatus.BAD_REQUEST, "A010", "잘못된 시간 형식입니다."),
+    INVALID_DEADLINE(HttpStatus.BAD_REQUEST, "A011", "마감 시간은 현재 시각 이후여야 합니다."),
+    INVALID_TARGET_DATE(HttpStatus.BAD_REQUEST, "A012", "근무일은 오늘 이후(오늘 포함)여야 합니다."),
 
     // Auth
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A101", "이메일 또는 비밀번호가 올바르지 않습니다."),

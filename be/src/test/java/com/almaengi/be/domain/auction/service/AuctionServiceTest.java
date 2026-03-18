@@ -3,7 +3,6 @@ package com.almaengi.be.domain.auction.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,6 +31,7 @@ import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.domain.user.entity.User;
+import com.almaengi.be.domain.notification.service.NotificationService;
 import com.almaengi.be.domain.user.repository.UserRepository;
 import com.almaengi.be.domain.user.type.Role;
 import com.almaengi.be.global.error.BusinessException;
@@ -57,6 +57,8 @@ class AuctionServiceTest {
     private StoreRepository storeRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private NotificationService notificationService;
 
     private User owner;
     private User alba;
@@ -72,7 +74,7 @@ class AuctionServiceTest {
         alba = User.builder().email("alba@test.com").name("알바생").role(Role.EMPLOYEE).build();
         ReflectionTestUtils.setField(alba, "id", 2L);
 
-        store = Store.builder().name("알맹이 편의점").build();
+        store = Store.builder().owner(owner).name("알맹이 편의점").build();
         ReflectionTestUtils.setField(store, "id", 1L);
     }
 
@@ -84,7 +86,7 @@ class AuctionServiceTest {
         void success() {
             // given
             when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
-            when(storeRepository.findById(store.getId())).thenReturn(Optional.of(store));
+            when(storeRepository.findByIdAndIsClosedFalse(store.getId())).thenReturn(Optional.of(store));
 
             AuctionRequestDto.Register req = new AuctionRequestDto.Register();
             ReflectionTestUtils.setField(req, "targetDate", LocalDate.now());
@@ -125,10 +127,13 @@ class AuctionServiceTest {
         void failWhenMinWageUnderLimit() {
             // given
             when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
-            when(storeRepository.findById(store.getId())).thenReturn(Optional.of(store));
+            when(storeRepository.findByIdAndIsClosedFalse(store.getId())).thenReturn(Optional.of(store));
 
             AuctionRequestDto.Register req = new AuctionRequestDto.Register();
+            ReflectionTestUtils.setField(req, "targetDate", LocalDate.now().plusDays(1));
+            ReflectionTestUtils.setField(req, "deadline", LocalDateTime.now().plusHours(1));
             ReflectionTestUtils.setField(req, "minWage", 9000); // 10320 미만
+            ReflectionTestUtils.setField(req, "maxWage", 12000);
 
             // when & then
             BusinessException e = assertThrows(BusinessException.class,
@@ -141,9 +146,11 @@ class AuctionServiceTest {
         void failWhenMaxWageUnderMinWage() {
             // given
             when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
-            when(storeRepository.findById(store.getId())).thenReturn(Optional.of(store));
+            when(storeRepository.findByIdAndIsClosedFalse(store.getId())).thenReturn(Optional.of(store));
 
             AuctionRequestDto.Register req = new AuctionRequestDto.Register();
+            ReflectionTestUtils.setField(req, "targetDate", LocalDate.now().plusDays(1));
+            ReflectionTestUtils.setField(req, "deadline", LocalDateTime.now().plusHours(1));
             ReflectionTestUtils.setField(req, "minWage", 12000);
             ReflectionTestUtils.setField(req, "maxWage", 11000); // 오류!
 
@@ -368,7 +375,7 @@ class AuctionServiceTest {
             AuctionRequestDto.Close req = new AuctionRequestDto.Close();
             ReflectionTestUtils.setField(req, "selectedBidIds", java.util.Arrays.asList(1000L));
 
-            when(auctionBidRepository.findAllById(req.getSelectedBidIds()))
+            when(auctionBidRepository.findAllById(any(Iterable.class)))
                     .thenReturn(java.util.Arrays.asList(bid1));
 
             // when

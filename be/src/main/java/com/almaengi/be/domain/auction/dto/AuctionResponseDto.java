@@ -44,6 +44,9 @@ public class AuctionResponseDto {
         @Schema(description = "다중 낙찰된 알바생들의 Entity ID 목록", example = "[3, 7]")
         private List<Long> winnerIds;
 
+        @Schema(description = "경매 등록 일시", type = "string", example = "2026-03-01T10:00:00")
+        private LocalDateTime createdAt;
+
         // Entity -> DTO 변환 편의 로직 (현재 엔티티 참조만으로는 winner 목록을 가져올 수 없으므로, 명시적으로 주입받거나 서비스
         // 단에서 세팅하도록 변경)
         public static Auction from(ShiftAuction entity, List<Long> winnerIds) {
@@ -59,6 +62,7 @@ public class AuctionResponseDto {
                     .recruitCount(entity.getRecruitCount())
                     .status(entity.getStatus())
                     .winnerIds(winnerIds)
+                    .createdAt(entity.getCreatedAt())
                     .build();
         }
     }
@@ -104,5 +108,31 @@ public class AuctionResponseDto {
         private List<String> tags;
         @Schema(description = "경매 입찰 시간", type = "string", example = "2026-03-18T12:05:00")
         private LocalDateTime bidTime;
+    }
+
+    @Schema(description = "경매 마감(낙찰 확정) 결과 응답 DTO")
+    @Getter
+    @Builder
+    public static class CloseResult {
+        @Schema(description = "경매 식별 ID", example = "100")
+        private Long auctionId;
+        @Schema(description = "마감 후 경매 상태", example = "CLOSED")
+        private AuctionStatus status;
+        @Schema(description = "최종 낙찰 직원 목록")
+        private List<ClosedWinner> winners;
+    }
+
+    @Schema(description = "경매 마감 결과의 낙찰 직원 정보")
+    @Getter
+    @Builder
+    public static class ClosedWinner {
+        @Schema(description = "선정된 입찰 ID", example = "10")
+        private Long bidId;
+        @Schema(description = "낙찰 직원(StoreEmployee) ID", example = "2")
+        private Long employeeId;
+        @Schema(description = "낙찰 직원 이름", example = "김직원")
+        private String employeeName;
+        @Schema(description = "낙찰 시급", example = "12500")
+        private Integer bidWage;
     }
 }

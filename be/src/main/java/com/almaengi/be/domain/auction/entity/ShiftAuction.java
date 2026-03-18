@@ -1,5 +1,6 @@
 package com.almaengi.be.domain.auction.entity;
 
+import com.almaengi.be.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,7 +22,7 @@ import java.time.LocalDateTime;
 @Table(name = "shift_auctions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ShiftAuction {
+public class ShiftAuction extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,10 +37,10 @@ public class ShiftAuction {
     @Column(name = "target_date", nullable = false)
     private LocalDate targetDate; // 예: 2026-03-10
 
-    @Column(name = "target_start_time", nullable = false)
+    @Column(name = "start_time", nullable = false)
     private LocalTime targetStartTime; // 예: 18:00
 
-    @Column(name = "target_end_time", nullable = false)
+    @Column(name = "end_time", nullable = false)
     private LocalTime targetEndTime; // 예: 24:00 (또는 23:59)
 
     @Column(name = "deadline", nullable = false)
@@ -88,5 +89,24 @@ public class ShiftAuction {
      */
     public void closeAuction() {
         this.status = AuctionStatus.CLOSED;
+    }
+    // 낙찰 없이 경매 중단
+    public void cancelAuction() { this.status = AuctionStatus.CANCELLED; }
+
+    // 진행 중인 경매의 조건을 수정합니다.
+    public void updateAuctionInfo(LocalDate targetDate,
+                                  LocalTime targetStartTime,
+                                  LocalTime targetEndTime,
+                                  LocalDateTime deadline,
+                                  Integer minWage,
+                                  Integer maxWage,
+                                  Integer recruitCount) {
+        this.targetDate = targetDate;
+        this.targetStartTime = targetStartTime;
+        this.targetEndTime = targetEndTime;
+        this.deadline = deadline;
+        this.minWage = minWage;
+        this.maxWage = maxWage;
+        this.recruitCount = recruitCount;
     }
 }

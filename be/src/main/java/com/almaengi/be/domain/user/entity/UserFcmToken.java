@@ -39,6 +39,6 @@ public class UserFcmToken {
 
     // 디바이스 활성화 시간 갱신용 메서드
     public void updateLastActiveAt() {
-        this.lastActiveAt = lastActiveAt;
+        this.lastActiveAt = LocalDateTime.now();
     }
 }
