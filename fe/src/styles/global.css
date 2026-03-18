@@ -38,6 +38,12 @@
   --color-text-muted: #6b7280;
   --color-text-placeholder: #9ca3af;
   --color-text-light: #94a3b8;
+  --color-text-chip: #475569;
+  --color-text-sub: #64748b;
+  --color-status-badge-green-text: #7f9728;
+  --color-chip-selected-bg: #cbd5e1;
+  --color-select-all-checked-bg: #e7e6e6;
+  --color-text-dark: #4d4d4d;
 
   /* 🎨 색상: 상태 (홈 화면 상태 뱃지) */
   --color-status-green-dot: #65a30d;
@@ -71,7 +77,15 @@
   --color-action-board: #ffddb6;
   --color-action-attendance: #e7d6ff;
 
-  /* 🎨 색상: 위험/경고 */
+  /* ── 색상: 빈 상태 ── */
+  --color-empty-icon-outer: rgba(213, 243, 104, 0.2);
+  --color-empty-text-sub: #8e8e8e;
+
+  /* ── 색상: 오버레이 ── */
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay-dark: rgba(0, 0, 0, 0.8);
+
+  /* ── 색상: 위험/알림 ── */
   --color-danger: #ef4444;
   --color-warning: #f6723f;
   --color-badge-new: #f54c4c;
@@ -87,6 +101,17 @@
   --color-border-muted: #d1d5db;
 
   /* 🎨 폰트 사이즈 */
+  /* ── 색상: 입력 필드 ── */
+  --color-input-bg: #f8fafc;
+  --color-input-border: #e2e8f0;
+
+  /* ── 색상: 사진 첨부 ── */
+  --color-photo-add-border: #cbd5e1;
+  --color-photo-add-text: #64748b;
+  --color-photo-slot-bg: #f5f8fb;
+  --color-photo-slot-icon: #dbe2ea;
+
+  /* ── 폰트 크기 ── */
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -97,7 +122,9 @@
   --text-3xl: 32px;
 
   /* 🎨 간격 (padding, margin, gap) */
+  --space-0-5: 2px;
   --space-1: 4px;
+  --space-1-5: 6px;
   --space-2: 8px;
   --space-3: 10px;
   --space-4: 12px;
@@ -106,12 +133,24 @@
   --space-7: 20px;
   --space-8: 24px;
   --space-9: 30px;
+  --bottom-safe: 160px;
 
   /* 🎨 테두리 반경 */
+  --radius-xs: 8px;
   --radius-sm: 10px;
   --radius-md: 12px;
   --radius-lg: 15px;
   --radius-xl: 20px;
+
+  /* 🎨 컴포넌트 크기 */
+  --size-checkbox: 15px;
+  --size-textarea-h: 102px;
+  --size-photo-thumbnail: 60px;
+  --size-empty-icon-outer: 96px;
+  --size-empty-icon-inner: 64px;
+  --size-photo-slot: 75px;
+  --size-photo-preview-w: 240px;
+  --size-photo-preview-h: 180px;
 
   /* 🎨 z-index */
   --z-content: 10;
@@ -124,6 +163,7 @@
     0px 5.782px 8.673px -1.735px rgba(0, 0, 0, 0.1),
     0px 2.313px 3.469px -2.313px rgba(0, 0, 0, 0.1);
   --shadow-badge: 0px 0.578px 1.156px 0px rgba(0, 0, 0, 0.05);
+  --shadow-form-card: 0px 2px 4px 0px rgba(0, 0, 0, 0.05);
   --shadow-alert:
     0px 5.78px 8.67px 0px rgba(0, 0, 0, 0.1),
     0px 2.31px 3.47px 0px rgba(0, 0, 0, 0.1);
@@ -144,9 +184,9 @@ body {
   background-color: var(--color-bg-white);
 }
 
-@media (min-width: 800px) {
+@media (min-width: 768px) {
   #root {
-    max-width: 800px;
+    max-width: 600px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
   }
 }
