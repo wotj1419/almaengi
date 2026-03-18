@@ -32,7 +32,7 @@ export default function BottomSheet({
       {/* 딤 배경 */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       {/* 시트 */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] bg-white rounded-t-[var(--radius-xl)] max-h-[50vh] flex flex-col animate-slide-up">
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[800px] bg-white rounded-t-[var(--radius-xl)] max-h-[50vh] flex flex-col animate-slide-up">
         {/* 핸들 바 */}
         <div className="flex justify-center pt-[var(--space-4)] pb-[var(--space-2)] shrink-0">
           <div className="w-[40px] h-[4px] bg-[var(--color-border-muted)] rounded-full" />
