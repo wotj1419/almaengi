@@ -64,7 +64,7 @@ function WheelColumn({
       onScroll={handleScroll}
       onMouseUp={handleScrollEnd}
       onTouchEnd={handleScrollEnd}
-      className="relative z-10 w-24 overflow-y-auto"
+      className="relative z-10 flex-1 overflow-y-auto"
       style={{
         height: ITEM_HEIGHT * VISIBLE_ITEMS,
         scrollSnapType: 'y mandatory',
@@ -92,7 +92,7 @@ function WheelColumn({
             <span
               className={
                 isSelected
-                  ? 'text-black text-xl font-bold leading-7'
+                  ? 'text-[color:var(--color-text-dark)] text-xl font-bold leading-7'
                   : 'text-slate-300 text-base font-medium leading-7'
               }
             >
@@ -120,6 +120,15 @@ export default function TimePickerModal({
   const [tempHour, setTempHour] = useState(selectedHour);
   const [tempMinute, setTempMinute] = useState(selectedMinute);
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const hours = Array.from({ length: 24 }, (_, i) =>
@@ -133,7 +142,7 @@ export default function TimePickerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-80 mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-80 mx-4 bg-white rounded-[var(--radius-lg)] shadow-2xl overflow-hidden">
         {/* 헤더 */}
         <div className="px-6 pt-[18px] pb-3 flex justify-center">
           <span className="text-slate-800 text-lg font-bold leading-7">
@@ -148,7 +157,7 @@ export default function TimePickerModal({
         >
           {/* 선택 하이라이트 바 */}
           <div
-            className="absolute left-6 right-6 bg-zinc-100 rounded-lg border border-gray-200 pointer-events-none"
+            className="absolute left-6 right-6 bg-[var(--color-bg-base)] rounded-lg border border-gray-200 pointer-events-none"
             style={{
               height: ITEM_HEIGHT,
               top: '50%',
@@ -177,10 +186,10 @@ export default function TimePickerModal({
         </div>
 
         {/* 하단 버튼 */}
-        <div className="px-4 py-3.5 bg-gray-200 flex justify-end items-start gap-2">
+        <div className="px-4 py-3.5 bg-[var(--color-bg-base)] flex justify-end items-start gap-2">
           <button
             onClick={onClose}
-            className="flex-1 px-5 py-2.5 bg-white rounded-[10px] flex justify-center items-center"
+            className="flex-1 px-5 py-2.5 bg-white rounded-[var(--radius-lg)] flex justify-center items-center"
           >
             <span className="text-slate-500 text-lg font-medium leading-5">
               취소
@@ -188,7 +197,7 @@ export default function TimePickerModal({
           </button>
           <button
             onClick={() => onConfirm(tempHour, tempMinute)}
-            className="flex-1 px-6 py-2.5 bg-lime-300 rounded-[10px] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.05)] flex justify-center items-center"
+            className="flex-1 px-6 py-2.5 bg-[var(--color-action-todo)] rounded-[var(--radius-lg)] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.05)] flex justify-center items-center"
           >
             <span className="text-slate-900 text-lg font-bold leading-5">
               확인

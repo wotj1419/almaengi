@@ -7,6 +7,9 @@ import EmployeePage from '@/features/employee/pages/EmployeePage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
 import StorePage from '@/features/store/pages/StorePage';
 import TodoPage from '@/features/todo/pages/TodoPage';
+import TodoRegisterPage from '@/features/todo/pages/TodoRegisterPage';
+import TodoDetailPage from '@/features/todo/pages/TodoDetailPage';
+import TodoEditPage from '@/features/todo/pages/TodoEditPage';
 import AuctionPage from '@/features/auction/pages/AuctionPage';
 import AuctionDetailPage from '@/features/auction/pages/AuctionDetailPage';
 import AuctionRegisterPage from '@/features/auction/pages/AuctionRegisterPage';
@@ -35,6 +38,10 @@ export default function AppRouter() {
         <Route path="/auction/result/:id" element={<AuctionResultPage />} />
         <Route path="/auction/:id" element={<AuctionDetailPage />} />
       </Route>
+      <Route path={ROUTES.TODO_NEW} element={<TodoRegisterPage />} />
+      <Route path={ROUTES.TODO_DETAIL} element={<TodoDetailPage />} />
+      <Route path={ROUTES.TODO_EDIT} element={<TodoEditPage />} />
+      <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
       <Route path={ROUTES.BOARD} element={<BoardPage />} />
       <Route path={ROUTES.ATTENDANCE} element={<AttendancePage />} />
       <Route path={ROUTES.CHATBOT} element={<ChatbotPage />} />

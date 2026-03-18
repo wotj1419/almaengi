@@ -82,7 +82,7 @@ export default function DatePickerModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* 모달 */}
-      <div className="relative w-full max-w-80 mx-4 bg-white rounded-2xl py-3.5 inline-flex flex-col justify-center items-center gap-3.5">
+      <div className="relative w-full max-w-80 mx-4 bg-white rounded-[var(--radius-lg)] pt-3.5 overflow-hidden inline-flex flex-col justify-center items-center gap-3.5">
         {/* 헤더: 월 네비게이션 */}
         <div className="self-stretch px-7 inline-flex justify-between items-center">
           <button onClick={handlePrevMonth} className="p-1">
@@ -122,7 +122,7 @@ export default function DatePickerModal({
                 onClick={() => handleDateClick(cell.day, cell.current)}
                 className={`w-9 h-9 flex items-center justify-center rounded-full text-base leading-6 ${
                   selected
-                    ? 'bg-lime-300 text-black font-bold'
+                    ? 'bg-[var(--color-action-todo)] text-black font-bold'
                     : !cell.current
                       ? 'text-gray-200 font-normal'
                       : isSunday
@@ -138,18 +138,18 @@ export default function DatePickerModal({
         </div>
 
         {/* 하단 버튼 */}
-        <div className="self-stretch px-5 inline-flex justify-center items-center gap-3.5">
+        <div className="self-stretch px-4 py-3.5 bg-[var(--color-bg-base)] inline-flex justify-center items-center gap-2">
           <button
             onClick={onClose}
-            className="flex-1 h-12 bg-slate-200 rounded-xl flex justify-center items-center"
+            className="flex-1 px-5 py-2.5 bg-white rounded-[var(--radius-lg)] flex justify-center items-center"
           >
-            <span className="text-slate-600 text-lg font-bold leading-5">
+            <span className="text-slate-500 text-lg font-medium leading-5">
               취소
             </span>
           </button>
           <button
             onClick={() => onConfirm(tempDate)}
-            className="flex-1 h-12 bg-lime-300 rounded-xl flex justify-center items-center"
+            className="flex-1 px-6 py-2.5 bg-[var(--color-action-todo)] rounded-[var(--radius-lg)] shadow-[0px_2px_4px_0px_rgba(0,0,0,0.05)] flex justify-center items-center"
           >
             <span className="text-slate-900 text-lg font-bold leading-5">
               확인
