@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
@@ -12,6 +12,7 @@ const MAX_FILES = 10;
 
 export default function NewPostPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const addPost = useBoardStore((s) => s.addPost);
 
   const [title, setTitle] = useState('');
@@ -82,16 +83,27 @@ export default function NewPostPage() {
     });
 
     submittedRef.current = true;
-    navigate(ROUTES.STORE);
+    navigate(ROUTES.STORE_COMMUNITY, { state: location.state });
   };
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
-      <DetailHeader title="새 글 등록" onBack={() => navigate(-1)} />
+      <DetailHeader
+        title="새 글 등록"
+        onBack={() =>
+          navigate(`${ROUTES.STORE_COMMUNITY}?tab=board`, {
+            state: location.state,
+          })
+        }
+      />
 
       <StoreTabs
         activeTab="게시판"
-        onTabChange={() => navigate(ROUTES.STORE)}
+        onTabChange={() =>
+          navigate(`${ROUTES.STORE_COMMUNITY}?tab=chat`, {
+            state: location.state,
+          })
+        }
       />
 
       {/* 폼 */}

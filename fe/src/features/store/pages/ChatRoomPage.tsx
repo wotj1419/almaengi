@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Avatar from 'boring-avatars';
 import { Plus } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -40,6 +40,7 @@ function dateKey(dateStr: string): string {
 export default function ChatRoomPage() {
   const { chatRoomId } = useParams<{ chatRoomId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const roomId = Number(chatRoomId);
@@ -113,7 +114,16 @@ export default function ChatRoomPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
-      <DetailHeader title={roomName} onBack={() => navigate(ROUTES.STORE)} />
+      <DetailHeader
+        title={roomName}
+        onBack={() =>
+          location.state?.from === 'home-direct'
+            ? navigate(ROUTES.HOME)
+            : navigate(`${ROUTES.STORE_COMMUNITY}?tab=chat`, {
+                state: location.state,
+              })
+        }
+      />
 
       {/* 메시지 영역 */}
       <div
