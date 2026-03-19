@@ -9,7 +9,6 @@ interface AuctionListCardProps {
   onViewResult?: (id: number) => void;
   onEdit?: (id: number) => void;
   onStop?: (id: number) => void;
-  onDelete?: (id: number) => void;
 }
 
 export default function AuctionListCard({
@@ -20,11 +19,9 @@ export default function AuctionListCard({
   onViewResult,
   onEdit,
   onStop,
-  onDelete,
 }: AuctionListCardProps) {
   return (
     <div className="flex flex-col gap-3.5">
-      {/* 탭 필터 */}
       <div className="self-stretch inline-flex justify-center items-start gap-3">
         <button
           onClick={() => onTabChange('inProgress')}
@@ -34,13 +31,7 @@ export default function AuctionListCard({
               : 'bg-[var(--color-bg-white)]'
           }`}
         >
-          <span
-            className={`text-center text-base font-medium leading-5 ${
-              activeTab === 'inProgress'
-                ? 'text-[var(--color-text-primary)]'
-                : 'text-[var(--color-text-primary)]'
-            }`}
-          >
+          <span className="text-center text-base font-medium leading-5 text-[var(--color-text-primary)]">
             진행 중
           </span>
         </button>
@@ -52,19 +43,12 @@ export default function AuctionListCard({
               : 'bg-[var(--color-bg-white)]'
           }`}
         >
-          <span
-            className={`text-center text-base font-medium leading-5 ${
-              activeTab === 'completed'
-                ? 'text-[var(--color-text-primary)]'
-                : 'text-[var(--color-text-primary)]'
-            }`}
-          >
+          <span className="text-center text-base font-medium leading-5 text-[var(--color-text-primary)]">
             종료
           </span>
         </button>
       </div>
 
-      {/* 경매 목록 */}
       {auctions.length > 0 ? (
         <div className="flex flex-col gap-3.5">
           {auctions.map((auction) => (
@@ -75,7 +59,6 @@ export default function AuctionListCard({
               onViewResult={() => onViewResult?.(auction.id)}
               onEdit={() => onEdit?.(auction.id)}
               onStop={() => onStop?.(auction.id)}
-              onDelete={() => onDelete?.(auction.id)}
             />
           ))}
         </div>
@@ -97,7 +80,7 @@ export default function AuctionListCard({
               <p className="text-[var(--color-text-primary)]/50 text-base font-medium leading-6 text-center max-w-60">
                 기피 시간대 근무를 경매로 등록하여
                 <br />
-                직원들이 입찰할 수 있도록 해보세요.
+                직원이 입찰할 수 있도록 운영해보세요.
               </p>
             )}
           </div>

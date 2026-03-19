@@ -2,17 +2,16 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
-import Header from '@/components/layout/Header';
-import BottomNav from '@/components/layout/BottomNav';
 import DatePickerModal from '@/components/common/DateSheet';
 import TimePickerModal from '@/components/common/TimeSheet';
-import WorkInfoCard from '../components/WorkInfoCard';
+import BottomNav from '@/components/layout/BottomNav';
+import Header from '@/components/layout/Header';
+import { getApiErrorMessage } from '@/api/error';
+import type { AuctionDto } from '@/api/auction.types';
 import AuctionSettingsCard from '../components/AuctionSettingsCard';
+import WorkInfoCard from '../components/WorkInfoCard';
 import { useAuctionDetail, useUpdateAuction } from '../hooks/useAuctionQueries';
 import { formatTime, parseTimeStr } from '../utils/formatTime';
-import type { AuctionDto } from '@/api/auction.types';
-
-const STORE_ID = 1; // TODO: auth store에서 가져오기
 
 export default function AuctionEditPage() {
   const navigate = useNavigate();
@@ -57,11 +56,11 @@ function AuctionEditForm({
   auctionId: number;
 }) {
   const navigate = useNavigate();
-  const updateMutation = useUpdateAuction(STORE_ID);
+  const updateMutation = useUpdateAuction();
 
   const startParsed = parseTimeStr(auction.targetStartTime);
   const endParsed = parseTimeStr(auction.targetEndTime);
-  const dl = dayjs(auction.deadline);
+  const deadlineParsed = dayjs(auction.deadline);
 
   const [selectedDate, setSelectedDate] = useState(dayjs(auction.targetDate));
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -79,21 +78,12 @@ function AuctionEditForm({
   const [minWage, setMinWage] = useState(auction.minWage.toLocaleString());
   const [maxWage, setMaxWage] = useState(auction.maxWage.toLocaleString());
 
-  const [deadlineDate, setDeadlineDate] = useState(dl);
-  const [deadlineHour, setDeadlineHour] = useState(dl.hour());
-  const [deadlineMinute, setDeadlineMinute] = useState(dl.minute());
+  const [deadlineDate, setDeadlineDate] = useState(deadlineParsed);
+  const [deadlineHour, setDeadlineHour] = useState(deadlineParsed.hour());
+  const [deadlineMinute, setDeadlineMinute] = useState(deadlineParsed.minute());
   const [deadlineStep, setDeadlineStep] = useState<'date' | 'time' | null>(
     null
   );
-
-  const handleCancel = () => {
-    navigate(-1);
-  };
-
-  const handleStaffCountChange = (value: string) => {
-    setStaffCount(value);
-    setStaffCountError(false);
-  };
 
   const handleSubmit = () => {
     if (!staffCount || Number(staffCount) <= 0) {
@@ -107,20 +97,30 @@ function AuctionEditForm({
       .minute(startMinute)
       .second(0);
     const targetEnd = selectedDate.hour(endHour).minute(endMinute).second(0);
+    const deadline = deadlineDate
+      .hour(deadlineHour)
+      .minute(deadlineMinute)
+      .second(0);
 
     if (targetStart.isBefore(now)) {
-      toast.error('근무 시작 시간이 현재 시간보다 이전입니다.');
-      return;
-    }
-    if (targetEnd.isBefore(now)) {
-      toast.error('근무 종료 시간이 현재 시간보다 이전입니다.');
+      toast.error('근무 시작 시간은 현재 이후여야 합니다.');
       return;
     }
 
-    const parsedMinWage = Number(minWage.replace(/,/g, ''));
-    const parsedMaxWage = Number(maxWage.replace(/,/g, ''));
+    if (targetEnd.isBefore(targetStart)) {
+      toast.error('근무 종료 시간은 시작 시간 이후여야 합니다.');
+      return;
+    }
 
-    const deadlineStr = `${deadlineDate.format('YYYY-MM-DD')}T${String(deadlineHour).padStart(2, '0')}:${String(deadlineMinute).padStart(2, '0')}:00`;
+    if (!deadline.isAfter(now)) {
+      toast.error('경매 마감 시간은 현재 이후여야 합니다.');
+      return;
+    }
+
+    if (!deadline.isBefore(targetStart)) {
+      toast.error('경매 마감 시간은 근무 시작 전이어야 합니다.');
+      return;
+    }
 
     updateMutation.mutate(
       {
@@ -129,9 +129,9 @@ function AuctionEditForm({
           targetDate: selectedDate.format('YYYY-MM-DD'),
           targetStartTime: `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`,
           targetEndTime: `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`,
-          deadline: deadlineStr,
-          minWage: parsedMinWage,
-          maxWage: parsedMaxWage,
+          deadline: deadline.format('YYYY-MM-DDTHH:mm:ss'),
+          minWage: Number(minWage.replace(/,/g, '')),
+          maxWage: Number(maxWage.replace(/,/g, '')),
           recruitCount: Number(staffCount),
         },
       },
@@ -140,15 +140,18 @@ function AuctionEditForm({
           toast.success('경매가 수정되었습니다.');
           navigate('/auction');
         },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '경매 수정에 실패했습니다.'));
+        },
       }
     );
   };
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header title="경매 수정" onBack={handleCancel} />
+      {/* auctionStyle: 다른 경매 페이지와 헤더 스타일 통일 */}
+      <Header title="경매 수정" onBack={() => navigate(-1)} auctionStyle />
 
-      {/* 컨텐츠 */}
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">
         <WorkInfoCard
           date={selectedDate.format('YYYY. MM. DD')}
@@ -158,7 +161,10 @@ function AuctionEditForm({
           onDateClick={() => setIsDatePickerOpen(true)}
           onStartTimeClick={() => setTimePickerTarget('start')}
           onEndTimeClick={() => setTimePickerTarget('end')}
-          onStaffCountChange={handleStaffCountChange}
+          onStaffCountChange={(value) => {
+            setStaffCount(value);
+            setStaffCountError(false);
+          }}
           staffCountError={staffCountError}
         />
         <AuctionSettingsCard
@@ -170,10 +176,9 @@ function AuctionEditForm({
           onDeadlineClick={() => setDeadlineStep('date')}
         />
 
-        {/* 하단 버튼 */}
         <div className="self-stretch inline-flex justify-center items-center gap-3.5">
           <button
-            onClick={handleCancel}
+            onClick={() => navigate(-1)}
             className="flex-1 h-12 bg-[var(--color-bg-surface)] rounded-xl flex justify-center items-center"
           >
             <span className="text-[var(--color-text-muted)] text-lg font-bold leading-5">
@@ -200,17 +205,19 @@ function AuctionEditForm({
           if (deadlineStep === 'date') {
             setDeadlineDate(date);
             setDeadlineStep('time');
-          } else {
-            setSelectedDate(date);
-            setIsDatePickerOpen(false);
+            return;
           }
+
+          setSelectedDate(date);
+          setIsDatePickerOpen(false);
         }}
         onClose={() => {
           if (deadlineStep === 'date') {
             setDeadlineStep(null);
-          } else {
-            setIsDatePickerOpen(false);
+            return;
           }
+
+          setIsDatePickerOpen(false);
         }}
       />
 
@@ -236,22 +243,27 @@ function AuctionEditForm({
             setDeadlineHour(hour);
             setDeadlineMinute(minute);
             setDeadlineStep(null);
-          } else if (timePickerTarget === 'start') {
+            return;
+          }
+
+          if (timePickerTarget === 'start') {
             setStartHour(hour);
             setStartMinute(minute);
             setTimePickerTarget(null);
-          } else {
-            setEndHour(hour);
-            setEndMinute(minute);
-            setTimePickerTarget(null);
+            return;
           }
+
+          setEndHour(hour);
+          setEndMinute(minute);
+          setTimePickerTarget(null);
         }}
         onClose={() => {
           if (deadlineStep === 'time') {
             setDeadlineStep(null);
-          } else {
-            setTimePickerTarget(null);
+            return;
           }
+
+          setTimePickerTarget(null);
         }}
       />
     </div>
