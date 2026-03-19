@@ -26,6 +26,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,10 +55,6 @@ class AuctionControllerTest {
 
         @MockitoBean
         private RedisTokenRepository redisTokenRepository;
-
-        // 임시 토큰/사용자 ID 값 (실제 컨트롤러 내부에 있는 하드코딩된 값과 일치해야 함)
-        private final Long TEMP_OWNER_ID = 1L;
-        private final Long TEMP_ALBA_ID = 2L;
 
         @Nested
         @DisplayName("경매 등록 API 테스트")
@@ -87,7 +85,7 @@ class AuctionControllerTest {
                                         .andExpect(jsonPath("$.status").value("SUCCESS"));
 
                         Mockito.verify(auctionService, Mockito.times(1))
-                                        .registerAuction(eq(TEMP_OWNER_ID), eq(storeId),
+                                        .registerAuction(any(), eq(storeId),
                                                         any(AuctionRequestDto.Register.class));
                 }
         }
@@ -111,7 +109,7 @@ class AuctionControllerTest {
                                         .andExpect(jsonPath("$.status").value("SUCCESS"));
 
                         Mockito.verify(auctionService, Mockito.times(1))
-                                        .bidAuction(eq(auctionId), eq(TEMP_ALBA_ID), any(AuctionRequestDto.Bid.class));
+                                        .bidAuction(eq(auctionId), any(), any(AuctionRequestDto.Bid.class));
                 }
         }
 
@@ -127,15 +125,31 @@ class AuctionControllerTest {
                         org.springframework.test.util.ReflectionTestUtils.setField(req, "selectedBidIds",
                                         Arrays.asList(1L, 2L));
 
+                        AuctionResponseDto.CloseResult closeResult = AuctionResponseDto.CloseResult.builder()
+                                        .auctionId(auctionId)
+                                        .status(com.almaengi.be.domain.auction.type.AuctionStatus.CLOSED)
+                                        .winners(Arrays.asList(
+                                                        AuctionResponseDto.ClosedWinner.builder()
+                                                                        .bidId(1L)
+                                                                        .employeeId(10L)
+                                                                        .employeeName("김직원")
+                                                                        .bidWage(12500)
+                                                                        .build()))
+                                        .build();
+                        Mockito.when(auctionService.closeAuction(eq(auctionId), any(), any(AuctionRequestDto.Close.class)))
+                                        .thenReturn(closeResult);
+
                         // when & then
                         mockMvc.perform(post("/api/v1/auctions/{auctionId}/close", auctionId)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(req)))
                                         .andExpect(status().isOk())
-                                        .andExpect(jsonPath("$.status").value("SUCCESS"));
+                                        .andExpect(jsonPath("$.status").value("SUCCESS"))
+                                        .andExpect(jsonPath("$.data.auctionId").value(100))
+                                        .andExpect(jsonPath("$.data.winners[0].employeeId").value(10));
 
                         Mockito.verify(auctionService, Mockito.times(1))
-                                        .closeAuction(eq(auctionId), eq(TEMP_OWNER_ID),
+                                        .closeAuction(eq(auctionId), any(),
                                                         any(AuctionRequestDto.Close.class));
                 }
         }
@@ -151,6 +165,7 @@ class AuctionControllerTest {
                         AuctionResponseDto.Auction auctionMock = AuctionResponseDto.Auction.builder()
                                         .auctionId(100L)
                                         .status(com.almaengi.be.domain.auction.type.AuctionStatus.IN_PROGRESS)
+                                        .createdAt(LocalDateTime.of(2026, 3, 1, 10, 0))
                                         .build();
 
                         List<AuctionResponseDto.Auction> responseList = Arrays.asList(auctionMock);
@@ -160,7 +175,8 @@ class AuctionControllerTest {
                         mockMvc.perform(get("/api/v1/auctions/store/{storeId}", storeId))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.status").value("SUCCESS"))
-                                        .andExpect(jsonPath("$.data[0].auctionId").value(100));
+                                        .andExpect(jsonPath("$.data[0].auctionId").value(100))
+                                        .andExpect(jsonPath("$.data[0].createdAt").exists());
 
                         Mockito.verify(auctionService, Mockito.times(1)).getAuctions(storeId);
                 }
@@ -177,6 +193,7 @@ class AuctionControllerTest {
                         AuctionResponseDto.Auction auctionMock = AuctionResponseDto.Auction.builder()
                                         .auctionId(auctionId)
                                         .status(com.almaengi.be.domain.auction.type.AuctionStatus.IN_PROGRESS)
+                                        .createdAt(LocalDateTime.of(2026, 3, 1, 10, 0))
                                         .build();
                         AuctionResponseDto.Detail detailMock = AuctionResponseDto.Detail.builder()
                                         .auction(auctionMock)
@@ -185,15 +202,60 @@ class AuctionControllerTest {
                                                        // basic assertion
                                         .build();
 
-                        Mockito.when(auctionService.getAuctionDetail(auctionId, TEMP_OWNER_ID)).thenReturn(detailMock);
+                        Mockito.when(auctionService.getAuctionDetail(eq(auctionId), any())).thenReturn(detailMock);
 
                         // when & then
                         mockMvc.perform(get("/api/v1/auctions/{auctionId}", auctionId))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.status").value("SUCCESS"))
-                                        .andExpect(jsonPath("$.data.auction.auctionId").value(100));
+                                        .andExpect(jsonPath("$.data.auction.auctionId").value(100))
+                                        .andExpect(jsonPath("$.data.auction.createdAt").exists());
 
-                        Mockito.verify(auctionService, Mockito.times(1)).getAuctionDetail(auctionId, TEMP_OWNER_ID);
+                        Mockito.verify(auctionService, Mockito.times(1)).getAuctionDetail(eq(auctionId), any());
+                }
+        }
+
+        @Nested
+        @DisplayName("경매 수정 API 테스트")
+        class UpdateAuctionTest {
+                @Test
+                @DisplayName("성공: 진행 중 경매 정보를 수정한다")
+                void updateAuctionSuccess() throws Exception {
+                        Long auctionId = 100L;
+                        AuctionRequestDto.Update req = new AuctionRequestDto.Update();
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "targetDate", LocalDate.now().plusDays(1));
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "targetStartTime", LocalTime.of(18, 0));
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "targetEndTime", LocalTime.of(22, 0));
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "deadline", LocalDateTime.now().plusHours(6).withNano(0));
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "minWage", 10320);
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "maxWage", 14000);
+                        org.springframework.test.util.ReflectionTestUtils.setField(req, "recruitCount", 2);
+
+                        mockMvc.perform(put("/api/v1/auctions/{auctionId}", auctionId)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(req)))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.status").value("SUCCESS"));
+
+                        Mockito.verify(auctionService, Mockito.times(1))
+                                        .updateAuction(eq(auctionId), any(), any(AuctionRequestDto.Update.class));
+                }
+        }
+
+        @Nested
+        @DisplayName("경매 삭제(중단) API 테스트")
+        class DeleteAuctionTest {
+                @Test
+                @DisplayName("성공: 진행 중 경매를 중단 처리한다")
+                void deleteAuctionSuccess() throws Exception {
+                        Long auctionId = 100L;
+
+                        mockMvc.perform(delete("/api/v1/auctions/{auctionId}", auctionId))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.status").value("SUCCESS"));
+
+                        Mockito.verify(auctionService, Mockito.times(1))
+                                        .deleteAuction(eq(auctionId), any());
                 }
         }
 }

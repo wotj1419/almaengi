@@ -4,6 +4,7 @@ import com.almaengi.be.domain.auction.controller.docs.AuctionControllerDocs;
 import com.almaengi.be.domain.auction.dto.AuctionRequestDto;
 import com.almaengi.be.domain.auction.dto.AuctionResponseDto;
 import com.almaengi.be.domain.auction.service.AuctionService;
+import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,14 +18,7 @@ import java.util.List;
 @RequestMapping("/api/v1/auctions")
 @RequiredArgsConstructor
 public class AuctionController implements AuctionControllerDocs {
-
     private final AuctionService auctionService;
-
-    // TODO: Security 설정 완료 시 @AuthenticationPrincipal을 통해 userId 연동
-    // TODO: Security 설정 완료 시, 소속 매장 검사 AOP로 분리할 것.
-    // 임시 테스트용 고정 userId (추후 시큐리티로 교체)
-    private final Long TEMP_OWNER_ID = 1L;
-    private final Long TEMP_ALBA_ID = 2L;
 
     /**
      * [Phase 3-1: 경매 등록]
@@ -32,11 +26,12 @@ public class AuctionController implements AuctionControllerDocs {
      */
     @PostMapping("/store/{storeId}")
     public ApiResponse<Void> registerAuction(
+            @AuthUser Long userId,
             @PathVariable Long storeId,
             @RequestBody AuctionRequestDto.Register request) {
 
         // 2. 서비스 로직 호출 (권한 체크 및 엔티티 조회는 Service 내부에서 수행)
-        auctionService.registerAuction(TEMP_OWNER_ID, storeId, request);
+        auctionService.registerAuction(userId, storeId, request);
         return ApiResponse.success();
     }
 
@@ -46,11 +41,12 @@ public class AuctionController implements AuctionControllerDocs {
      */
     @PostMapping("/{auctionId}/bids")
     public ApiResponse<Void> bidAuction(
+            @AuthUser Long userId,
             @PathVariable Long auctionId,
             @RequestBody AuctionRequestDto.Bid request) {
 
         // 2. 서비스 로직 호출 (employee 유효성 검증은 service에서 진행됨)
-        auctionService.bidAuction(auctionId, TEMP_ALBA_ID, request);
+        auctionService.bidAuction(auctionId, userId, request);
         return ApiResponse.success();
     }
 
@@ -59,13 +55,14 @@ public class AuctionController implements AuctionControllerDocs {
      * 사장님(OWNER) 전용 API. 다수의 알바생을 낙찰 확정 짓고 경매를 종료합니다.
      */
     @PostMapping("/{auctionId}/close")
-    public ApiResponse<Void> closeAuction(
+    public ApiResponse<AuctionResponseDto.CloseResult> closeAuction(
+            @AuthUser Long userId,
             @PathVariable Long auctionId,
             @RequestBody AuctionRequestDto.Close request) {
 
         // 2. 서비스 로직 호출
-        auctionService.closeAuction(auctionId, TEMP_OWNER_ID, request);
-        return ApiResponse.success();
+        AuctionResponseDto.CloseResult response = auctionService.closeAuction(auctionId, userId, request);
+        return ApiResponse.success(response);
     }
 
     /**
@@ -84,10 +81,27 @@ public class AuctionController implements AuctionControllerDocs {
      * 사장님의 경우 지원자 목록(Bidders)이 포함되고, 알바생은 포함되지 않습니다.
      */
     @GetMapping("/{auctionId}")
-    public ApiResponse<AuctionResponseDto.Detail> getAuctionDetail(@PathVariable Long auctionId) {
+    public ApiResponse<AuctionResponseDto.Detail> getAuctionDetail(
+            @AuthUser Long userId,
+            @PathVariable Long auctionId) {
 
         // 2. 권한(Role)에 따른 상세 조회 로직 분기 (Service 로직에서 처리)
-        AuctionResponseDto.Detail response = auctionService.getAuctionDetail(auctionId, TEMP_OWNER_ID);
+        AuctionResponseDto.Detail response = auctionService.getAuctionDetail(auctionId, userId);
         return ApiResponse.success(response);
     }
+
+    // 경매 수정
+    @PutMapping("/{auctionId}")
+    public ApiResponse<Void> updateAuction(@AuthUser Long userId, @PathVariable Long auctionId, @RequestBody AuctionRequestDto.Update request) {
+        auctionService.updateAuction(auctionId, userId, request);
+        return ApiResponse.success();
+    }
+
+    // 경매 삭제(취소)
+    @DeleteMapping("/{auctionId}")
+    public ApiResponse<Void> deleteAuction(@AuthUser Long userId, @PathVariable Long auctionId) {
+        auctionService.deleteAuction(auctionId, userId);
+        return ApiResponse.success();
+    }
+
 }

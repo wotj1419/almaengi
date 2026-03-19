@@ -13,6 +13,7 @@ import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -50,9 +51,8 @@ public class NotificationService {
                         });
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendNotification(User receiver, NotificationType type, String title, String body, Long targetId) {
-
         List<UserFcmToken> tokens = userFcmTokenRepository.findAllByUserId(receiver.getId());
 
         Notification notification = Notification.builder()
@@ -64,14 +64,21 @@ public class NotificationService {
                 .build();
         notificationRepository.save(notification);
 
-        if(tokens.isEmpty()) {
-            log.info("해당 유저(id:{})의 FCM 토큰이 없어 알림 발송이 취소되었습니다.", receiver.getId());
-            return;
+        try {
+            if(tokens.isEmpty()) {
+                log.info("해당 유저(id:{})의 FCM 토큰이 없어 알림 발송이 취소되었습니다.", receiver.getId());
+                return;
+            }
+
+            for(UserFcmToken token : tokens) {
+                fcmService.sendPushNotification(token.getDeviceToken(), title, body, type.toString(), String.valueOf(targetId));
+            }
+        } catch(Exception e) {
+            // 알림 발송이 메인 로직을 정지시키지 못하도록 예외 삼키기.
+            log.warn("알림 발송 실패 - receiverId: {}, type: {}, targetId: {}, reason: {}",
+                    receiver.getId(), type, targetId, e.getMessage(), e);
         }
 
-        for(UserFcmToken token : tokens) {
-            fcmService.sendPushNotification(token.getDeviceToken(), title, body, type.toString(), String.valueOf(targetId));
-        }
     }
 
     // 특정 유저의 알림함 조회

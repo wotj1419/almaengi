@@ -1,8 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
-import HomePage from './pages/HomePage';
-import NotFoundPage from './pages/NotFoundPage';
+import AppRouter from './router';
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
@@ -18,10 +17,7 @@ const App = () => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <AppRouter />
       </BrowserRouter>
       <Toaster position="bottom-center" toastOptions={{ duration: 3000 }} />
     </ErrorBoundary>
