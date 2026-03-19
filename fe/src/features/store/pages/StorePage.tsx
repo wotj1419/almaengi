@@ -1,19 +1,35 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MessageSquarePlus } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { MessageSquarePlus, Pencil } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import ChatRoomCard from '../components/ChatRoomCard';
+import PostCard from '../components/PostCard';
+import StoreTabs, { type Tab } from '../components/StoreTabs';
 import { useChatStore } from '@/stores/useChatStore';
-
-type Tab = '게시판' | '채팅방';
-const TABS: Tab[] = ['게시판', '채팅방'];
+import { useBoardStore } from '@/stores/useBoardStore';
 
 export default function StorePage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('채팅방');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab: Tab =
+    searchParams.get('tab') === 'chat' ? '채팅방' : '게시판';
+  const setActiveTab = (tab: Tab) =>
+    setSearchParams(
+      { tab: tab === '채팅방' ? 'chat' : 'board' },
+      { replace: true }
+    );
   const rooms = useChatStore((s) => s.rooms);
+  const posts = useBoardStore((s) => s.posts);
+
+  // NOTICE(공지) 게시글 상단 고정, 나머지는 최신순
+  const sortedPosts = [...posts]
+    .filter((p) => !p.isDeleted)
+    .sort((a, b) => {
+      if (a.boardType === 'NOTICE' && b.boardType !== 'NOTICE') return -1;
+      if (a.boardType !== 'NOTICE' && b.boardType === 'NOTICE') return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   // 알맹이 챗봇 최상단 고정, 나머지는 최신 메시지 순 (내림차순)
   const sortedRooms = [...rooms].sort((a, b) => {
@@ -25,9 +41,9 @@ export default function StorePage() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--color-bg-base)]">
+    <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
       <DetailHeader
-        title="매장 게시판"
+        title="매장 커뮤니티"
         onBack={() => navigate(ROUTES.HOME)}
         rightIcon={
           activeTab === '채팅방' ? (
@@ -36,39 +52,41 @@ export default function StorePage() {
               color="var(--color-text-primary)"
               strokeWidth={2}
             />
-          ) : undefined
+          ) : (
+            <Pencil
+              size={20}
+              color="var(--color-text-primary)"
+              strokeWidth={2}
+            />
+          )
         }
         onRightClick={
           activeTab === '채팅방'
             ? () => navigate(ROUTES.STORE_CHAT_NEW)
-            : undefined
+            : () => navigate(ROUTES.STORE_BOARD_NEW)
         }
       />
 
-      {/* 탭 */}
-      <div className="bg-[var(--color-bg-white)] flex border-b border-[var(--color-border-light)]">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            className={`flex-1 py-[var(--space-3)] cursor-pointer border-b-4 ${activeTab === tab ? 'border-[var(--color-primary)]' : 'border-transparent'}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            <span
-              className={`text-[length:var(--text-lg)] leading-5 ${activeTab === tab ? 'font-bold text-[color:var(--color-text-primary)]' : 'font-medium text-[color:var(--color-text-sub)]'}`}
-            >
-              {tab}
-            </span>
-          </button>
-        ))}
-      </div>
+      <StoreTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* 콘텐츠 */}
-      <main className="flex-1 flex flex-col pb-[var(--bottom-safe)]">
+      <main className="flex-1 overflow-y-auto flex flex-col pb-[80px]">
         {activeTab === '게시판' ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-[length:var(--text-md)] text-[color:var(--color-text-muted)]">
-              게시판 기능 준비 중
-            </p>
+          <div className="flex flex-col gap-[var(--space-4)] px-[var(--space-5)] pt-[var(--space-4)] pb-[var(--space-7)]">
+            {sortedPosts.map((post) => (
+              <PostCard
+                key={post.postId}
+                post={post}
+                onClick={() =>
+                  navigate(
+                    ROUTES.STORE_BOARD_DETAIL.replace(
+                      ':postId',
+                      String(post.postId)
+                    )
+                  )
+                }
+              />
+            ))}
           </div>
         ) : (
           <div className="flex flex-col">

@@ -11,6 +11,8 @@ export const ROUTES = {
   STORE: '/store',
   STORE_CHAT_NEW: '/store/chat/new',
   STORE_CHAT_ROOM: '/store/chat/:chatRoomId',
+  STORE_BOARD_NEW: '/store/board/new',
+  STORE_BOARD_DETAIL: '/store/board/:postId',
   TODO: '/todo',
   TODO_NEW: '/todo/new',
   TODO_DETAIL: '/todo/:id',
