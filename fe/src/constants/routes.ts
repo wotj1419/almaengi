@@ -9,6 +9,8 @@ export const ROUTES = {
   EMPLOYEE: '/employee',
   PAYROLL: '/payroll',
   STORE: '/store',
+  STORE_CHAT_NEW: '/store/chat/new',
+  STORE_CHAT_ROOM: '/store/chat/:chatRoomId',
   TODO: '/todo',
   TODO_NEW: '/todo/new',
   TODO_DETAIL: '/todo/:id',
