@@ -1,11 +1,11 @@
-// API 응답 공통 타입
 export interface ApiResponse<T> {
   status: string;
   message: string;
   data: T;
 }
 
-// 경매 DTO (목록/상세 조회 응답)
+export type AuctionStatus = 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED';
+
 export interface AuctionDto {
   auctionId: number;
   storeId: number;
@@ -16,11 +16,11 @@ export interface AuctionDto {
   minWage: number;
   maxWage: number;
   recruitCount: number;
-  status: 'IN_PROGRESS' | 'CLOSED';
+  status: AuctionStatus;
   winnerIds: number[];
+  createdAt?: string;
 }
 
-// 입찰자 DTO
 export interface BidderDto {
   bidId: number;
   employeeId: number;
@@ -30,17 +30,17 @@ export interface BidderDto {
   bidTime: string;
 }
 
-// 경매 상세 조회 응답
-export interface AuctionDetailDto {
-  auction: AuctionDto;
-  bidders: {
-    group1: BidderDto[];
-    group2: BidderDto[];
-    group3: BidderDto[];
-  } | null;
+export interface AuctionBiddersDto {
+  group1: BidderDto[];
+  group2: BidderDto[];
+  group3: BidderDto[];
 }
 
-// 경매 등록 요청
+export interface AuctionDetailDto {
+  auction: AuctionDto;
+  bidders: AuctionBiddersDto | null;
+}
+
 export interface CreateAuctionRequest {
   targetDate: string;
   targetStartTime: string;
@@ -51,7 +51,19 @@ export interface CreateAuctionRequest {
   recruitCount: number;
 }
 
-// 경매 낙찰 요청
 export interface CloseAuctionRequest {
   selectedBidIds: number[];
+}
+
+export interface CloseAuctionWinnerDto {
+  bidId: number;
+  employeeId: number;
+  employeeName: string;
+  bidWage: number;
+}
+
+export interface CloseAuctionResponse {
+  auctionId: number;
+  status: AuctionStatus;
+  winners: CloseAuctionWinnerDto[];
 }

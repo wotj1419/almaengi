@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Timer, Users, Clock, MapPin } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Clock, MapPin, Timer, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
 import Header from '@/components/layout/Header';
-import ConfirmModal from '@/components/common/ConfirmModal';
+import { getApiErrorMessage } from '@/api/error';
 import { useAuctionDetail, useCloseAuction } from '../hooks/useAuctionQueries';
 import BidderGroup from '../components/BidderGroup';
 
-const STORE_ID = 1; // TODO: auth store에서 가져오기
+interface ResultPageWinner {
+  bidId: number;
+  employeeId: number;
+  name: string;
+  wage: number;
+}
 
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +22,7 @@ export default function AuctionDetailPage() {
   const auctionId = Number(id);
 
   const { data: detail } = useAuctionDetail(auctionId);
-  const closeMutation = useCloseAuction(STORE_ID);
+  const closeMutation = useCloseAuction();
 
   const [selectedBidIds, setSelectedBidIds] = useState<number[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -26,15 +32,15 @@ export default function AuctionDetailPage() {
 
   const toggleBidder = (bidId: number) => {
     if (selectedBidIds.includes(bidId)) {
-      setSelectedBidIds((prev) => prev.filter((id) => id !== bidId));
+      setSelectedBidIds((prev) => prev.filter((value) => value !== bidId));
       return;
     }
+
     if (auction && selectedBidIds.length >= auction.recruitCount) {
-      toast.error(
-        `모집 인원(${auction.recruitCount}명)만큼만 선택할 수 있습니다.`
-      );
+      toast.error(`모집 인원(${auction.recruitCount}명)만 선택할 수 있습니다.`);
       return;
     }
+
     setSelectedBidIds((prev) => [...prev, bidId]);
   };
 
@@ -43,27 +49,46 @@ export default function AuctionDetailPage() {
       toast.error('낙찰할 입찰자를 선택해주세요.');
       return;
     }
+
     setShowConfirmModal(true);
   };
 
   const handleConfirmClose = () => {
-    const allBidders = bidders
-      ? [...bidders.group1, ...bidders.group2, ...bidders.group3]
-      : [];
-    const winners = allBidders.filter((b) => selectedBidIds.includes(b.bidId));
-
     closeMutation.mutate(
       { auctionId, body: { selectedBidIds } },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
+          const winners: ResultPageWinner[] = result.winners.map((winner) => ({
+            bidId: winner.bidId,
+            employeeId: winner.employeeId,
+            name: winner.employeeName,
+            wage: winner.bidWage,
+          }));
+
           navigate(`/auction/result/${auctionId}`, {
-            state: { winners, auction },
             replace: true,
+            state: {
+              winners,
+              auction: auction
+                ? {
+                    ...auction,
+                    status: result.status,
+                    winnerIds: result.winners.map(
+                      (winner) => winner.employeeId
+                    ),
+                  }
+                : undefined,
+            },
           });
+        },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '경매 낙찰에 실패했습니다.'));
+        },
+        onSettled: () => {
+          setShowConfirmModal(false);
         },
       }
     );
-    setShowConfirmModal(false);
   };
 
   if (!auction) {
@@ -93,47 +118,42 @@ export default function AuctionDetailPage() {
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
       <Header title="경매 현황" onBack={() => navigate(-1)} auctionStyle />
 
-      {/* 콘텐츠 */}
       <div className="px-3.5 pt-3.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-3.5">
-        {/* 경매 정보 카드 */}
         <div className="w-full bg-[var(--color-bg-white)] rounded-2xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-[var(--color-border-light)] overflow-hidden">
           <div className="p-5 flex flex-col gap-3">
-            {/* 잔여 시간 */}
             <div className="inline-flex items-center gap-2">
               <Timer
                 className="w-4 h-4 text-[var(--color-text-muted)]"
                 strokeWidth={2}
               />
               <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
-                경매 잔여 시간 :{' '}
+                경매 잔여 시간:{' '}
                 <span className="text-[var(--color-text-primary)]">
                   {remainingTimeStr}
                 </span>
               </span>
             </div>
 
-            {/* 모집 인원 */}
             <div className="inline-flex items-center gap-2">
               <Users
                 className="w-4 h-4 text-[var(--color-text-muted)]"
                 strokeWidth={2}
               />
               <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
-                모집 인원 :{' '}
+                모집 인원:{' '}
                 <span className="text-[var(--color-text-primary)]">
                   {auction.recruitCount}명
                 </span>
               </span>
             </div>
 
-            {/* 근무 시간 */}
             <div className="inline-flex items-center gap-2">
               <Clock
                 className="w-4 h-4 text-[var(--color-text-muted)]"
                 strokeWidth={2}
               />
               <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
-                근무 시간 :{' '}
+                근무 시간:{' '}
                 <span className="text-[var(--color-text-primary)]">
                   {auction.targetDate} | {auction.targetStartTime.slice(0, 5)} -{' '}
                   {auction.targetEndTime.slice(0, 5)}
@@ -141,14 +161,13 @@ export default function AuctionDetailPage() {
               </span>
             </div>
 
-            {/* 근무 지점 */}
             <div className="inline-flex items-center gap-2">
               <MapPin
                 className="w-4 h-4 text-[var(--color-text-muted)]"
                 strokeWidth={2}
               />
               <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
-                근무 지점 :{' '}
+                근무 지점:{' '}
                 <span className="text-[var(--color-text-primary)]">
                   부산갈매기 수완점
                 </span>
@@ -157,12 +176,11 @@ export default function AuctionDetailPage() {
           </div>
         </div>
 
-        {/* 입찰자 그룹 섹션 */}
         {bidders && (
           <>
             <BidderGroup
-              title="주휴수당 미발생"
-              description="이번 낙찰 시 주휴수당이 발생하지 않는 직원"
+              title="우선 배정 유지"
+              description="이번 낙찰 후 우선 배정에 영향이 적은 직원"
               bidders={bidders.group1}
               borderColor="border-[var(--color-status-orange-dot)]"
               rankColor="text-[var(--color-status-orange-dot)]"
@@ -170,8 +188,8 @@ export default function AuctionDetailPage() {
               onToggle={toggleBidder}
             />
             <BidderGroup
-              title="주휴수당 발생 가능"
-              description="이번 낙찰 시 주휴수당이 발생할 수 있는 직원"
+              title="우선 배정 변동 가능"
+              description="이번 낙찰 시 우선 배정이 바뀔 수 있는 직원"
               bidders={bidders.group2}
               borderColor="border-[var(--color-action-schedule)]"
               rankColor="text-[var(--color-action-schedule)]"
@@ -179,8 +197,8 @@ export default function AuctionDetailPage() {
               onToggle={toggleBidder}
             />
             <BidderGroup
-              title="주휴수당 발생 중"
-              description="이미 이번 주 주휴수당 조건을 충족한 직원"
+              title="우선 배정 제외 가능"
+              description="이번 낙찰 시 우선 배정 대상에서 제외될 수 있는 직원"
               bidders={bidders.group3}
               borderColor="border-[var(--color-primary)]"
               rankColor="text-[var(--color-primary)]"
@@ -190,7 +208,6 @@ export default function AuctionDetailPage() {
           </>
         )}
 
-        {/* 하단 버튼 */}
         {isInProgress && (
           <div className="w-full px-0 inline-flex justify-center items-center gap-3.5">
             <button

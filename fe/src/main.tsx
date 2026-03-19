@@ -18,10 +18,12 @@ const queryClient = new QueryClient({
 
 // MSW 목업 활성화 - VITE_ENABLE_MSW=true 일 때만 동작
 async function enableMocking() {
-  if (import.meta.env.VITE_ENABLE_MSW === 'true') {
+  if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MSW === 'true') {
     const { worker } = await import('./mocks/browser');
     return worker.start({ onUnhandledRequest: 'bypass' });
   }
+
+  return undefined;
 }
 
 enableMocking().then(() => {
