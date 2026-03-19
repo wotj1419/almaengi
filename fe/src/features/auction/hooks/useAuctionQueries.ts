@@ -1,15 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  fetchAuctions,
-  fetchAuctionDetail,
-  createAuction,
-  updateAuction,
-  deleteAuction,
   closeAuction,
+  createAuction,
+  deleteAuction,
+  fetchAuctionDetail,
+  fetchAuctions,
+  updateAuction,
 } from '@/api/auction';
 import type {
-  CreateAuctionRequest,
   CloseAuctionRequest,
+  CreateAuctionRequest,
 } from '@/api/auction.types';
 
 const AUCTION_KEYS = {
@@ -19,39 +19,41 @@ const AUCTION_KEYS = {
     [...AUCTION_KEYS.all, 'detail', auctionId] as const,
 };
 
-// 경매 목록 조회
 export function useAuctions(storeId: number) {
   return useQuery({
     queryKey: AUCTION_KEYS.list(storeId),
     queryFn: () => fetchAuctions(storeId),
-    select: (res) => res.data,
   });
 }
 
-// 경매 상세 조회
 export function useAuctionDetail(auctionId: number) {
   return useQuery({
     queryKey: AUCTION_KEYS.detail(auctionId),
     queryFn: () => fetchAuctionDetail(auctionId),
-    select: (res) => res.data,
     enabled: auctionId > 0,
   });
 }
 
-// 경매 등록
-export function useCreateAuction(storeId: number) {
+export function useCreateAuction() {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (body: CreateAuctionRequest) => createAuction(storeId, body),
+    mutationFn: ({
+      storeId,
+      body,
+    }: {
+      storeId: number;
+      body: CreateAuctionRequest;
+    }) => createAuction(storeId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.list(storeId) });
+      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.all });
     },
   });
 }
 
-// 경매 수정
-export function useUpdateAuction(storeId: number) {
+export function useUpdateAuction() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       auctionId,
@@ -61,25 +63,25 @@ export function useUpdateAuction(storeId: number) {
       body: CreateAuctionRequest;
     }) => updateAuction(auctionId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.list(storeId) });
+      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.all });
     },
   });
 }
 
-// 경매 중단 (삭제)
-export function useDeleteAuction(storeId: number) {
+export function useDeleteAuction() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (auctionId: number) => deleteAuction(auctionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.list(storeId) });
+      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.all });
     },
   });
 }
 
-// 경매 낙찰
-export function useCloseAuction(storeId: number) {
+export function useCloseAuction() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       auctionId,
@@ -89,7 +91,7 @@ export function useCloseAuction(storeId: number) {
       body: CloseAuctionRequest;
     }) => closeAuction(auctionId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.list(storeId) });
+      queryClient.invalidateQueries({ queryKey: AUCTION_KEYS.all });
     },
   });
 }

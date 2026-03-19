@@ -71,7 +71,6 @@ export default function TodoEditPage() {
       deadline,
       employees: selectedEmployees,
       photos,
-      status: todo.status,
     });
     navigate(ROUTES.TODO_DETAIL.replace(':id', id));
   };

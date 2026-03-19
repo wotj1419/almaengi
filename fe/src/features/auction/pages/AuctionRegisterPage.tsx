@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import BottomNav from '@/components/layout/BottomNav';
-import Header from '@/components/layout/Header';
+import toast from 'react-hot-toast';
 import DatePickerModal from '@/components/common/DateSheet';
 import TimePickerModal from '@/components/common/TimeSheet';
-import WorkInfoCard from '../components/WorkInfoCard';
+import BottomNav from '@/components/layout/BottomNav';
+import Header from '@/components/layout/Header';
+import { getApiErrorMessage } from '@/api/error';
+import useAuthStore from '@/stores/useAuthStore';
 import AuctionSettingsCard from '../components/AuctionSettingsCard';
-import toast from 'react-hot-toast';
+import WorkInfoCard from '../components/WorkInfoCard';
 import { useCreateAuction } from '../hooks/useAuctionQueries';
 import { formatTime } from '../utils/formatTime';
 
-const STORE_ID = 1; // TODO: auth store에서 가져오기
-
 export default function AuctionRegisterPage() {
+  // 로그인한 사용자의 매장 ID (미로그인 시 기본값 1)
+  const storeId = useAuthStore((state) => state.user?.storeId ?? 1);
   const navigate = useNavigate();
-  // 근무 날짜: 기본값을 오늘로 설정
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -32,7 +33,6 @@ export default function AuctionRegisterPage() {
   const [minWage, setMinWage] = useState('10,320');
   const [maxWage, setMaxWage] = useState('12,384');
 
-  // 경매 마감일: 기본값을 오늘로 설정
   const [deadlineDate, setDeadlineDate] = useState(dayjs());
   const [deadlineHour, setDeadlineHour] = useState(18);
   const [deadlineMinute, setDeadlineMinute] = useState(0);
@@ -40,7 +40,7 @@ export default function AuctionRegisterPage() {
     null
   );
 
-  const createMutation = useCreateAuction(STORE_ID);
+  const createMutation = useCreateAuction();
 
   const handleCancel = () => {
     navigate(-1);
@@ -63,35 +63,51 @@ export default function AuctionRegisterPage() {
       .minute(startMinute)
       .second(0);
     const targetEnd = selectedDate.hour(endHour).minute(endMinute).second(0);
+    const deadline = deadlineDate
+      .hour(deadlineHour)
+      .minute(deadlineMinute)
+      .second(0);
 
     if (targetStart.isBefore(now)) {
-      toast.error('근무 시작 시간이 현재 시간보다 이전입니다.');
-      return;
-    }
-    if (targetEnd.isBefore(now)) {
-      toast.error('근무 종료 시간이 현재 시간보다 이전입니다.');
+      toast.error('근무 시작 시간은 현재 이후여야 합니다.');
       return;
     }
 
-    const parsedMinWage = Number(minWage.replace(/,/g, ''));
-    const parsedMaxWage = Number(maxWage.replace(/,/g, ''));
+    if (targetEnd.isBefore(targetStart)) {
+      toast.error('근무 종료 시간은 시작 시간 이후여야 합니다.');
+      return;
+    }
 
-    const deadlineStr = `${deadlineDate.format('YYYY-MM-DD')}T${String(deadlineHour).padStart(2, '0')}:${String(deadlineMinute).padStart(2, '0')}:00`;
+    if (!deadline.isAfter(now)) {
+      toast.error('경매 마감 시간은 현재 이후여야 합니다.');
+      return;
+    }
+
+    if (!deadline.isBefore(targetStart)) {
+      toast.error('경매 마감 시간은 근무 시작 전이어야 합니다.');
+      return;
+    }
 
     createMutation.mutate(
       {
-        targetDate: selectedDate.format('YYYY-MM-DD'),
-        targetStartTime: `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`,
-        targetEndTime: `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`,
-        deadline: deadlineStr,
-        minWage: parsedMinWage,
-        maxWage: parsedMaxWage,
-        recruitCount: Number(staffCount),
+        storeId: storeId,
+        body: {
+          targetDate: selectedDate.format('YYYY-MM-DD'),
+          targetStartTime: `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`,
+          targetEndTime: `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`,
+          deadline: deadline.format('YYYY-MM-DDTHH:mm:ss'),
+          minWage: Number(minWage.replace(/,/g, '')),
+          maxWage: Number(maxWage.replace(/,/g, '')),
+          recruitCount: Number(staffCount),
+        },
       },
       {
         onSuccess: () => {
           toast.success('경매가 등록되었습니다.');
           navigate('/auction');
+        },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '경매 등록에 실패했습니다.'));
         },
       }
     );
@@ -101,7 +117,6 @@ export default function AuctionRegisterPage() {
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
       <Header title="새 경매 등록" onBack={handleCancel} auctionStyle />
 
-      {/* 컨텐츠 */}
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">
         <WorkInfoCard
           date={selectedDate.format('YYYY. MM. DD')}
@@ -123,7 +138,6 @@ export default function AuctionRegisterPage() {
           onDeadlineClick={() => setDeadlineStep('date')}
         />
 
-        {/* 하단 버튼 */}
         <div className="self-stretch inline-flex justify-center items-center gap-3.5">
           <button
             onClick={handleCancel}
@@ -153,17 +167,19 @@ export default function AuctionRegisterPage() {
           if (deadlineStep === 'date') {
             setDeadlineDate(date);
             setDeadlineStep('time');
-          } else {
-            setSelectedDate(date);
-            setIsDatePickerOpen(false);
+            return;
           }
+
+          setSelectedDate(date);
+          setIsDatePickerOpen(false);
         }}
         onClose={() => {
           if (deadlineStep === 'date') {
             setDeadlineStep(null);
-          } else {
-            setIsDatePickerOpen(false);
+            return;
           }
+
+          setIsDatePickerOpen(false);
         }}
       />
 
@@ -189,22 +205,27 @@ export default function AuctionRegisterPage() {
             setDeadlineHour(hour);
             setDeadlineMinute(minute);
             setDeadlineStep(null);
-          } else if (timePickerTarget === 'start') {
+            return;
+          }
+
+          if (timePickerTarget === 'start') {
             setStartHour(hour);
             setStartMinute(minute);
             setTimePickerTarget(null);
-          } else {
-            setEndHour(hour);
-            setEndMinute(minute);
-            setTimePickerTarget(null);
+            return;
           }
+
+          setEndHour(hour);
+          setEndMinute(minute);
+          setTimePickerTarget(null);
         }}
         onClose={() => {
           if (deadlineStep === 'time') {
             setDeadlineStep(null);
-          } else {
-            setTimePickerTarget(null);
+            return;
           }
+
+          setTimePickerTarget(null);
         }}
       />
     </div>

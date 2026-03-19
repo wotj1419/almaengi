@@ -1,5 +1,10 @@
 import { http, HttpResponse } from 'msw';
-import type { AuctionDto, CreateAuctionRequest } from '@/api/auction.types';
+import type {
+  AuctionBiddersDto,
+  AuctionDto,
+  CloseAuctionResponse,
+  CreateAuctionRequest,
+} from '@/api/auction.types';
 import type { SignupRequest, LoginRequest } from '@/api/auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -37,71 +42,150 @@ const mockUsers: MockUser[] = [
 ];
 
 // ─── Mock 경매 데이터 ───
-let nextId = 3;
+let nextAuctionId = 4;
 
 let mockAuctions: AuctionDto[] = [
   {
     auctionId: 1,
     storeId: 1,
-    targetDate: '2026-03-12',
+    targetDate: '2026-03-22',
     targetStartTime: '10:00:00',
     targetEndTime: '14:00:00',
-    deadline: '2026-03-11T18:00:00',
+    deadline: '2026-03-21T18:00:00',
     minWage: 10320,
     maxWage: 12500,
     recruitCount: 2,
     status: 'IN_PROGRESS',
     winnerIds: [],
+    createdAt: '2026-03-19T09:00:00',
   },
   {
     auctionId: 2,
     storeId: 1,
-    targetDate: '2026-03-12',
-    targetStartTime: '10:00:00',
-    targetEndTime: '14:00:00',
-    deadline: '2026-03-11T18:00:00',
+    targetDate: '2026-03-18',
+    targetStartTime: '17:00:00',
+    targetEndTime: '22:00:00',
+    deadline: '2026-03-17T18:00:00',
     minWage: 10320,
-    maxWage: 12500,
+    maxWage: 14000,
     recruitCount: 2,
     status: 'CLOSED',
     winnerIds: [10, 11],
+    createdAt: '2026-03-15T11:30:00',
+  },
+  {
+    auctionId: 3,
+    storeId: 1,
+    targetDate: '2026-03-20',
+    targetStartTime: '09:00:00',
+    targetEndTime: '12:00:00',
+    deadline: '2026-03-19T12:00:00',
+    minWage: 10320,
+    maxWage: 11800,
+    recruitCount: 1,
+    status: 'CANCELLED',
+    winnerIds: [],
+    createdAt: '2026-03-16T10:00:00',
   },
 ];
 
-const mockBidders = {
-  group1: [
-    {
-      bidId: 101,
-      employeeId: 10,
-      applicantName: '박알바',
-      proposedWage: 11000,
-      tags: ['우수', '근속 2년', '결근 0회'],
-      bidTime: '2026-03-10T14:30:00',
-    },
-  ],
-  group2: [
-    {
-      bidId: 102,
-      employeeId: 11,
-      applicantName: '김알바',
-      proposedWage: 11500,
-      tags: ['신규'],
-      bidTime: '2026-03-10T15:00:00',
-    },
-  ],
-  group3: [
-    {
-      bidId: 103,
-      employeeId: 12,
-      applicantName: '고알바',
-      proposedWage: 12500,
-      tags: ['주휴수당 발생 중'],
-      bidTime: '2026-03-10T14:30:00',
-    },
-  ],
+const mockBiddersByAuction: Record<number, AuctionBiddersDto | null> = {
+  1: {
+    group1: [
+      {
+        bidId: 101,
+        employeeId: 10,
+        applicantName: 'Park',
+        proposedWage: 11000,
+        tags: ['Reliable', '2 months'],
+        bidTime: '2026-03-20T14:30:00',
+      },
+    ],
+    group2: [
+      {
+        bidId: 102,
+        employeeId: 11,
+        applicantName: 'Kim',
+        proposedWage: 11500,
+        tags: ['New'],
+        bidTime: '2026-03-20T15:00:00',
+      },
+    ],
+    group3: [
+      {
+        bidId: 103,
+        employeeId: 12,
+        applicantName: 'Choi',
+        proposedWage: 12500,
+        tags: ['Overtime risk'],
+        bidTime: '2026-03-20T15:10:00',
+      },
+    ],
+  },
+  2: {
+    group1: [
+      {
+        bidId: 201,
+        employeeId: 10,
+        applicantName: 'Park',
+        proposedWage: 12000,
+        tags: ['Winner'],
+        bidTime: '2026-03-16T12:00:00',
+      },
+      {
+        bidId: 202,
+        employeeId: 11,
+        applicantName: 'Kim',
+        proposedWage: 12600,
+        tags: ['Winner'],
+        bidTime: '2026-03-16T12:10:00',
+      },
+    ],
+    group2: [
+      {
+        bidId: 203,
+        employeeId: 12,
+        applicantName: 'Choi',
+        proposedWage: 13500,
+        tags: ['Backup'],
+        bidTime: '2026-03-16T12:20:00',
+      },
+    ],
+    group3: [],
+  },
+  3: null,
 };
 
-// ─── 핸들러 ───
+function success<T>(data: T) {
+  return HttpResponse.json({
+    status: 'SUCCESS',
+    message: 'Request completed successfully.',
+    data,
+  });
+}
+
+function notFound(message: string, status: string) {
+  return HttpResponse.json(
+    {
+      status,
+      message,
+      data: null,
+    },
+    { status: 404 }
+  );
+}
+
+function badRequest(message: string, status: string) {
+  return HttpResponse.json(
+    {
+      status,
+      message,
+      data: null,
+    },
+    { status: 400 }
+  );
+}
+
 export const handlers = [
   // ─── Auth 핸들러 ───
 
@@ -185,6 +269,8 @@ export const handlers = [
         email: user.email,
         name: user.name,
         role: user.role,
+        // storeId: 경매 API에서 매장 식별에 사용
+        storeId: 1,
         accessToken: 'mock-jwt-access-token',
       },
     });
@@ -230,50 +316,42 @@ export const handlers = [
     });
   }),
 
-  // 경매 목록 조회
-  http.get(`${BASE_URL}/api/v1/auctions/store/:storeId`, () => {
-    return HttpResponse.json({
-      status: 'SUCCESS',
-      message: '요청이 성공적으로 처리되었습니다.',
-      data: mockAuctions,
-    });
+  http.get(`${BASE_URL}/api/v1/auctions/store/:storeId`, ({ params }) => {
+    const storeId = Number(params.storeId);
+    const auctions = mockAuctions.filter(
+      (auction) => auction.storeId === storeId
+    );
+
+    return success(auctions);
   }),
 
-  // 경매 상세 조회
   http.get(`${BASE_URL}/api/v1/auctions/:auctionId`, ({ params }) => {
     const auctionId = Number(params.auctionId);
-    const auction = mockAuctions.find((a) => a.auctionId === auctionId);
+    const auction = mockAuctions.find((item) => item.auctionId === auctionId);
 
     if (!auction) {
-      return HttpResponse.json(
-        {
-          status: 'A001',
-          message: '해당 구인 경매를 찾을 수 없습니다.',
-          data: null,
-        },
-        { status: 404 }
-      );
+      return notFound('Auction not found.', 'A001');
     }
 
-    return HttpResponse.json({
-      status: 'SUCCESS',
-      message: '요청이 성공적으로 처리되었습니다.',
-      data: {
-        auction,
-        bidders: mockBidders,
-      },
+    return success({
+      auction,
+      bidders: mockBiddersByAuction[auctionId] ?? null,
     });
   }),
 
-  // 경매 등록
   http.post(
     `${BASE_URL}/api/v1/auctions/store/:storeId`,
     async ({ request, params }) => {
       const body = (await request.json()) as CreateAuctionRequest;
       const storeId = Number(params.storeId);
+      const deadline = new Date(body.deadline);
+
+      if (deadline.getTime() <= Date.now()) {
+        return badRequest('Deadline must be in the future.', 'A011');
+      }
 
       const newAuction: AuctionDto = {
-        auctionId: nextId++,
+        auctionId: nextAuctionId++,
         storeId,
         targetDate: body.targetDate,
         targetStartTime: body.targetStartTime,
@@ -284,94 +362,120 @@ export const handlers = [
         recruitCount: body.recruitCount,
         status: 'IN_PROGRESS',
         winnerIds: [],
+        createdAt: new Date().toISOString(),
       };
-      mockAuctions.push(newAuction);
 
-      return HttpResponse.json({
-        status: 'SUCCESS',
-        message: '요청이 성공적으로 처리되었습니다.',
-        data: null,
-      });
+      mockAuctions = [newAuction, ...mockAuctions];
+      mockBiddersByAuction[newAuction.auctionId] = {
+        group1: [],
+        group2: [],
+        group3: [],
+      };
+
+      return success(null);
     }
   ),
 
-  // 경매 수정
   http.put(
     `${BASE_URL}/api/v1/auctions/:auctionId`,
     async ({ request, params }) => {
       const auctionId = Number(params.auctionId);
       const body = (await request.json()) as CreateAuctionRequest;
-      const index = mockAuctions.findIndex((a) => a.auctionId === auctionId);
+      const index = mockAuctions.findIndex(
+        (item) => item.auctionId === auctionId
+      );
 
       if (index === -1) {
-        return HttpResponse.json(
-          {
-            status: 'A001',
-            message: '해당 구인 경매를 찾을 수 없습니다.',
-            data: null,
-          },
-          { status: 404 }
-        );
+        return notFound('Auction not found.', 'A001');
       }
 
-      mockAuctions[index] = { ...mockAuctions[index], ...body };
+      if (mockAuctions[index].status !== 'IN_PROGRESS') {
+        return badRequest('Auction is not in progress.', 'A002');
+      }
 
-      return HttpResponse.json({
-        status: 'SUCCESS',
-        message: '요청이 성공적으로 처리되었습니다.',
-        data: null,
-      });
+      mockAuctions[index] = {
+        ...mockAuctions[index],
+        ...body,
+      };
+
+      return success(null);
     }
   ),
 
-  // 경매 중단 (삭제)
   http.delete(`${BASE_URL}/api/v1/auctions/:auctionId`, ({ params }) => {
     const auctionId = Number(params.auctionId);
-    mockAuctions = mockAuctions.filter((a) => a.auctionId !== auctionId);
+    const index = mockAuctions.findIndex(
+      (item) => item.auctionId === auctionId
+    );
 
-    return HttpResponse.json({
-      status: 'SUCCESS',
-      message: '요청이 성공적으로 처리되었습니다.',
-      data: null,
-    });
+    if (index === -1) {
+      return notFound('Auction not found.', 'A001');
+    }
+
+    if (mockAuctions[index].status !== 'IN_PROGRESS') {
+      return badRequest('Auction is not in progress.', 'A002');
+    }
+
+    mockAuctions[index] = {
+      ...mockAuctions[index],
+      status: 'CANCELLED',
+      winnerIds: [],
+    };
+
+    return success(null);
   }),
 
-  // 경매 낙찰
   http.post(
     `${BASE_URL}/api/v1/auctions/:auctionId/close`,
     async ({ request, params }) => {
       const auctionId = Number(params.auctionId);
-      const auction = mockAuctions.find((a) => a.auctionId === auctionId);
+      const auction = mockAuctions.find((item) => item.auctionId === auctionId);
 
       if (!auction) {
-        return HttpResponse.json(
-          {
-            status: 'A001',
-            message: '해당 구인 경매를 찾을 수 없습니다.',
-            data: null,
-          },
-          { status: 404 }
-        );
+        return notFound('Auction not found.', 'A001');
+      }
+
+      if (auction.status !== 'IN_PROGRESS') {
+        return badRequest('Auction is not in progress.', 'A002');
       }
 
       const body = (await request.json()) as { selectedBidIds: number[] };
-      const allBidders = [
-        ...mockBidders.group1,
-        ...mockBidders.group2,
-        ...mockBidders.group3,
-      ];
-      const selectedEmployeeIds = allBidders
-        .filter((b) => body.selectedBidIds.includes(b.bidId))
-        .map((b) => b.employeeId);
+
+      if (body.selectedBidIds.length === 0) {
+        return badRequest('Please select at least one bidder.', 'A006');
+      }
+
+      if (body.selectedBidIds.length > auction.recruitCount) {
+        return badRequest('Selected bidders exceed recruit count.', 'A007');
+      }
+
+      const bidders = mockBiddersByAuction[auctionId];
+      const allBidders = bidders
+        ? [...bidders.group1, ...bidders.group2, ...bidders.group3]
+        : [];
+      const selectedBidders = allBidders.filter((bidder) =>
+        body.selectedBidIds.includes(bidder.bidId)
+      );
+
+      if (selectedBidders.length !== body.selectedBidIds.length) {
+        return badRequest('Invalid bid selection.', 'A007');
+      }
+
+      const response: CloseAuctionResponse = {
+        auctionId,
+        status: 'CLOSED',
+        winners: selectedBidders.map((bidder) => ({
+          bidId: bidder.bidId,
+          employeeId: bidder.employeeId,
+          employeeName: bidder.applicantName,
+          bidWage: bidder.proposedWage,
+        })),
+      };
 
       auction.status = 'CLOSED';
-      auction.winnerIds = selectedEmployeeIds;
+      auction.winnerIds = response.winners.map((winner) => winner.employeeId);
 
-      return HttpResponse.json({
-        status: 'SUCCESS',
-        message: '요청이 성공적으로 처리되었습니다.',
-        data: null,
-      });
+      return success(response);
     }
   ),
 ];

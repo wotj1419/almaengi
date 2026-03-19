@@ -4,6 +4,7 @@ interface User {
   id: number;
   name: string;
   role: 'OWNER' | 'EMPLOYEE';
+  storeId: number; // 소속 매장 ID — 경매 목록 조회·등록 시 사용
 }
 
 interface AuthState {
