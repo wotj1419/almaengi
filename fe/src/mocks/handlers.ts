@@ -1,9 +1,42 @@
 import { http, HttpResponse } from 'msw';
 import type { AuctionDto, CreateAuctionRequest } from '@/api/auction.types';
+import type { SignupRequest, LoginRequest } from '@/api/auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-// ─── Mock 데이터 ───
+// ─── Mock 유저 데이터 ───
+let nextUserId = 3;
+
+interface MockUser {
+  userId: number;
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+  role: 'OWNER' | 'EMPLOYEE';
+  isWithdraw: boolean;
+}
+
+const mockUsers: MockUser[] = [
+  {
+    userId: 1,
+    email: 'owner@test.com',
+    password: 'Test1234!',
+    name: '김사장',
+    role: 'OWNER',
+    isWithdraw: false,
+  },
+  {
+    userId: 2,
+    email: 'employee@test.com',
+    password: 'Test1234!',
+    name: '박알바',
+    role: 'EMPLOYEE',
+    isWithdraw: false,
+  },
+];
+
+// ─── Mock 경매 데이터 ───
 let nextId = 3;
 
 let mockAuctions: AuctionDto[] = [
@@ -70,11 +103,130 @@ const mockBidders = {
 
 // ─── 핸들러 ───
 export const handlers = [
-  // 로그인
-  http.post(`${BASE_URL}/api/auth/login`, () => {
+  // ─── Auth 핸들러 ───
+
+  // 회원가입 (POST /api/v1/auth/signup)
+  http.post(`${BASE_URL}/api/v1/auth/signup`, async ({ request }) => {
+    const body = (await request.json()) as SignupRequest;
+    const email = body.email.toLowerCase();
+
+    const exists = mockUsers.some((u) => u.email === email);
+    if (exists) {
+      return HttpResponse.json(
+        {
+          status: 'U002',
+          message: '이미 존재하는 이메일입니다.',
+          data: null,
+        },
+        { status: 409 }
+      );
+    }
+
+    const newUser: MockUser = {
+      userId: nextUserId++,
+      email,
+      password: body.password,
+      name: body.name,
+      phone: body.phone,
+      role: body.role,
+      isWithdraw: false,
+    };
+    mockUsers.push(newUser);
+
+    return HttpResponse.json(
+      {
+        status: 'SUCCESS',
+        message: '요청이 성공적으로 처리되었습니다.',
+        data: {
+          userId: newUser.userId,
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+        },
+      },
+      { status: 201 }
+    );
+  }),
+
+  // 로그인 (POST /api/v1/auth/login)
+  http.post(`${BASE_URL}/api/v1/auth/login`, async ({ request }) => {
+    const body = (await request.json()) as LoginRequest;
+    const email = body.email.toLowerCase();
+
+    const user = mockUsers.find((u) => u.email === email);
+
+    if (!user || user.password !== body.password) {
+      return HttpResponse.json(
+        {
+          status: 'A101',
+          message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+          data: null,
+        },
+        { status: 401 }
+      );
+    }
+
+    if (user.isWithdraw) {
+      return HttpResponse.json(
+        {
+          status: 'A102',
+          message: '탈퇴한 사용자입니다.',
+          data: null,
+        },
+        { status: 403 }
+      );
+    }
+
     return HttpResponse.json({
-      accessToken: 'mock-jwt-token',
-      user: { id: 1, name: '홍길동', role: 'OWNER' },
+      status: 'SUCCESS',
+      message: '요청이 성공적으로 처리되었습니다.',
+      data: {
+        userId: user.userId,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        accessToken: 'mock-jwt-access-token',
+      },
+    });
+  }),
+
+  // 이메일 중복 확인 (GET /api/v1/auth/check-email?email=)
+  http.get(`${BASE_URL}/api/v1/auth/check-email`, ({ request }) => {
+    const url = new URL(request.url);
+    const email = (url.searchParams.get('email') || '').toLowerCase();
+    const exists = mockUsers.some((u) => u.email === email && !u.isWithdraw);
+
+    return HttpResponse.json({
+      status: 'SUCCESS',
+      message: '요청이 성공적으로 처리되었습니다.',
+      data: { exists },
+    });
+  }),
+
+  // 토큰 재발급 (POST /api/v1/auth/reissue)
+  http.post(`${BASE_URL}/api/v1/auth/reissue`, () => {
+    return HttpResponse.json({
+      status: 'SUCCESS',
+      message: '요청이 성공적으로 처리되었습니다.',
+      data: { accessToken: 'mock-jwt-access-token-reissued' },
+    });
+  }),
+
+  // 로그아웃 (POST /api/v1/auth/logout)
+  http.post(`${BASE_URL}/api/v1/auth/logout`, () => {
+    return HttpResponse.json({
+      status: 'SUCCESS',
+      message: '요청이 성공적으로 처리되었습니다.',
+      data: null,
+    });
+  }),
+
+  // 회원 탈퇴 (DELETE /api/v1/auth/withdraw)
+  http.delete(`${BASE_URL}/api/v1/auth/withdraw`, () => {
+    return HttpResponse.json({
+      status: 'SUCCESS',
+      message: '요청이 성공적으로 처리되었습니다.',
+      data: null,
     });
   }),
 
