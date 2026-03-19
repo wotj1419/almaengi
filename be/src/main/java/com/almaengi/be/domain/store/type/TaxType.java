@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TaxType {
-    NONE("default"),
+    
+    NONE("미신고"),
     INCOME_3_3("3.3% 프리랜서"),
     FOUR_INSURANCE("4대 보험");
 
