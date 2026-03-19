@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import RevenueCard from '../components/RevenueCard';
@@ -6,6 +9,19 @@ import WorkStatusCard from '../components/WorkStatusCard';
 import ActionGrid from '../components/ActionGrid';
 
 export default function HomePage() {
+  const navigate = useNavigate();
+
+  // 브라우저 뒤로가기 시 로그인 페이지로 이동 (회원가입 페이지로 돌아가는 것 방지)
+  useEffect(() => {
+    const handlePopState = () => {
+      navigate(ROUTES.LOGIN, { replace: true });
+    };
+
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
+
   return (
     <>
       <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">

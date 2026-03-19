@@ -1,5 +1,10 @@
 export const ROUTES = {
-  HOME: '/',
+  LANDING: '/', // 스플래시(랜딩) 페이지 - 3초 후 로그인으로 이동
+  LOGIN: '/login',
+  SIGNUP: '/signup',
+  SIGNUP_INFO: '/signup/info',
+  SIGNUP_COMPLETE: '/signup/complete',
+  HOME: '/home',
   SCHEDULE: '/schedule',
   EMPLOYEE: '/employee',
   PAYROLL: '/payroll',

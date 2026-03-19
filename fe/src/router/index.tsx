@@ -20,11 +20,22 @@ import AttendancePage from '@/features/attendance/pages/AttendancePage';
 import ChatbotPage from '@/features/chatbot/pages/ChatbotPage';
 import ReportPage from '@/features/report/pages/ReportPage';
 import NotificationPage from '@/features/notification/pages/NotificationPage';
+import LandingPage from '@/features/landing/pages/LandingPage';
+import LoginPage from '@/features/login/pages/LoginPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import RoleSelectPage from '@/features/login/pages/RoleSelectPage';
+import SignupPage from '@/features/login/pages/SignupPage';
+import SignupCompletePage from '@/features/login/pages/SignupCompletePage';
 
 export default function AppRouter() {
   return (
     <Routes>
+      {/* 스플래시(랜딩) 페이지 - 앱 최초 진입 시 표시 */}
+      <Route path={ROUTES.LANDING} element={<LandingPage />} />
+      <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+      <Route path={ROUTES.SIGNUP} element={<RoleSelectPage />} />
+      <Route path={ROUTES.SIGNUP_INFO} element={<SignupPage />} />
+      <Route path={ROUTES.SIGNUP_COMPLETE} element={<SignupCompletePage />} />
       <Route path={ROUTES.HOME} element={<HomePage />} />
       <Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
       <Route path={ROUTES.EMPLOYEE} element={<EmployeePage />} />

@@ -1,4 +1,4 @@
-﻿import { House, Calendar, Users, Wallet, Store } from 'lucide-react';
+import { House, Calendar, Users, Wallet, Store } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 
