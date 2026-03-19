@@ -34,11 +34,17 @@ public class Store extends BaseTimeEntity {
     @Column(nullable = false, length = 255)
     private String address;
 
-    @Column(length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
     @Column(name = "qr_code", nullable = false)
     private String qrCode;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 
     @Column(name = "is_over_5_employees", nullable = false)
     private Boolean isOver5Employees = false;
@@ -47,13 +53,15 @@ public class Store extends BaseTimeEntity {
     private Boolean isClosed = false;
 
     @Builder
-    public Store(User owner, String name, String address, String phone, Boolean isOver5Employees, String qrCode) {
+    public Store(User owner, String name, String address, String phone, String qrCode, Double latitude, Double longitude, Boolean isOver5Employees) {
         this.owner = owner;
         this.name = name;
         this.address = address;
         this.phone = phone;
-        this.isOver5Employees = (isOver5Employees != null) ? isOver5Employees : true;
         this.qrCode = qrCode;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.isOver5Employees = (isOver5Employees != null) ? isOver5Employees : true;
     }
 
     public void updateStoreInfo(String name, String address, String phone, Boolean isOver5Employees) {
