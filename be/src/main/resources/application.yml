@@ -43,6 +43,25 @@ logging:
 app:
   auction:
     legal-minimum-wage: 10320
+  payroll:
+    night-start: "22:00"
+    night-end: "06:00"
+    overtime-daily-threshold-minutes: 480       # 일 8시간
+    overtime-weekly-threshold-minutes: 2400     # 주 40시간
+    holiday-pay-weekly-threshold-minutes: 900   # 주 15시간
+    # 3.3% 공제
+    income-tax-rate: 0.03
+    local-income-tax-rate: 0.003
+    # 4대 보험 공제율 (2026년 기준)
+    national-pension-rate: 0.0475
+    health-insurance-rate: 0.03595
+    long-term-care-rate: 0.1314
+    employment-insurance-rate: 0.009
+    # 4대 보험 기준소득월액 상·하한선 (2026년 기준)
+    national-pension-min: 390000
+    national-pension-max: 6170000
+    health-insurance-min: 279300
+    health-insurance-max: 119625000
 
 jwt:
   access-token-expiry: 1800000      # 30분

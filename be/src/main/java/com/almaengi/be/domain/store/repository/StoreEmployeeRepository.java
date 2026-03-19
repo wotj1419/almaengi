@@ -1,6 +1,7 @@
 package com.almaengi.be.domain.store.repository;
 
 import com.almaengi.be.domain.store.entity.StoreEmployee;
+import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -15,4 +16,9 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     boolean existsByStoreIdAndUserId(Long storeId, Long userId);
 
     Optional<StoreEmployee> findByStoreIdAndUserId(Long storeId, Long userId);
+
+    /**
+     * 특정 매장의 특정 상태 직원 목록 조회 (급여 일괄 생성용)
+     */
+    List<StoreEmployee> findAllByStoreIdAndStatus(Long storeId, StoreEmployeeStatus status);
 }

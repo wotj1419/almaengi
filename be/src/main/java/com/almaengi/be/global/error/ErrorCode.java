@@ -55,7 +55,13 @@ public enum ErrorCode {
     INVALID_DAY_OF_WEEK_FORMAT(HttpStatus.BAD_REQUEST, "S103", "잘못된 요일입니다."),
 
     // Notification
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "존재하지 않는 알림입니다.");
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "존재하지 않는 알림입니다."),
+
+    // Payroll
+    EMPLOYEE_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "해당 직원을 찾을 수 없습니다."),
+    PAYROLL_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "해당 급여 정산 내역을 찾을 수 없습니다."),
+    PAYROLL_ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "P003", "이미 승인된 급여입니다."),
+    PAYROLL_ALREADY_EXISTS(HttpStatus.CONFLICT, "P004", "해당 월 급여가 이미 생성되었습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
