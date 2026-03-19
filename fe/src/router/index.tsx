@@ -6,6 +6,8 @@ import SchedulePage from '@/features/schedule/pages/SchedulePage';
 import EmployeePage from '@/features/employee/pages/EmployeePage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
 import StorePage from '@/features/store/pages/StorePage';
+import NewChatPage from '@/features/store/pages/NewChatPage';
+import ChatRoomPage from '@/features/store/pages/ChatRoomPage';
 import TodoPage from '@/features/todo/pages/TodoPage';
 import TodoRegisterPage from '@/features/todo/pages/TodoRegisterPage';
 import TodoDetailPage from '@/features/todo/pages/TodoDetailPage';
@@ -41,6 +43,8 @@ export default function AppRouter() {
       <Route path={ROUTES.EMPLOYEE} element={<EmployeePage />} />
       <Route path={ROUTES.PAYROLL} element={<PayrollPage />} />
       <Route path={ROUTES.STORE} element={<StorePage />} />
+      <Route path={ROUTES.STORE_CHAT_NEW} element={<NewChatPage />} />
+      <Route path={ROUTES.STORE_CHAT_ROOM} element={<ChatRoomPage />} />
       <Route path={ROUTES.TODO} element={<TodoPage />} />
       <Route element={<AuctionLayout />}>
         <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
