@@ -7,11 +7,16 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+/**
+ * 출퇴근 기록 엔티티입니다.
+ *
+ * - 일일 배치 스케줄러가 WAITING 상태로 사전 생성하거나, 스케줄 없는 직원이 QR 출근 시 생성됩니다.
+ * - overtime: 퇴근시각 경과 시 스케줄러가 true로 설정하며, 퇴근 QR 시 사용자가 확인합니다.
+ */
 @Entity
 @Table(name = "attendances")
 @Getter
@@ -60,7 +65,23 @@ public class Attendance {
         this.scheduledStartTime = scheduledStartTime;
         this.scheduledEndTime = scheduledEndTime;
         this.status = status;
-        this.overtime = overtime;
+        this.overtime = overtime != null ? overtime : false;
         this.breakMinutes = breakMinutes != null ? breakMinutes : 0;
+    }
+
+    public void clockIn(LocalDateTime clockIn) {
+        this.clockIn = clockIn;
+    }
+
+    public void clockOut(LocalDateTime clockOut) {
+        this.clockOut = clockOut;
+    }
+
+    public void updateStatus(AttendanceStatus status) {
+        this.status = status;
+    }
+
+    public void updateOvertime(boolean overtime) {
+        this.overtime = overtime;
     }
 }

@@ -9,9 +9,16 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface WorkScheduleRepository extends JpaRepository<WorkSchedule, Long> {
+
+    // 출퇴근: 특정 직원의 해당 요일 첫 번째 스케줄 조회
+    Optional<WorkSchedule> findFirstByEmployeeIdAndDayOfWeek(Long employeeId, DayOfWeek dayOfWeek);
+
+    // 출퇴근: 해당 요일의 모든 스케줄 조회 (일일 배치용)
+    List<WorkSchedule> findByDayOfWeek(DayOfWeek dayOfWeek);
 
     // 매장 전체 직원의 주간 스케줄 조회
     List<WorkSchedule> findByEmployee_StoreId(Long storeId);

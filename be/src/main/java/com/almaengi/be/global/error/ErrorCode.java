@@ -61,7 +61,14 @@ public enum ErrorCode {
     EMPLOYEE_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "해당 직원을 찾을 수 없습니다."),
     PAYROLL_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "해당 급여 정산 내역을 찾을 수 없습니다."),
     PAYROLL_ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "P003", "이미 승인된 급여입니다."),
-    PAYROLL_ALREADY_EXISTS(HttpStatus.CONFLICT, "P004", "해당 월 급여가 이미 생성되었습니다.");
+    PAYROLL_ALREADY_EXISTS(HttpStatus.CONFLICT, "P004", "해당 월 급여가 이미 생성되었습니다."),
+
+    // Attendance 도메인
+    INVALID_QR_TOKEN(HttpStatus.BAD_REQUEST, "A201", "유효하지 않은 QR 코드입니다."),
+    GPS_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "A202", "매장 반경을 벗어난 위치입니다."),
+    ALREADY_CLOCKED_OUT(HttpStatus.CONFLICT, "A203", "이미 퇴근 처리가 완료되었습니다."),
+    INVALID_DASHBOARD_STATUS(HttpStatus.BAD_REQUEST, "A204", "유효하지 않은 대시보드 상태입니다."),
+    INVALID_ATTENDANCE_LOG_DATE(HttpStatus.BAD_REQUEST, "A205", "근태 로그는 전일까지만 조회할 수 있습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
