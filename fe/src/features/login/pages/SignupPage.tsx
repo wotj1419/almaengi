@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
+import ConfirmModal from '@/components/common/ConfirmModal';
+import { signup } from '@/api/auth';
 
 const INPUT_CLASS =
   'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border border-[var(--color-border-muted)] text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
@@ -65,9 +67,10 @@ function PasswordToggle({
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  // TODO: 회원가입 API 연동 시 사용
-  // const location = useLocation();
-  // const role = (location.state as { role?: string })?.role;
+  // RoleSelectPage에서 전달받은 역할(OWNER/EMPLOYEE) 값 수신
+  const location = useLocation();
+  const role =
+    (location.state as { role?: 'OWNER' | 'EMPLOYEE' })?.role ?? 'EMPLOYEE';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -77,6 +80,9 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  // 에러 처리용 상태
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const isFormValid =
     name.trim() !== '' &&
@@ -86,17 +92,26 @@ export default function SignupPage() {
     password === passwordConfirm &&
     agreed;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 회원가입 API 연동 - 기존에는 API 호출 없이 바로 완료 페이지로 이동했음
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
-    // TODO: 회원가입 API 연동
-    navigate(ROUTES.SIGNUP_COMPLETE, { replace: true });
-  };
-
-  const handleClick = () => {
-    if (!isFormValid) return;
-    // TODO: 회원가입 API 연동
-    navigate(ROUTES.SIGNUP_COMPLETE, { replace: true });
+    try {
+      // 회원가입 API 호출 (email, password, name, phone, role 전송)
+      const res = await signup({ email, password, name, phone, role });
+      // 응답 status 확인 - 실패 시 에러 모달 표시
+      if (res.status !== 'SUCCESS') {
+        setErrorMessage(res.message || '회원가입에 실패했습니다.');
+        setShowErrorModal(true);
+        return;
+      }
+      // 성공 시에만 완료 페이지로 이동
+      navigate(ROUTES.SIGNUP_COMPLETE, { replace: true });
+    } catch {
+      // 네트워크 오류 등 예외 처리
+      setErrorMessage('서버에 연결할 수 없습니다.');
+      setShowErrorModal(true);
+    }
   };
 
   return (
@@ -122,6 +137,7 @@ export default function SignupPage() {
 
       {/* 폼 */}
       <form
+        id="signup-form"
         onSubmit={handleSubmit}
         className="flex-1 px-4 pb-32 flex flex-col gap-5"
       >
@@ -202,15 +218,28 @@ export default function SignupPage() {
 
       {/* 하단 고정 버튼 */}
       <div className="sticky bottom-0 p-4 bg-[var(--color-bg-base)]/80 backdrop-blur-sm">
+        {/* type="button" → type="submit", form="signup-form" 으로 변경하여 폼 제출과 연결 */}
         <button
-          type="button"
-          onClick={handleClick}
+          type="submit"
+          form="signup-form"
           disabled={!isFormValid}
           className="w-full h-14 bg-[var(--color-primary)] rounded-3xl shadow-md text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)] leading-7 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           회원가입
         </button>
       </div>
+
+      {/* 회원가입 실패 에러 팝업 */}
+      <ConfirmModal
+        isOpen={showErrorModal}
+        title="회원가입 실패"
+        description={errorMessage}
+        showCloseButton
+        confirmText=""
+        cancelText=""
+        onConfirm={() => setShowErrorModal(false)}
+        onClose={() => setShowErrorModal(false)}
+      />
     </div>
   );
 }
