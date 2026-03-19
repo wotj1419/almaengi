@@ -44,6 +44,7 @@
   --color-chip-selected-bg: #cbd5e1;
   --color-select-all-checked-bg: #e7e6e6;
   --color-text-dark: #4d4d4d;
+  --color-text-black: #000000;
 
   /* 🎨 색상: 상태 (홈 화면 상태 뱃지) */
   --color-status-green-dot: #65a30d;
@@ -112,6 +113,7 @@
   --color-photo-slot-icon: #dbe2ea;
 
   /* ── 폰트 크기 ── */
+  --text-2xs: 10px;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -124,6 +126,15 @@
   --text-3xl: 32px;
 
   /* 🎨 간격 (padding, margin, gap) */
+  --space-0-5: 2px;
+  /* ── 자간 ── */
+  --tracking-tight: -0.3px;
+  --tracking-tighter: -0.5px;
+
+  /* ── 줄 높이 ── */
+  --leading-normal: 1.25rem;
+
+  /* ── 간격 (padding, margin, gap) ── */
   --space-0-5: 2px;
   --space-1: 4px;
   --space-1-5: 6px;
@@ -139,6 +150,20 @@
 
   /* 🎨 테두리 반경 */
   --radius-xs: 8px;
+  /* ── 컴포넌트 크기 ── */
+  --size-checkbox: 15px;
+  --size-time-label: 56px;
+  --size-empty-outer: 128px;
+  --size-empty-middle: 96px;
+  --size-empty-inner: 64px;
+  --border-avatar: 2px;
+  --p-avatar: 1px;
+  --max-w-app: 600px;
+  --height-bottom-nav: 80px;
+  --pb-content: 160px;
+  --pb-content-selection: 220px;
+
+  /* ── 둥글기 ── */
   --radius-sm: 10px;
   --radius-md: 12px;
   --radius-lg: 15px;
