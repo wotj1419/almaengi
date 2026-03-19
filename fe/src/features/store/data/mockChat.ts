@@ -10,7 +10,8 @@ export const mockChatRooms: ChatRoom[] = [
     roomType: 'CHATBOT',
     name: '알맹이',
     createdAt: '2026-03-01T00:00:00',
-    lastMessage: '안녕하세요! 노동법 관련 궁금한 점을 물어보세요 😊',
+    lastMessage:
+      '안녕하세요!? 우리 매장 알바 매니저, 알맹이입니다. 급여 계산, 노동법 등 매장 운영 관련 궁금한 점을 언제든지 물어보세요 😊',
     lastMessageTime: '오후 2:30',
     lastMessageAt: '2026-03-18T14:30:00',
     unreadCount: 1,
@@ -57,7 +58,8 @@ export const mockMessages: Record<number, ChatMessage[]> = {
       senderId: null,
       senderName: '알맹이',
       messageType: 'TEXT',
-      content: '안녕하세요! 노동법 관련 궁금한 점을 물어보세요 😊',
+      content:
+        '안녕하세요!? 우리 매장 알바 매니저, 알맹이입니다. 급여 계산, 노동법 등 매장 운영 관련 궁금한 점을 언제든지 물어보세요 😊',
       fileUrl: null,
       sentAt: '2026-03-18T14:30:00',
       readCount: 0,

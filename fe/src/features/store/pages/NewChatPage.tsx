@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Avatar from 'boring-avatars';
 import { Check } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -9,6 +9,7 @@ import { useChatStore } from '@/stores/useChatStore';
 
 export default function NewChatPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const createRoom = useChatStore((s) => s.createRoom);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -29,26 +30,25 @@ export default function NewChatPage() {
       .map((e) => ({ userId: e.userId, name: e.name, position: e.position }));
 
     const roomId = createRoom(selectedUsers);
-    navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)));
+    navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)), {
+      state: location.state,
+    });
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--color-bg-base)]">
       <DetailHeader
         title="대화 상대 선택"
-        onBack={() => navigate(ROUTES.STORE)}
+        onBack={() =>
+          navigate(`${ROUTES.STORE_COMMUNITY}?tab=chat`, {
+            state: location.state,
+          })
+        }
         rightIcon={
           selectedIds.size > 0 ? (
-            <div className="flex items-center gap-[var(--space-1)]">
-              <span className="text-[length:var(--text-md)] font-bold text-[color:var(--color-text-primary)]">
-                {selectedIds.size}
-              </span>
-              <Check
-                size={20}
-                color="var(--color-text-primary)"
-                strokeWidth={2.5}
-              />
-            </div>
+            <span className="text-[length:var(--text-md)] font-bold text-[color:var(--color-text-primary)] relative top-[-2px]">
+              {selectedIds.size} 확인
+            </span>
           ) : undefined
         }
         onRightClick={selectedIds.size > 0 ? handleConfirm : undefined}

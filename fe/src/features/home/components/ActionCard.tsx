@@ -9,6 +9,7 @@ interface ActionCardProps {
   icon: 'todo' | 'schedule' | 'board' | 'clock';
   showNewBadge?: boolean;
   path: string;
+  state?: Record<string, string>;
 }
 
 export default function ActionCard({
@@ -19,6 +20,7 @@ export default function ActionCard({
   icon,
   showNewBadge = false,
   path,
+  state,
 }: ActionCardProps) {
   const navigate = useNavigate();
   const renderIcon = () => {
@@ -37,7 +39,7 @@ export default function ActionCard({
   return (
     <div
       className={`${bgColor} h-[110px] relative rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] shrink-0 cursor-pointer`}
-      onClick={() => navigate(path)}
+      onClick={() => navigate(path, { state })}
     >
       <div className="flex flex-col justify-between p-[var(--space-7)] size-full">
         <p

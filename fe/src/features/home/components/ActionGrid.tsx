@@ -25,7 +25,8 @@ export default function ActionGrid() {
         bgColor="bg-[var(--color-action-board)]"
         iconColor="var(--color-icon-muted)"
         icon="board"
-        path={ROUTES.BOARD}
+        path={`${ROUTES.STORE_COMMUNITY}?tab=board`}
+        state={{ from: 'home' }}
       />
       <ActionCard
         title="출퇴근 변경"
