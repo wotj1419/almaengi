@@ -62,6 +62,9 @@ public enum ErrorCode {
     PAYROLL_NOT_FOUND(HttpStatus.NOT_FOUND, "P002", "해당 급여 정산 내역을 찾을 수 없습니다."),
     PAYROLL_ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "P003", "이미 승인된 급여입니다."),
     PAYROLL_ALREADY_EXISTS(HttpStatus.CONFLICT, "P004", "해당 월 급여가 이미 생성되었습니다."),
+    PAYROLL_STORE_NOT_OWNED(HttpStatus.FORBIDDEN, "P005", "해당 매장의 급여를 관리할 권한이 없습니다."),
+    PAYROLL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "P006", "해당 급여를 조회할 권한이 없습니다."),
+    INVALID_TARGET_MONTH(HttpStatus.BAD_REQUEST, "P007", "잘못된 정산 월 형식입니다. (yyyy-MM)"),
 
     // Attendance 도메인
     INVALID_QR_TOKEN(HttpStatus.BAD_REQUEST, "A201", "유효하지 않은 QR 코드입니다."),

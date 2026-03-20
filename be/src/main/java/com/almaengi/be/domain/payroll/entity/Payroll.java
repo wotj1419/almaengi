@@ -76,6 +76,9 @@ public class Payroll extends BaseTimeEntity {
      * 급여를 최종 승인합니다.
      */
     public void approve() {
+        if (this.isApproved) {
+            throw new BusinessException(ErrorCode.PAYROLL_ALREADY_APPROVED);
+        }
         this.isApproved = true;
         this.approvedAt = OffsetDateTime.now();
     }
