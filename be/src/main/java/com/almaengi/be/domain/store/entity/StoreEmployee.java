@@ -64,6 +64,12 @@ public class StoreEmployee extends BaseTimeEntity {
     @Column(name = "dependents_count", nullable = false)
     private Integer dependentsCount;
 
+    /**
+     * 5인 미만 사업장에서도 연장·야간·휴일 가산수당을 지급할지 여부.
+     * 근로기준법상 5인 미만 사업장은 가산수당 지급 의무가 면제되지만,
+     * 사장님이 자발적으로 지급을 선택할 수 있는 옵션입니다.
+     * (5인 이상 사업장에서는 이 값과 무관하게 항상 가산수당이 적용됩니다)
+     */
     @Column(name = "include_holiday_pay", nullable = false)
     private Boolean includeHolidayPay;
 
