@@ -41,7 +41,6 @@
   --color-text-chip: #475569;
   --color-text-sub: #64748b;
   --color-status-badge-green-text: #7f9728;
-  --color-chip-selected-bg: #cbd5e1;
   --color-select-all-checked-bg: #e7e6e6;
   --color-text-dark: #4d4d4d;
   --color-text-black: #000000;
@@ -90,6 +89,15 @@
   --color-danger: #ef4444;
   --color-warning: #f6723f;
   --color-badge-new: #f54c4c;
+
+  /* ── 색상: 승인 가능 배지 ── */
+  --color-badge-approvable-bg: #dde8f5;
+  --color-badge-approvable-border: #93b8d8;
+  --color-badge-approvable-text: #3a6899;
+
+  /* ── 색상: 직원 미완료 표시 ── */
+  --color-employee-incomplete-bg: #fee2e2;
+  --color-employee-incomplete-text: #dc2626;
 
   /* 🎨 색상: 아이콘 */
   --color-icon-default: #5e5e5e;
@@ -235,4 +243,12 @@ body {
 /* 스크롤바 숨김 (WebKit) */
 .overflow-y-auto::-webkit-scrollbar {
   display: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

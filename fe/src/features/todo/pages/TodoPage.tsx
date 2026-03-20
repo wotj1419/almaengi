@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Pencil } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
@@ -8,23 +8,14 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import TodoActionBar from '../components/TodoActionBar';
 import TodoCard from '../components/TodoCard';
 import { useTodoStore } from '@/stores/useTodoStore';
-import type { Todo, TodoStatus } from '@/stores/useTodoStore';
+import type { Todo } from '@/features/todo/types';
 
-type Tab = '전체' | '진행중' | '종료';
-const TABS: Tab[] = ['전체', '진행중', '종료'];
+type Tab = '진행중' | '미완료' | '완료';
+const TABS: Tab[] = ['진행중', '미완료', '완료'];
 
-const STATUS_ORDER: Record<string, number> = { 진행중: 0, 미완료: 1, 완료: 2 };
-
-function parseDeadline(deadline: string): number {
-  if (!deadline) return Infinity;
-  const match = deadline.match(/(\d+)월\s*(\d+)일(?:\s*(\d+):(\d+)까지)?/);
-  if (!match) return Infinity;
-  const year = new Date().getFullYear();
-  const month = parseInt(match[1]);
-  const day = parseInt(match[2]);
-  const hour = match[3] ? parseInt(match[3]) : 23;
-  const minute = match[4] ? parseInt(match[4]) : 59;
-  return new Date(year, month - 1, day, hour, minute).getTime();
+function parseDueAt(due_at: string): number {
+  if (!due_at) return Infinity;
+  return new Date(due_at).getTime();
 }
 
 export default function TodoPage() {
@@ -33,41 +24,30 @@ export default function TodoPage() {
   const updateTodosStatus = useTodoStore((s) => s.updateTodosStatus);
   const deleteTodos = useTodoStore((s) => s.deleteTodos);
 
-  const [activeTab, setActiveTab] = useState<Tab>('전체');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as Tab) ?? '진행중';
+
+  const setActiveTab = (tab: Tab) => {
+    setSearchParams({ tab });
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [confirmType, setConfirmType] = useState<'complete' | 'delete' | null>(
-    null
-  );
+  const [confirmType, setConfirmType] = useState<'delete' | null>(null);
 
   const filteredTodos = todos
-    .filter((todo) => {
-      if (activeTab === '전체') return true;
-      if (activeTab === '진행중') return todo.status === '진행중';
-      if (activeTab === '종료')
-        return (
-          (todo.status as TodoStatus) === '완료' ||
-          (todo.status as TodoStatus) === '미완료'
-        );
-      return true;
-    })
-    .sort((a, b) => {
-      const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-      if (statusDiff !== 0) return statusDiff;
-      return parseDeadline(a.deadline) - parseDeadline(b.deadline);
-    });
+    .filter((todo) => todo.status === activeTab)
+    .sort((a, b) => parseDueAt(a.due_at) - parseDueAt(b.due_at));
 
   useEffect(() => {
     const checkOverdue = () => {
       const now = Date.now();
       const overdueIds = todos
         .filter(
-          (t) =>
-            t.status === '진행중' &&
-            t.deadline &&
-            parseDeadline(t.deadline) < now
+          (t) => t.status === '진행중' && t.due_at && parseDueAt(t.due_at) < now
         )
-        .map((t) => t.id);
+        .map((t) => t.task_id);
       if (overdueIds.length > 0) {
         updateTodosStatus(overdueIds, '미완료');
       }
@@ -79,22 +59,22 @@ export default function TodoPage() {
 
   const isAllSelected =
     filteredTodos.length > 0 &&
-    filteredTodos.every((t) => selectedIds.has(t.id));
+    filteredTodos.every((t) => selectedIds.has(t.task_id));
 
   const handleTap = (todo: Todo) => {
     if (isSelectionMode) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        if (next.has(todo.id)) next.delete(todo.id);
-        else next.add(todo.id);
+        if (next.has(todo.task_id)) next.delete(todo.task_id);
+        else next.add(todo.task_id);
         return next;
       });
     } else {
-      navigate(ROUTES.TODO_DETAIL.replace(':id', todo.id));
+      navigate(ROUTES.TODO_DETAIL.replace(':id', todo.task_id.toString()));
     }
   };
 
-  const handleLongPress = (id: string) => {
+  const handleLongPress = (id: number) => {
     if (!isSelectionMode) {
       setIsSelectionMode(true);
       setSelectedIds(new Set([id]));
@@ -112,19 +92,13 @@ export default function TodoPage() {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredTodos.map((t) => t.id)));
+      setSelectedIds(new Set(filteredTodos.map((t) => t.task_id)));
     }
   };
 
   const handleCancel = () => {
     setIsSelectionMode(false);
     setSelectedIds(new Set());
-  };
-
-  const handleMarkComplete = () => {
-    updateTodosStatus([...selectedIds], '완료');
-    setConfirmType(null);
-    handleCancel();
   };
 
   const handleDelete = () => {
@@ -213,12 +187,12 @@ export default function TodoPage() {
               <h2 className="text-[length:var(--text-xl)] text-[color:var(--color-text-primary)] font-bold tracking-[-0.5px]">
                 {activeTab === '진행중'
                   ? '진행 중인 할 일이 없습니다'
-                  : activeTab === '종료'
-                    ? '종료된 할 일이 없습니다'
-                    : '등록된 할 일이 없습니다'}
+                  : activeTab === '미완료'
+                    ? '미완료된 할 일이 없습니다'
+                    : '완료된 할 일이 없습니다'}
               </h2>
               <p className="text-[length:var(--text-md)] text-[color:var(--color-empty-text-sub)] font-medium">
-                {activeTab === '종료'
+                {activeTab === '완료'
                   ? '할 일을 완료하세요.'
                   : '새로운 할 일을 등록해보세요.'}
               </p>
@@ -227,12 +201,12 @@ export default function TodoPage() {
         ) : (
           filteredTodos.map((todo) => (
             <TodoCard
-              key={todo.id}
+              key={todo.task_id}
               todo={todo}
               isSelectionMode={isSelectionMode}
-              isSelected={selectedIds.has(todo.id)}
+              isSelected={selectedIds.has(todo.task_id)}
               onTap={() => handleTap(todo)}
-              onLongPress={() => handleLongPress(todo.id)}
+              onLongPress={() => handleLongPress(todo.task_id)}
             />
           ))
         )}
@@ -241,9 +215,7 @@ export default function TodoPage() {
       {isSelectionMode && (
         <TodoActionBar
           secondaryLabel="삭제"
-          primaryLabel="완료 처리"
           onSecondary={() => setConfirmType('delete')}
-          onPrimary={() => setConfirmType('complete')}
         />
       )}
 
@@ -255,14 +227,6 @@ export default function TodoPage() {
         confirmText="삭제"
         cancelText="취소"
         onConfirm={handleDelete}
-        onClose={() => setConfirmType(null)}
-      />
-      <ConfirmModal
-        isOpen={confirmType === 'complete'}
-        title="완료 처리할까요?"
-        confirmText="완료"
-        cancelText="취소"
-        onConfirm={handleMarkComplete}
         onClose={() => setConfirmType(null)}
       />
     </div>

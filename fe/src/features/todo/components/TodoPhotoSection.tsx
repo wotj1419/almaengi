@@ -1,32 +1,40 @@
 import { useRef } from 'react';
 import { Plus, X } from 'lucide-react';
+import type { TaskImage } from '@/features/todo/types';
 
 const MAX_PHOTOS = 3;
 
 type Props = {
-  photos: string[];
-  onPhotosChange: (photos: string[]) => void;
+  images: TaskImage[];
+  onImagesChange: (images: TaskImage[]) => void;
 };
 
-export default function TodoPhotoSection({ photos, onPhotosChange }: Props) {
+export default function TodoPhotoSection({ images, onImagesChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleAddClick = () => {
-    if (photos.length >= MAX_PHOTOS) return;
+    if (images.length >= MAX_PHOTOS) return;
     inputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    const remaining = MAX_PHOTOS - photos.length;
+    const remaining = MAX_PHOTOS - images.length;
     const toAdd = files.slice(0, remaining);
 
     toAdd.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        onPhotosChange(
-          [...photos, ev.target?.result as string].slice(0, MAX_PHOTOS)
-        );
+        const newImage: TaskImage = {
+          image_id: Date.now(),
+          task_id: 0,
+          image_url: ev.target?.result as string,
+          origin_name: file.name,
+          name: file.name,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        onImagesChange([...images, newImage].slice(0, MAX_PHOTOS));
       };
       reader.readAsDataURL(file);
     });
@@ -34,8 +42,8 @@ export default function TodoPhotoSection({ photos, onPhotosChange }: Props) {
     e.target.value = '';
   };
 
-  const handleRemove = (index: number) => {
-    onPhotosChange(photos.filter((_, i) => i !== index));
+  const handleRemove = (image_id: number) => {
+    onImagesChange(images.filter((img) => img.image_id !== image_id));
   };
 
   return (
@@ -45,7 +53,7 @@ export default function TodoPhotoSection({ photos, onPhotosChange }: Props) {
           참고 사진 첨부
         </span>
         <span className="text-[length:var(--text-xs)] text-[color:var(--color-text-light)] font-medium">
-          {photos.length}/{MAX_PHOTOS}
+          {images.length}/{MAX_PHOTOS}
         </span>
       </div>
 
@@ -62,25 +70,25 @@ export default function TodoPhotoSection({ photos, onPhotosChange }: Props) {
         <button
           type="button"
           onClick={handleAddClick}
-          disabled={photos.length >= MAX_PHOTOS}
+          disabled={images.length >= MAX_PHOTOS}
           className="cursor-pointer flex flex-col justify-center items-center h-[var(--size-photo-slot)] w-[var(--size-photo-slot)] rounded-[var(--radius-xs)] border-2 border-dashed border-[var(--color-photo-add-border)] disabled:opacity-40"
         >
           <Plus size={24} color="var(--color-text-light)" strokeWidth={1.7} />
         </button>
 
-        {photos.map((src, i) => (
+        {images.map((img) => (
           <div
-            key={i}
+            key={img.image_id}
             className="relative flex flex-1 h-[var(--size-photo-slot)] rounded-[var(--radius-sm)] justify-center items-center bg-[var(--color-photo-slot-bg)] overflow-hidden"
           >
             <img
-              src={src}
-              alt={`첨부 사진 ${i + 1}`}
+              src={img.image_url}
+              alt={img.origin_name}
               className="w-full h-full object-cover"
             />
             <button
               type="button"
-              onClick={() => handleRemove(i)}
+              onClick={() => handleRemove(img.image_id)}
               className="absolute top-1 right-1 bg-[var(--color-overlay)] rounded-full p-[var(--space-0-5)] cursor-pointer"
             >
               <X size={12} color="white" strokeWidth={2.5} />
