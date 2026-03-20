@@ -6,7 +6,7 @@ import RoleCard from '../components/RoleCard';
 import ownerImg from '@/assets/images/owner.png';
 import workerImg from '@/assets/images/worker.png';
 
-type Role = 'OWNER' | 'WORKER';
+type Role = 'OWNER' | 'EMPLOYEE';
 
 export default function RoleSelectPage() {
   const navigate = useNavigate();
@@ -53,12 +53,12 @@ export default function RoleSelectPage() {
           onSelect={() => setSelectedRole('OWNER')}
         />
         <RoleCard
-          role="WORKER"
+          role="EMPLOYEE"
           title="직원"
           description="편리한 출퇴근과 급여관리를 시작해보세요"
           image={workerImg}
-          selected={selectedRole === 'WORKER'}
-          onSelect={() => setSelectedRole('WORKER')}
+          selected={selectedRole === 'EMPLOYEE'}
+          onSelect={() => setSelectedRole('EMPLOYEE')}
         />
       </div>
 

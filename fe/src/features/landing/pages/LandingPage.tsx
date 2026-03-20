@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import landingImg from '@/assets/images/almangi_main.png';
+import { validateSessionByReissue } from '@/api/session';
 
 // 스플래시(랜딩) 페이지 - 앱 진입 시 3초간 표시 후 로그인 페이지로 자동 이동
 export default function LandingPage() {
@@ -9,10 +10,24 @@ export default function LandingPage() {
 
   // 3초 후 로그인 페이지로 자동 이동 (replace: 뒤로가기 방지)
   useEffect(() => {
+    let isMounted = true;
+
     const timer = setTimeout(() => {
-      navigate(ROUTES.LOGIN, { replace: true });
+      void (async () => {
+        const authStatus = await validateSessionByReissue();
+        if (!isMounted) return;
+
+        navigate(
+          authStatus === 'authenticated' ? ROUTES.HOME : ROUTES.LOGIN,
+          { replace: true }
+        );
+      })();
     }, 3000);
-    return () => clearTimeout(timer);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [navigate]);
 
   return (

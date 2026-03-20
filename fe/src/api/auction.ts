@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   AuctionDto,
   AuctionDetailDto,
+  BidAuctionRequest,
   CloseAuctionRequest,
   CloseAuctionResponse,
   CreateAuctionRequest,
@@ -19,6 +20,15 @@ export const fetchAuctions = async (storeId: number) => {
 export const fetchAuctionDetail = async (auctionId: number) => {
   const { data } = await instance.get<ApiResponse<AuctionDetailDto>>(
     `/api/v1/auctions/${auctionId}`
+  );
+
+  return data.data;
+};
+
+export const bidAuction = async (auctionId: number, body: BidAuctionRequest) => {
+  const { data } = await instance.post<ApiResponse<null>>(
+    `/api/v1/auctions/${auctionId}/bids`,
+    body
   );
 
   return data.data;

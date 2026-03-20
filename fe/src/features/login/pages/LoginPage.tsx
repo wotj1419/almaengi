@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { login } from '@/api/auth';
+import { validateSessionByReissue } from '@/api/session';
+import { getMyStoresWithToken } from '@/api/store';
 import useAuthStore from '@/stores/useAuthStore';
 import ConfirmModal from '@/components/common/ConfirmModal';
 
@@ -52,6 +54,23 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState(''); // 로그인 실패 시 에러 메시지
   const [showErrorModal, setShowErrorModal] = useState(false); // 에러 팝업 표시 여부
 
+  useEffect(() => {
+    let isMounted = true;
+
+    void (async () => {
+      const authStatus = await validateSessionByReissue();
+      if (!isMounted) return;
+
+      if (authStatus === 'authenticated') {
+        navigate(ROUTES.HOME, { replace: true });
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
+
   // 로그인 폼 제출 핸들러
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,10 +82,24 @@ export default function LoginPage() {
         setShowErrorModal(true);
         return;
       }
+
+      let activeStoreId: number | null = null;
+      try {
+        const stores = await getMyStoresWithToken(res.data.accessToken);
+        if (stores.length === 1) {
+          activeStoreId = stores[0].storeId;
+        } else if (stores.length > 1) {
+          activeStoreId = Math.min(...stores.map((store) => store.storeId));
+        }
+      } catch {
+        activeStoreId = null;
+      }
+
       // Zustand 스토어에 유저 정보 & 토큰 저장
       authLogin(
         { id: res.data.userId, name: res.data.name, role: res.data.role },
-        res.data.accessToken
+        res.data.accessToken,
+        activeStoreId
       );
       // 로그인 성공 시 홈으로 이동 (replace: 뒤로가기로 로그인 페이지 재진입 방지)
       navigate(ROUTES.HOME, { replace: true });

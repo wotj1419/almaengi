@@ -5,7 +5,9 @@ interface WorkInfoCardProps {
   staffCount: string;
   startTime: string;
   endTime: string;
-  staffCountError?: boolean;
+  staffCountErrorMessage?: string;
+  startTimeErrorMessage?: string;
+  endTimeErrorMessage?: string;
   onDateClick?: () => void;
   onStartTimeClick?: () => void;
   onEndTimeClick?: () => void;
@@ -17,7 +19,9 @@ export default function WorkInfoCard({
   staffCount,
   startTime,
   endTime,
-  staffCountError,
+  staffCountErrorMessage,
+  startTimeErrorMessage,
+  endTimeErrorMessage,
   onDateClick,
   onStartTimeClick,
   onEndTimeClick,
@@ -31,9 +35,7 @@ export default function WorkInfoCard({
         </div>
       </div>
       <div className="self-stretch flex flex-col justify-start items-center gap-4">
-        {/* 근무 날짜 + 필요 인원 */}
         <div className="self-stretch inline-flex justify-center items-center gap-3">
-          {/* 근무 날짜 */}
           <div className="flex-1 inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch flex flex-col justify-start items-start">
               <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
@@ -60,7 +62,7 @@ export default function WorkInfoCard({
               </div>
             </button>
           </div>
-          {/* 필요 인원 */}
+
           <div className="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch flex flex-col justify-start items-start">
               <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
@@ -81,14 +83,14 @@ export default function WorkInfoCard({
                 명
               </div>
             </div>
-            {staffCountError && (
+            {staffCountErrorMessage && (
               <div className="self-stretch text-[var(--color-danger)] text-[10px] font-medium leading-3">
-                인원을 설정해주세요.
+                {staffCountErrorMessage}
               </div>
             )}
           </div>
         </div>
-        {/* 시작 시간 + 종료 시간 */}
+
         <div className="self-stretch inline-flex justify-center items-start gap-3">
           <div className="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch flex flex-col justify-start items-start">
@@ -107,7 +109,13 @@ export default function WorkInfoCard({
                 </div>
               </div>
             </button>
+            {startTimeErrorMessage && (
+              <div className="self-stretch text-[var(--color-danger)] text-[10px] font-medium leading-3">
+                {startTimeErrorMessage}
+              </div>
+            )}
           </div>
+
           <div className="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch flex flex-col justify-start items-start">
               <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
@@ -125,6 +133,11 @@ export default function WorkInfoCard({
                 </div>
               </div>
             </button>
+            {endTimeErrorMessage && (
+              <div className="self-stretch text-[var(--color-danger)] text-[10px] font-medium leading-3">
+                {endTimeErrorMessage}
+              </div>
+            )}
           </div>
         </div>
       </div>

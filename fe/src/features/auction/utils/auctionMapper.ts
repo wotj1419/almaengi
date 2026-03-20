@@ -85,7 +85,7 @@ export function toAuctionItem(dto: AuctionDto): AuctionItem {
     id: dto.auctionId,
     status: 'inProgress',
     displayStatus: 'active',
-    statusLabel: `${pad(h)}:${pad(m)}:${pad(s)} 남음`,
+    statusLabel: `${pad(h)}:${pad(m)}:${pad(s)}`,
     isAwarded: false,
     registeredDate: createdAt.format('YYYY-MM-DD'),
     workDate: targetDate.format('YYYY.MM.DD'),

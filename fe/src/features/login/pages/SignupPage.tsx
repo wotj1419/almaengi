@@ -1,25 +1,49 @@
-import { useState } from 'react';
+import {
+  useState,
+  type FormEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
-import ConfirmModal from '@/components/common/ConfirmModal';
 import { signup } from '@/api/auth';
 
 const INPUT_CLASS =
-  'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border border-[var(--color-border-muted)] text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
+  'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
 
-interface LabeledInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX =
+  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,72}$/;
+
+type FieldName = 'name' | 'email' | 'phone' | 'password' | 'passwordConfirm';
+
+const INITIAL_FIELD_ERRORS: Record<FieldName, string> = {
+  name: '',
+  email: '',
+  phone: '',
+  password: '',
+  passwordConfirm: '',
+};
+
+interface LabeledInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  suffix?: React.ReactNode;
+  suffix?: ReactNode;
+  error?: string;
 }
 
 function LabeledInput({
   label,
   suffix,
+  error,
   className,
   ...inputProps
 }: LabeledInputProps) {
+  const borderClass = error
+    ? 'border-red-500'
+    : 'border-[var(--color-border-muted)]';
+
   return (
     <div className="flex flex-col">
       <label className="px-1 pb-2 text-[length:var(--text-base)] font-medium text-[var(--color-text-secondary)] leading-5">
@@ -28,17 +52,22 @@ function LabeledInput({
       {suffix ? (
         <div className="relative">
           <input
-            className={`w-full pr-12 ${INPUT_CLASS} ${className ?? ''}`}
+            className={`w-full pr-12 ${INPUT_CLASS} ${borderClass} ${className ?? ''}`}
             {...inputProps}
           />
           {suffix}
         </div>
       ) : (
         <input
-          className={`${INPUT_CLASS} ${className ?? ''}`}
+          className={`w-full ${INPUT_CLASS} ${borderClass} ${className ?? ''}`}
           {...inputProps}
         />
       )}
+      {error ? (
+        <p className="px-1 pt-1 text-[length:var(--text-sm)] text-red-500">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -54,6 +83,7 @@ function PasswordToggle({
     <button
       type="button"
       onClick={onToggle}
+      aria-label={show ? '비밀번호 숨기기' : '비밀번호 표시'}
       className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer"
     >
       {show ? (
@@ -65,9 +95,25 @@ function PasswordToggle({
   );
 }
 
+function toPhoneDigits(value: string) {
+  return value.replace(/\D/g, '').slice(0, 11);
+}
+
+function formatPhoneDigits(digits: string) {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  if (digits.length <= 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
+function formatPhoneInput(value: string) {
+  return formatPhoneDigits(toPhoneDigits(value));
+}
+
 export default function SignupPage() {
   const navigate = useNavigate();
-  // RoleSelectPage에서 전달받은 역할(OWNER/EMPLOYEE) 값 수신
   const location = useLocation();
   const role =
     (location.state as { role?: 'OWNER' | 'EMPLOYEE' })?.role ?? 'EMPLOYEE';
@@ -80,50 +126,138 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  // 에러 처리용 상태
-  const [errorMessage, setErrorMessage] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [fieldErrors, setFieldErrors] =
+    useState<Record<FieldName, string>>(INITIAL_FIELD_ERRORS);
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateName = (value: string) => {
+    if (!value.trim()) return '이름은 필수입니다.';
+    return '';
+  };
+
+  const validateEmail = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '이메일은 필수입니다.';
+    if (!EMAIL_REGEX.test(trimmed)) return '올바른 이메일 형식이 아닙니다.';
+    return '';
+  };
+
+  const validatePhone = (value: string) => {
+    const digits = toPhoneDigits(value);
+    if (!digits) return '';
+    if (digits.length < 10 || digits.length > 11) {
+      return '휴대폰 번호 형식이 올바르지 않습니다.';
+    }
+    return '';
+  };
+
+  const validatePassword = (value: string) => {
+    if (!value) return '비밀번호는 필수입니다.';
+    if (!PASSWORD_REGEX.test(value)) {
+      return '비밀번호는 8자 이상 72자 이하, 영문/숫자/특수문자를 포함해야 합니다.';
+    }
+    return '';
+  };
+
+  const validatePasswordConfirm = (
+    value: string,
+    currentPassword: string = password
+  ) => {
+    if (!value) return '비밀번호 확인은 필수입니다.';
+    if (value !== currentPassword) return '비밀번호가 일치하지 않습니다.';
+    return '';
+  };
+
+  const getFieldError = (field: FieldName) => {
+    if (field === 'name') return validateName(name);
+    if (field === 'email') return validateEmail(email);
+    if (field === 'phone') return validatePhone(phone);
+    if (field === 'password') return validatePassword(password);
+    return validatePasswordConfirm(passwordConfirm, password);
+  };
+
+  const clearFieldError = (field: FieldName) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const handleBlur = (field: FieldName) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: getFieldError(field) }));
+  };
 
   const isFormValid =
-    name.trim() !== '' &&
-    email.trim() !== '' &&
-    phone.trim() !== '' &&
-    password.length >= 8 &&
-    password === passwordConfirm &&
+    !validateName(name) &&
+    !validateEmail(email) &&
+    !validatePhone(phone) &&
+    !validatePassword(password) &&
+    !validatePasswordConfirm(passwordConfirm, password) &&
     agreed;
 
-  // 회원가입 API 연동 - 기존에는 API 호출 없이 바로 완료 페이지로 이동했음
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (isSubmitting) return;
+
+    setFormError('');
+
+    const nextErrors: Record<FieldName, string> = {
+      name: validateName(name),
+      email: validateEmail(email),
+      phone: validatePhone(phone),
+      password: validatePassword(password),
+      passwordConfirm: validatePasswordConfirm(passwordConfirm, password),
+    };
+    setFieldErrors(nextErrors);
+
+    const hasFieldError = Object.values(nextErrors).some(Boolean);
+    if (hasFieldError || !agreed) {
+      return;
+    }
+
     try {
-      // 회원가입 API 호출 (email, password, name, phone, role 전송)
-      const res = await signup({ email, password, name, phone, role });
-      // 응답 status 확인 - 실패 시 에러 모달 표시
+      setIsSubmitting(true);
+
+      const normalizedPhone = phone.trim();
+      const res = await signup({
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        phone: normalizedPhone || undefined,
+        role,
+      });
+
       if (res.status !== 'SUCCESS') {
-        setErrorMessage(res.message || '회원가입에 실패했습니다.');
-        setShowErrorModal(true);
+        const message = res.message || '회원가입에 실패했습니다.';
+
+        if (res.status === 'U002' || message.includes('이메일')) {
+          setFieldErrors((prev) => ({ ...prev, email: message }));
+        } else if (message.includes('비밀번호')) {
+          setFieldErrors((prev) => ({ ...prev, password: message }));
+        } else if (message.includes('이름')) {
+          setFieldErrors((prev) => ({ ...prev, name: message }));
+        } else if (message.includes('휴대폰') || message.includes('전화')) {
+          setFieldErrors((prev) => ({ ...prev, phone: message }));
+        } else {
+          setFormError(message);
+        }
         return;
       }
-      // 성공 시에만 완료 페이지로 이동
+
       navigate(ROUTES.SIGNUP_COMPLETE, { replace: true });
     } catch {
-      // 네트워크 오류 등 예외 처리
-      setErrorMessage('서버에 연결할 수 없습니다.');
-      setShowErrorModal(true);
+      setFormError('서버에 연결할 수 없습니다.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-white)]">
-      {/* 헤더 */}
       <DetailHeader
         title="회원가입"
         onBack={() => navigate(ROUTES.SIGNUP)}
         accentLine
       />
 
-      {/* 안내 메시지 */}
       <div className="px-4 pt-8 pb-6 flex flex-col gap-2">
         <h1 className="text-[length:var(--text-3xl)] font-bold text-[var(--color-text-primary)] leading-9">
           알맹이의 새로운
@@ -135,7 +269,6 @@ export default function SignupPage() {
         </p>
       </div>
 
-      {/* 폼 */}
       <form
         id="signup-form"
         onSubmit={handleSubmit}
@@ -145,32 +278,68 @@ export default function SignupPage() {
           label="이름"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            clearFieldError('name');
+            setFormError('');
+          }}
+          onBlur={() => handleBlur('name')}
           placeholder="실명을 입력해주세요"
+          error={fieldErrors.name}
         />
 
         <LabeledInput
           label="이메일"
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearFieldError('email');
+            setFormError('');
+          }}
+          onBlur={() => handleBlur('email')}
           placeholder="example@email.com"
+          error={fieldErrors.email}
         />
 
         <LabeledInput
           label="휴대폰 번호"
           type="tel"
+          inputMode="numeric"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => {
+            setPhone(formatPhoneInput(e.target.value));
+            clearFieldError('phone');
+            setFormError('');
+          }}
+          onBlur={() => handleBlur('phone')}
           placeholder="010-0000-0000"
+          error={fieldErrors.phone}
         />
 
         <LabeledInput
           label="비밀번호"
           type={showPassword ? 'text' : 'password'}
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="8자 이상 입력해주세요"
+          onChange={(e) => {
+            const nextPassword = e.target.value;
+            setPassword(nextPassword);
+            clearFieldError('password');
+            setFormError('');
+
+            if (passwordConfirm) {
+              setFieldErrors((prev) => ({
+                ...prev,
+                passwordConfirm: validatePasswordConfirm(
+                  passwordConfirm,
+                  nextPassword
+                ),
+              }));
+            }
+          }}
+          onBlur={() => handleBlur('password')}
+          placeholder="8자 이상 72자 이하, 영문/숫자/특수문자 포함"
+          error={fieldErrors.password}
           suffix={
             <PasswordToggle
               show={showPassword}
@@ -183,8 +352,14 @@ export default function SignupPage() {
           label="비밀번호 확인"
           type={showPasswordConfirm ? 'text' : 'password'}
           value={passwordConfirm}
-          onChange={(e) => setPasswordConfirm(e.target.value)}
+          onChange={(e) => {
+            setPasswordConfirm(e.target.value);
+            clearFieldError('passwordConfirm');
+            setFormError('');
+          }}
+          onBlur={() => handleBlur('passwordConfirm')}
           placeholder="비밀번호를 다시 입력해주세요"
+          error={fieldErrors.passwordConfirm}
           suffix={
             <PasswordToggle
               show={showPasswordConfirm}
@@ -193,7 +368,6 @@ export default function SignupPage() {
           }
         />
 
-        {/* 이용약관 동의 */}
         <label className="px-1 flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -216,30 +390,21 @@ export default function SignupPage() {
         </label>
       </form>
 
-      {/* 하단 고정 버튼 */}
       <div className="sticky bottom-0 p-4 bg-[var(--color-bg-base)]/80 backdrop-blur-sm">
-        {/* type="button" → type="submit", form="signup-form" 으로 변경하여 폼 제출과 연결 */}
+        {formError ? (
+          <p className="mb-2 text-center text-[length:var(--text-sm)] text-red-500">
+            {formError}
+          </p>
+        ) : null}
         <button
           type="submit"
           form="signup-form"
-          disabled={!isFormValid}
+          disabled={!isFormValid || isSubmitting}
           className="w-full h-14 bg-[var(--color-primary)] rounded-3xl shadow-md text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)] leading-7 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          회원가입
+          {isSubmitting ? '처리 중...' : '회원가입'}
         </button>
       </div>
-
-      {/* 회원가입 실패 에러 팝업 */}
-      <ConfirmModal
-        isOpen={showErrorModal}
-        title="회원가입 실패"
-        description={errorMessage}
-        showCloseButton
-        confirmText=""
-        cancelText=""
-        onConfirm={() => setShowErrorModal(false)}
-        onClose={() => setShowErrorModal(false)}
-      />
     </div>
   );
 }
