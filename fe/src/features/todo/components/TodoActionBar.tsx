@@ -1,16 +1,18 @@
 type Props = {
   secondaryLabel: string;
-  primaryLabel: string;
   onSecondary: () => void;
-  onPrimary: () => void;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+  primaryDisabled?: boolean;
   fixed?: boolean;
 };
 
 export default function TodoActionBar({
   secondaryLabel,
-  primaryLabel,
   onSecondary,
+  primaryLabel,
   onPrimary,
+  primaryDisabled = false,
   fixed = true,
 }: Props) {
   const buttons = (
@@ -23,14 +25,27 @@ export default function TodoActionBar({
           {secondaryLabel}
         </span>
       </button>
-      <button
-        onClick={onPrimary}
-        className="flex-1 py-[var(--space-4)] rounded-[var(--radius-lg)] bg-[var(--color-action-todo)] shadow-[var(--shadow-card)] flex items-center justify-center cursor-pointer"
-      >
-        <span className="text-[length:var(--text-md)] text-[color:var(--color-text-primary)] font-bold">
-          {primaryLabel}
-        </span>
-      </button>
+      {primaryLabel && onPrimary && (
+        <button
+          onClick={primaryDisabled ? undefined : onPrimary}
+          disabled={primaryDisabled}
+          className={`flex-1 py-[var(--space-4)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] flex items-center justify-center ${
+            primaryDisabled
+              ? 'bg-[var(--color-border-light)] cursor-not-allowed'
+              : 'bg-[var(--color-action-todo)] cursor-pointer'
+          }`}
+        >
+          <span
+            className={`text-[length:var(--text-md)] font-bold ${
+              primaryDisabled
+                ? 'text-[color:var(--color-text-sub)]'
+                : 'text-[color:var(--color-text-primary)]'
+            }`}
+          >
+            {primaryLabel}
+          </span>
+        </button>
+      )}
     </div>
   );
 

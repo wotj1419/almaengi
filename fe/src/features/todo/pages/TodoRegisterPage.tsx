@@ -9,31 +9,62 @@ import TodoInfoSection from '../components/TodoInfoSection';
 import TodoDetailSection from '../components/TodoDetailSection';
 import TodoPhotoSection from '../components/TodoPhotoSection';
 import { useTodoStore } from '@/stores/useTodoStore';
+import type { TaskImage } from '@/features/todo/types';
 
 export default function TodoRegisterPage() {
   const navigate = useNavigate();
   const addTodo = useTodoStore((s) => s.addTodo);
 
   const [title, setTitle] = useState('');
-  const [detail, setDetail] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [description, setDescription] = useState('');
+  const [images, setImages] = useState<TaskImage[]>([]);
+  const [assigneeEmployeeIds, setAssigneeEmployeeIds] = useState<number[]>([]);
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [selectedTime, setSelectedTime] = useState<{
     hour: number;
     minute: number;
   } | null>(null);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    assignee?: string;
+    date?: string;
+    description?: string;
+  }>({});
 
   const handleSubmit = () => {
-    const deadline = (() => {
+    const newErrors: typeof errors = {};
+    if (!title.trim()) newErrors.title = '제목을 입력해 주세요.';
+    if (assigneeEmployeeIds.length === 0)
+      newErrors.assignee = '담당 직원을 선택해 주세요.';
+    if (!selectedDate || !selectedTime)
+      newErrors.date = '완료 기한의 날짜와 시간을 모두 선택해 주세요.';
+    if (!description.trim())
+      newErrors.description = '상세 내용을 입력해 주세요.';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+    const due_at = (() => {
       if (!selectedDate) return '';
-      const datePart = selectedDate.format('M월 D일');
-      if (!selectedTime) return datePart;
-      const timePart = `${String(selectedTime.hour).padStart(2, '0')}:${String(selectedTime.minute).padStart(2, '0')}`;
-      return `${datePart} ${timePart}까지`;
+      const base = selectedDate.startOf('day');
+      if (!selectedTime) return base.toISOString();
+      return base
+        .hour(selectedTime.hour)
+        .minute(selectedTime.minute)
+        .second(0)
+        .toISOString();
     })();
 
-    addTodo({ title, detail, deadline, employees: selectedEmployees, photos });
+    addTodo({
+      store_id: 1,
+      assignee_employee_ids: assigneeEmployeeIds,
+      creator_user_id: 1,
+      title,
+      description,
+      due_at,
+      images,
+    });
     navigate(ROUTES.TODO);
   };
 
@@ -44,16 +75,38 @@ export default function TodoRegisterPage() {
         <div className="flex flex-col gap-[var(--space-7)] p-[var(--space-5)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] border border-[var(--color-border-light)] shadow-[var(--shadow-form-card)] w-full">
           <TodoInfoSection
             title={title}
-            onTitleChange={setTitle}
-            selectedEmployees={selectedEmployees}
-            onEmployeesChange={setSelectedEmployees}
+            onTitleChange={(v) => {
+              setTitle(v);
+              setErrors((e) => ({ ...e, title: undefined }));
+            }}
+            assigneeEmployeeIds={assigneeEmployeeIds}
+            onAssigneeChange={(ids) => {
+              setAssigneeEmployeeIds(ids);
+              setErrors((e) => ({ ...e, assignee: undefined }));
+            }}
             selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
+            onDateChange={(v) => {
+              setSelectedDate(v);
+              setErrors((e) => ({ ...e, date: undefined }));
+            }}
             selectedTime={selectedTime}
-            onTimeChange={setSelectedTime}
+            onTimeChange={(v) => {
+              setSelectedTime(v);
+              setErrors((e) => ({ ...e, date: undefined }));
+            }}
+            titleError={errors.title}
+            assigneeError={errors.assignee}
+            dateError={errors.date}
           />
-          <TodoDetailSection detail={detail} onDetailChange={setDetail} />
-          <TodoPhotoSection photos={photos} onPhotosChange={setPhotos} />
+          <TodoDetailSection
+            detail={description}
+            onDetailChange={(v) => {
+              setDescription(v);
+              setErrors((e) => ({ ...e, description: undefined }));
+            }}
+            error={errors.description}
+          />
+          <TodoPhotoSection images={images} onImagesChange={setImages} />
         </div>
         <PrimaryButton label="등록하기" onClick={handleSubmit} />
       </main>
