@@ -1,4 +1,5 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+
 import { MessageSquarePlus, Pencil } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
@@ -11,13 +12,14 @@ import { useBoardStore } from '@/stores/useBoardStore';
 
 export default function StorePage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const activeTab: Tab =
     searchParams.get('tab') === 'chat' ? '채팅방' : '게시판';
   const setActiveTab = (tab: Tab) =>
-    setSearchParams(
-      { tab: tab === '채팅방' ? 'chat' : 'board' },
-      { replace: true }
+    navigate(
+      `${ROUTES.STORE_COMMUNITY}?tab=${tab === '채팅방' ? 'chat' : 'board'}`,
+      { replace: true, state: location.state }
     );
   const rooms = useChatStore((s) => s.rooms);
   const posts = useBoardStore((s) => s.posts);
@@ -44,7 +46,11 @@ export default function StorePage() {
     <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
       <DetailHeader
         title="매장 커뮤니티"
-        onBack={() => navigate(ROUTES.HOME)}
+        onBack={() =>
+          location.state?.from === 'home'
+            ? navigate(ROUTES.HOME)
+            : navigate(ROUTES.STORE)
+        }
         rightIcon={
           activeTab === '채팅방' ? (
             <MessageSquarePlus
@@ -62,8 +68,8 @@ export default function StorePage() {
         }
         onRightClick={
           activeTab === '채팅방'
-            ? () => navigate(ROUTES.STORE_CHAT_NEW)
-            : () => navigate(ROUTES.STORE_BOARD_NEW)
+            ? () => navigate(ROUTES.STORE_CHAT_NEW, { state: location.state })
+            : () => navigate(ROUTES.STORE_BOARD_NEW, { state: location.state })
         }
       />
 
@@ -82,7 +88,8 @@ export default function StorePage() {
                     ROUTES.STORE_BOARD_DETAIL.replace(
                       ':postId',
                       String(post.postId)
-                    )
+                    ),
+                    { state: location.state }
                   )
                 }
               />
@@ -99,7 +106,8 @@ export default function StorePage() {
                     ROUTES.STORE_CHAT_ROOM.replace(
                       ':chatRoomId',
                       String(room.roomId)
-                    )
+                    ),
+                    { state: location.state }
                   )
                 }
               />

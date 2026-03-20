@@ -11,7 +11,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { key: 'home', label: '홈', path: ROUTES.HOME, iconName: 'house' },
-  { key: 'schedule', label: '스케줄', path: ROUTES.SCHEDULE, iconName: 'calendar' },
+  {
+    key: 'schedule',
+    label: '스케줄',
+    path: ROUTES.SCHEDULE,
+    iconName: 'calendar',
+  },
   { key: 'staff', label: '직원', path: ROUTES.EMPLOYEE, iconName: 'users' },
   { key: 'salary', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
   { key: 'store', label: '매장', path: ROUTES.STORE, iconName: 'store' },
@@ -22,12 +27,22 @@ interface BottomNavProps {
   onTabChange?: (tab: string) => void;
 }
 
-function NavIcon({ iconName, active }: { iconName: NavItem['iconName']; active: boolean }) {
-  const color = active ? 'var(--color-text-primary)' : 'var(--color-text-light)';
+function NavIcon({
+  iconName,
+  active,
+}: {
+  iconName: NavItem['iconName'];
+  active: boolean;
+}) {
+  const color = active
+    ? 'var(--color-text-primary)'
+    : 'var(--color-text-light)';
 
   switch (iconName) {
     case 'house':
-      return <House size={30} color={color} strokeWidth={2} strokeLinejoin="bevel" />;
+      return (
+        <House size={30} color={color} strokeWidth={2} strokeLinejoin="bevel" />
+      );
     case 'calendar':
       return (
         <Calendar

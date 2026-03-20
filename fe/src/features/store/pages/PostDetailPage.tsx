@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import Avatar from 'boring-avatars';
 import { EllipsisVertical, CircleCheckBig, Pencil } from 'lucide-react';
@@ -12,6 +12,7 @@ import { formatRelativeTime } from '../utils/formatRelativeTime';
 export default function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const post = useBoardStore((s) =>
     s.posts.find((p) => p.postId === Number(postId))
   );
@@ -25,7 +26,14 @@ export default function PostDetailPage() {
   if (!post) {
     return (
       <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
-        <DetailHeader title="게시글" onBack={() => navigate(ROUTES.STORE)} />
+        <DetailHeader
+          title="게시글"
+          onBack={() =>
+            navigate(`${ROUTES.STORE_COMMUNITY}?tab=board`, {
+              state: location.state,
+            })
+          }
+        />
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[color:var(--color-text-muted)]">
             게시글을 찾을 수 없습니다.
@@ -53,16 +61,26 @@ export default function PostDetailPage() {
     <div className="flex flex-col h-screen bg-[var(--color-bg-base)]">
       <DetailHeader
         title="매장 커뮤니티"
-        onBack={() => navigate(-1)}
+        onBack={() =>
+          navigate(`${ROUTES.STORE_COMMUNITY}?tab=board`, {
+            state: location.state,
+          })
+        }
         rightIcon={
           <Pencil size={20} color="var(--color-text-primary)" strokeWidth={2} />
         }
-        onRightClick={() => navigate(ROUTES.STORE_BOARD_NEW)}
+        onRightClick={() =>
+          navigate(ROUTES.STORE_BOARD_NEW, { state: location.state })
+        }
       />
 
       <StoreTabs
         activeTab="게시판"
-        onTabChange={() => navigate(ROUTES.STORE)}
+        onTabChange={() =>
+          navigate(`${ROUTES.STORE_COMMUNITY}?tab=chat`, {
+            state: location.state,
+          })
+        }
       />
 
       {/* 본문 */}
