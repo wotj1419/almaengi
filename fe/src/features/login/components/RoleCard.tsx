@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 
 interface RoleCardProps {
-  role: 'OWNER' | 'WORKER';
+  role: 'OWNER' | 'EMPLOYEE';
   title: string;
   description: ReactNode;
   image: string;
@@ -10,6 +10,7 @@ interface RoleCardProps {
 }
 
 export default function RoleCard({
+  role,
   title,
   description,
   image,
@@ -26,7 +27,13 @@ export default function RoleCard({
           : 'border-[var(--color-bg-white)]'
       }`}
     >
-      <img className="w-36 h-48 object-cover" src={image} alt={title} />
+      <img
+        className={`w-36 h-48 object-cover ${
+          role === 'EMPLOYEE' ? 'translate-y-2' : ''
+        }`}
+        src={image}
+        alt={title}
+      />
       <div className="flex-1 p-5 flex flex-col items-start gap-1">
         <h3 className="text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)] leading-6">
           {title}

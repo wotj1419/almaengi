@@ -13,6 +13,13 @@ import WorkInfoCard from '../components/WorkInfoCard';
 import { useAuctionDetail, useUpdateAuction } from '../hooks/useAuctionQueries';
 import { formatTime, parseTimeStr } from '../utils/formatTime';
 
+interface AuctionFormErrors {
+  staffCount?: string;
+  startTime?: string;
+  endTime?: string;
+  deadline?: string;
+}
+
 export default function AuctionEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -24,7 +31,7 @@ export default function AuctionEditPage() {
   if (isLoading) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg-body)]">
-        <p className="text-[var(--color-text-muted)] text-lg">로딩 중...</p>
+        <p className="text-[var(--color-text-muted)] text-lg">로딩 중..</p>
       </div>
     );
   }
@@ -74,7 +81,6 @@ function AuctionEditForm({
   >(null);
 
   const [staffCount, setStaffCount] = useState(String(auction.recruitCount));
-  const [staffCountError, setStaffCountError] = useState(false);
   const [minWage, setMinWage] = useState(auction.minWage.toLocaleString());
   const [maxWage, setMaxWage] = useState(auction.maxWage.toLocaleString());
 
@@ -85,9 +91,20 @@ function AuctionEditForm({
     null
   );
 
+  const [formErrors, setFormErrors] = useState<AuctionFormErrors>({});
+  const [formError, setFormError] = useState('');
+
+  const clearFieldError = (field: keyof AuctionFormErrors) => {
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    setFormError('');
+  };
+
   const handleSubmit = () => {
+    setFormErrors({});
+    setFormError('');
+
     if (!staffCount || Number(staffCount) <= 0) {
-      setStaffCountError(true);
+      setFormErrors({ staffCount: '인원을 설정해주세요.' });
       return;
     }
 
@@ -103,22 +120,22 @@ function AuctionEditForm({
       .second(0);
 
     if (targetStart.isBefore(now)) {
-      toast.error('근무 시작 시간은 현재 이후여야 합니다.');
+      setFormErrors({ startTime: '근무 시작 시간은 현재 이후여야 합니다.' });
       return;
     }
 
     if (targetEnd.isBefore(targetStart)) {
-      toast.error('근무 종료 시간은 시작 시간 이후여야 합니다.');
+      setFormErrors({ endTime: '근무 종료 시간은 시작 시간 이후여야 합니다.' });
       return;
     }
 
     if (!deadline.isAfter(now)) {
-      toast.error('경매 마감 시간은 현재 이후여야 합니다.');
+      setFormErrors({ deadline: '경매 마감 시간은 현재 이후여야 합니다.' });
       return;
     }
 
     if (!deadline.isBefore(targetStart)) {
-      toast.error('경매 마감 시간은 근무 시작 전이어야 합니다.');
+      setFormErrors({ deadline: '경매 마감 시간은 근무 시작 전이어야 합니다.' });
       return;
     }
 
@@ -141,7 +158,7 @@ function AuctionEditForm({
           navigate('/auction');
         },
         onError: (error) => {
-          toast.error(getApiErrorMessage(error, '경매 수정에 실패했습니다.'));
+          setFormError(getApiErrorMessage(error, '경매 수정에 실패했습니다.'));
         },
       }
     );
@@ -149,7 +166,6 @@ function AuctionEditForm({
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      {/* auctionStyle: 다른 경매 페이지와 헤더 스타일 통일 */}
       <Header title="경매 수정" onBack={() => navigate(-1)} auctionStyle />
 
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">
@@ -158,23 +174,53 @@ function AuctionEditForm({
           staffCount={staffCount}
           startTime={formatTime(startHour, startMinute)}
           endTime={formatTime(endHour, endMinute)}
-          onDateClick={() => setIsDatePickerOpen(true)}
-          onStartTimeClick={() => setTimePickerTarget('start')}
-          onEndTimeClick={() => setTimePickerTarget('end')}
+          onDateClick={() => {
+            setIsDatePickerOpen(true);
+            setFormError('');
+          }}
+          onStartTimeClick={() => {
+            setTimePickerTarget('start');
+            clearFieldError('startTime');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
+          }}
+          onEndTimeClick={() => {
+            setTimePickerTarget('end');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
+          }}
           onStaffCountChange={(value) => {
             setStaffCount(value);
-            setStaffCountError(false);
+            clearFieldError('staffCount');
           }}
-          staffCountError={staffCountError}
+          staffCountErrorMessage={formErrors.staffCount}
+          startTimeErrorMessage={formErrors.startTime}
+          endTimeErrorMessage={formErrors.endTime}
         />
         <AuctionSettingsCard
           minWage={minWage}
           maxWage={maxWage}
           deadline={`${deadlineDate.format('YYYY. MM. DD')}  ${formatTime(deadlineHour, deadlineMinute)}`}
-          onMinWageChange={setMinWage}
-          onMaxWageChange={setMaxWage}
-          onDeadlineClick={() => setDeadlineStep('date')}
+          onMinWageChange={(value) => {
+            setMinWage(value);
+            setFormError('');
+          }}
+          onMaxWageChange={(value) => {
+            setMaxWage(value);
+            setFormError('');
+          }}
+          onDeadlineClick={() => {
+            setDeadlineStep('date');
+            clearFieldError('deadline');
+          }}
+          deadlineErrorMessage={formErrors.deadline}
         />
+
+        {formError && (
+          <p className="self-stretch text-[var(--color-danger)] text-xs font-medium leading-4 px-1">
+            {formError}
+          </p>
+        )}
 
         <div className="self-stretch inline-flex justify-center items-center gap-3.5">
           <button
@@ -205,11 +251,15 @@ function AuctionEditForm({
           if (deadlineStep === 'date') {
             setDeadlineDate(date);
             setDeadlineStep('time');
+            clearFieldError('deadline');
             return;
           }
 
           setSelectedDate(date);
           setIsDatePickerOpen(false);
+          clearFieldError('startTime');
+          clearFieldError('endTime');
+          clearFieldError('deadline');
         }}
         onClose={() => {
           if (deadlineStep === 'date') {
@@ -243,6 +293,7 @@ function AuctionEditForm({
             setDeadlineHour(hour);
             setDeadlineMinute(minute);
             setDeadlineStep(null);
+            clearFieldError('deadline');
             return;
           }
 
@@ -250,12 +301,17 @@ function AuctionEditForm({
             setStartHour(hour);
             setStartMinute(minute);
             setTimePickerTarget(null);
+            clearFieldError('startTime');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
             return;
           }
 
           setEndHour(hour);
           setEndMinute(minute);
           setTimePickerTarget(null);
+          clearFieldError('endTime');
+          clearFieldError('deadline');
         }}
         onClose={() => {
           if (deadlineStep === 'time') {

@@ -1,10 +1,18 @@
-import { defineConfig } from 'vite';
+﻿import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -23,7 +31,7 @@ export default defineConfig({
       manifest: {
         name: 'Almaengi',
         short_name: 'Almaengi',
-        description: '매장 관리 서비스',
+        description: 'Store management service',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

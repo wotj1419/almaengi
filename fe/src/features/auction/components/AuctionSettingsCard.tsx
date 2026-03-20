@@ -2,6 +2,7 @@ interface AuctionSettingsCardProps {
   minWage: string;
   maxWage: string;
   deadline: string;
+  deadlineErrorMessage?: string;
   onMinWageChange?: (value: string) => void;
   onMaxWageChange?: (value: string) => void;
   onDeadlineClick?: () => void;
@@ -11,6 +12,7 @@ export default function AuctionSettingsCard({
   minWage,
   maxWage,
   deadline,
+  deadlineErrorMessage,
   onMinWageChange,
   onMaxWageChange,
   onDeadlineClick,
@@ -21,9 +23,7 @@ export default function AuctionSettingsCard({
         경매 설정
       </div>
       <div className="self-stretch flex flex-col justify-start items-start gap-4">
-        {/* 시급 하한가 + 상한가 */}
         <div className="self-stretch inline-flex justify-center items-start gap-3">
-          {/* 시급 하한가 */}
           <div className="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
               시급 하한가
@@ -48,7 +48,7 @@ export default function AuctionSettingsCard({
               </div>
             )}
           </div>
-          {/* 시급 상한가 */}
+
           <div className="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-1.5">
             <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
               시급 상한가
@@ -72,7 +72,7 @@ export default function AuctionSettingsCard({
             </div>
           </div>
         </div>
-        {/* 경매 마감 */}
+
         <div className="self-stretch inline-flex flex-col justify-start items-start gap-1.5">
           <div className="self-stretch text-[var(--color-text-muted)] text-base font-medium leading-5">
             경매 마감
@@ -86,6 +86,11 @@ export default function AuctionSettingsCard({
               {deadline}
             </div>
           </button>
+          {deadlineErrorMessage && (
+            <div className="self-stretch text-[var(--color-danger)] text-[10px] font-medium leading-3">
+              {deadlineErrorMessage}
+            </div>
+          )}
         </div>
       </div>
     </div>

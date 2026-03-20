@@ -13,9 +13,15 @@ import WorkInfoCard from '../components/WorkInfoCard';
 import { useCreateAuction } from '../hooks/useAuctionQueries';
 import { formatTime } from '../utils/formatTime';
 
+interface AuctionFormErrors {
+  staffCount?: string;
+  startTime?: string;
+  endTime?: string;
+  deadline?: string;
+}
+
 export default function AuctionRegisterPage() {
-  // 로그인한 사용자의 매장 ID (미로그인 시 기본값 1)
-  const storeId = useAuthStore((state) => state.user?.storeId ?? 1);
+  const activeStoreId = useAuthStore((state) => state.activeStoreId);
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -29,7 +35,6 @@ export default function AuctionRegisterPage() {
   >(null);
 
   const [staffCount, setStaffCount] = useState('1');
-  const [staffCountError, setStaffCountError] = useState(false);
   const [minWage, setMinWage] = useState('10,320');
   const [maxWage, setMaxWage] = useState('12,384');
 
@@ -40,20 +45,36 @@ export default function AuctionRegisterPage() {
     null
   );
 
+  const [formErrors, setFormErrors] = useState<AuctionFormErrors>({});
+  const [formError, setFormError] = useState('');
+
   const createMutation = useCreateAuction();
 
   const handleCancel = () => {
     navigate(-1);
   };
 
+  const clearFieldError = (field: keyof AuctionFormErrors) => {
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    setFormError('');
+  };
+
   const handleStaffCountChange = (value: string) => {
     setStaffCount(value);
-    setStaffCountError(false);
+    clearFieldError('staffCount');
   };
 
   const handleSubmit = () => {
+    if (activeStoreId === null) {
+      toast.error('등록된 매장이 없어 경매를 등록할 수 없습니다.');
+      return;
+    }
+
+    setFormErrors({});
+    setFormError('');
+
     if (!staffCount || Number(staffCount) <= 0) {
-      setStaffCountError(true);
+      setFormErrors({ staffCount: '인원을 설정해주세요.' });
       return;
     }
 
@@ -69,28 +90,28 @@ export default function AuctionRegisterPage() {
       .second(0);
 
     if (targetStart.isBefore(now)) {
-      toast.error('근무 시작 시간은 현재 이후여야 합니다.');
+      setFormErrors({ startTime: '근무 시작 시간은 현재 이후여야 합니다.' });
       return;
     }
 
     if (targetEnd.isBefore(targetStart)) {
-      toast.error('근무 종료 시간은 시작 시간 이후여야 합니다.');
+      setFormErrors({ endTime: '근무 종료 시간은 시작 시간 이후여야 합니다.' });
       return;
     }
 
     if (!deadline.isAfter(now)) {
-      toast.error('경매 마감 시간은 현재 이후여야 합니다.');
+      setFormErrors({ deadline: '경매 마감 시간은 현재 이후여야 합니다.' });
       return;
     }
 
     if (!deadline.isBefore(targetStart)) {
-      toast.error('경매 마감 시간은 근무 시작 전이어야 합니다.');
+      setFormErrors({ deadline: '경매 마감 시간은 근무 시작 전이어야 합니다.' });
       return;
     }
 
     createMutation.mutate(
       {
-        storeId: storeId,
+        storeId: activeStoreId,
         body: {
           targetDate: selectedDate.format('YYYY-MM-DD'),
           targetStartTime: `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}:00`,
@@ -107,7 +128,7 @@ export default function AuctionRegisterPage() {
           navigate('/auction');
         },
         onError: (error) => {
-          toast.error(getApiErrorMessage(error, '경매 등록에 실패했습니다.'));
+          setFormError(getApiErrorMessage(error, '경매 등록에 실패했습니다.'));
         },
       }
     );
@@ -123,20 +144,50 @@ export default function AuctionRegisterPage() {
           staffCount={staffCount}
           startTime={formatTime(startHour, startMinute)}
           endTime={formatTime(endHour, endMinute)}
-          onDateClick={() => setIsDatePickerOpen(true)}
-          onStartTimeClick={() => setTimePickerTarget('start')}
-          onEndTimeClick={() => setTimePickerTarget('end')}
+          onDateClick={() => {
+            setIsDatePickerOpen(true);
+            setFormError('');
+          }}
+          onStartTimeClick={() => {
+            setTimePickerTarget('start');
+            clearFieldError('startTime');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
+          }}
+          onEndTimeClick={() => {
+            setTimePickerTarget('end');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
+          }}
           onStaffCountChange={handleStaffCountChange}
-          staffCountError={staffCountError}
+          staffCountErrorMessage={formErrors.staffCount}
+          startTimeErrorMessage={formErrors.startTime}
+          endTimeErrorMessage={formErrors.endTime}
         />
         <AuctionSettingsCard
           minWage={minWage}
           maxWage={maxWage}
           deadline={`${deadlineDate.format('YYYY. MM. DD')}  ${formatTime(deadlineHour, deadlineMinute)}`}
-          onMinWageChange={setMinWage}
-          onMaxWageChange={setMaxWage}
-          onDeadlineClick={() => setDeadlineStep('date')}
+          onMinWageChange={(value) => {
+            setMinWage(value);
+            setFormError('');
+          }}
+          onMaxWageChange={(value) => {
+            setMaxWage(value);
+            setFormError('');
+          }}
+          onDeadlineClick={() => {
+            setDeadlineStep('date');
+            clearFieldError('deadline');
+          }}
+          deadlineErrorMessage={formErrors.deadline}
         />
+
+        {formError && (
+          <p className="self-stretch text-[var(--color-danger)] text-xs font-medium leading-4 px-1">
+            {formError}
+          </p>
+        )}
 
         <div className="self-stretch inline-flex justify-center items-center gap-3.5">
           <button
@@ -167,11 +218,15 @@ export default function AuctionRegisterPage() {
           if (deadlineStep === 'date') {
             setDeadlineDate(date);
             setDeadlineStep('time');
+            clearFieldError('deadline');
             return;
           }
 
           setSelectedDate(date);
           setIsDatePickerOpen(false);
+          clearFieldError('startTime');
+          clearFieldError('endTime');
+          clearFieldError('deadline');
         }}
         onClose={() => {
           if (deadlineStep === 'date') {
@@ -205,6 +260,7 @@ export default function AuctionRegisterPage() {
             setDeadlineHour(hour);
             setDeadlineMinute(minute);
             setDeadlineStep(null);
+            clearFieldError('deadline');
             return;
           }
 
@@ -212,12 +268,17 @@ export default function AuctionRegisterPage() {
             setStartHour(hour);
             setStartMinute(minute);
             setTimePickerTarget(null);
+            clearFieldError('startTime');
+            clearFieldError('endTime');
+            clearFieldError('deadline');
             return;
           }
 
           setEndHour(hour);
           setEndMinute(minute);
           setTimePickerTarget(null);
+          clearFieldError('endTime');
+          clearFieldError('deadline');
         }}
         onClose={() => {
           if (deadlineStep === 'time') {
