@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     openai_api_key: str = ""
+    openai_api_base: str = ""
     openai_model_default: str = "gpt-4o-mini"
     openai_model_complex: str = "gpt-4o"
 
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
     rerank_top_k: int = 5
     max_context_tokens: int = 4000
 
-    model_config = {"env_file": "../.env"}
+    model_config = {"env_file": "../.env", "extra": "ignore"}
 
 
 def get_settings() -> Settings:
