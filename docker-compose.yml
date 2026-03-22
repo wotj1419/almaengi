@@ -54,7 +54,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./db/Schema_v1.2.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/Schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
       interval: 10s
@@ -128,9 +128,22 @@ services:
       start_period: 5s
     restart: always
 
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    ports:
+      - "9090:8080"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    environment:
+      - TZ=Asia/Seoul
+    restart: always
+
 volumes:
   postgres_data:
   redis_data:
   ai_redis_data:
   qdrant_data:
   frontend_build:
+  jenkins_data:
