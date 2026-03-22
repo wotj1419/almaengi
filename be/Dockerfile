@@ -10,6 +10,7 @@ RUN ./gradlew dependencies --no-daemon || true
 
 # 소스코드 복사 후 빌드
 COPY . .
+RUN chmod +x gradlew
 RUN ./gradlew bootJar --no-daemon
 
 FROM bellsoft/liberica-openjre-alpine:17
