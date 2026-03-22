@@ -1,9 +1,9 @@
-import { Lightbulb, TriangleAlert } from 'lucide-react';
+import { Info, Lightbulb, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { mockSalaryAlerts } from '../data/mockReport';
+import { mockPayrollAlerts } from '../data/mockReport';
 import AlertCard from './AlertCard';
-import MonthlySalaryChart from './MonthlySalaryChart';
-import SalaryDonutChart from './SalaryDonutChart';
+import MonthlyPayrollChart from './MonthlyPayrollChart';
+import PayrollDonutChart from './PayrollDonutChart';
 import type { AlertCardData } from '../types';
 
 const ICON_CONFIG: Record<
@@ -26,6 +26,12 @@ const ICON_CONFIG: Record<
     ),
     iconBg: 'var(--color-status-orange-bg)',
   },
+  blue: {
+    icon: (
+      <Info size={20} color="var(--color-status-blue-dot)" strokeWidth={2} />
+    ),
+    iconBg: 'var(--color-status-blue-bg)',
+  },
 };
 
 interface Props {
@@ -33,10 +39,10 @@ interface Props {
   month: number;
 }
 
-export default function SalaryStatusTab({ year, month }: Props) {
+export default function PayrollStatusTab({ year, month }: Props) {
   return (
     <div className="flex flex-col gap-[var(--space-6)] px-[var(--space-5)]">
-      {mockSalaryAlerts.map((alert) => {
+      {mockPayrollAlerts.map((alert) => {
         const { icon, iconBg } = ICON_CONFIG[alert.variant];
         return (
           <AlertCard
@@ -48,8 +54,8 @@ export default function SalaryStatusTab({ year, month }: Props) {
           />
         );
       })}
-      <MonthlySalaryChart year={year} month={month} />
-      <SalaryDonutChart />
+      <MonthlyPayrollChart year={year} month={month} />
+      <PayrollDonutChart />
     </div>
   );
 }

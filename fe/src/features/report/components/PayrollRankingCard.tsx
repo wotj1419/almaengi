@@ -1,5 +1,5 @@
 import Avatar from 'boring-avatars';
-import { mockSalaryRanking } from '../data/mockReport';
+import { mockPayrollRanking } from '../data/mockReport';
 
 const RANK_COLORS = [
   'var(--color-primary)',
@@ -12,8 +12,8 @@ function formatAmount(amount: number): string {
   return amount.toLocaleString('ko-KR') + '원';
 }
 
-export default function SalaryRankingCard() {
-  const maxAmount = mockSalaryRanking[0].amount;
+export default function PayrollRankingCard() {
+  const maxAmount = mockPayrollRanking[0].amount;
 
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-6)]">
@@ -22,7 +22,7 @@ export default function SalaryRankingCard() {
       </p>
 
       <div className="flex flex-col gap-[var(--space-5)]">
-        {mockSalaryRanking.map((item, index) => {
+        {mockPayrollRanking.map((item, index) => {
           const color = RANK_COLORS[index] ?? 'var(--color-text-light)';
           const isMuted = index === 3;
           const barWidth = Math.round((item.amount / maxAmount) * 100);

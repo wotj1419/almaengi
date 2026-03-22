@@ -7,7 +7,7 @@ const ICON_MAP: Record<
   MonthlyHighlightItem['iconType'],
   (color: string) => ReactNode
 > = {
-  salary: (color) => <Banknote size={22} color={color} strokeWidth={2} />,
+  payroll: (color) => <Banknote size={22} color={color} strokeWidth={2} />,
   attendance: (color) => <BadgeCheck size={22} color={color} strokeWidth={2} />,
   late: (color) => <AlarmClockOff size={22} color={color} strokeWidth={2} />,
 };

@@ -6,8 +6,8 @@ import type {
   MonthlyBarData,
   MonthlyHighlightItem,
   PeakTimeItem,
-  SalaryBreakdownItem,
-  SalaryRankingItem,
+  PayrollBreakdownItem,
+  PayrollRankingItem,
   SummaryCard,
 } from '../types';
 
@@ -50,7 +50,7 @@ export const mockAttendanceRecords: AttendanceRecord[] = [
   },
 ];
 
-export const mockSalaryAlerts: AlertCardData[] = [
+export const mockPayrollAlerts: AlertCardData[] = [
   {
     id: 'labor-cost-alert',
     title: '인건비 최적화 알림',
@@ -67,7 +67,7 @@ export const mockSalaryAlerts: AlertCardData[] = [
   },
 ];
 
-export const mockMonthlysalary: MonthlyBarData[] = [
+export const mockMonthlyPayroll: MonthlyBarData[] = [
   { value: 210 },
   { value: 195 },
   { value: 220 },
@@ -82,8 +82,8 @@ export const mockMonthlyHighlights: MonthlyHighlightItem[] = [
     category: '최고 급여',
     name: '박직원',
     bgColor: 'var(--color-primary)',
-    iconColor: 'var(--color-highlight-salary-icon)',
-    iconType: 'salary',
+    iconColor: 'var(--color-highlight-payroll-icon)',
+    iconType: 'payroll',
   },
   {
     id: 'best-attendance',
@@ -118,7 +118,7 @@ export const mockStaffAlerts: AlertCardData[] = [
   },
 ];
 
-export const mockSalaryBreakdown: SalaryBreakdownItem[] = [
+export const mockPayrollBreakdown: PayrollBreakdownItem[] = [
   {
     id: 'base',
     label: '기본급',
@@ -253,7 +253,7 @@ export const mockAuctionInsights: AuctionInsightItem[] = [
   },
 ];
 
-export const mockSalaryRanking: SalaryRankingItem[] = [
+export const mockPayrollRanking: PayrollRankingItem[] = [
   { id: '1', rank: 1, name: '박직원', amount: 4250000 },
   { id: '2', rank: 2, name: '이직원', amount: 3800000 },
   { id: '3', rank: 3, name: '정직원', amount: 3200000 },
