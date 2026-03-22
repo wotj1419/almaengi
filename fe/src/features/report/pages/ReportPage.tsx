@@ -5,7 +5,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import MonthSelector from '../components/MonthSelector';
 import SummaryCardList from '../components/SummaryCardList';
 import ReportTabBar, { type ReportTab } from '../components/ReportTabBar';
-import SalaryStatusTab from '../components/SalaryStatusTab';
+import PayrollStatusTab from '../components/PayrollStatusTab';
 import StaffComparisonTab from '../components/StaffComparisonTab';
 import AuctionInsightTab from '../components/AuctionInsightTab';
 
@@ -15,7 +15,7 @@ export default function ReportPage() {
   const todayMonth = today.month() + 1;
   const [year, setYear] = useState(todayYear);
   const [month, setMonth] = useState(todayMonth);
-  const [activeTab, setActiveTab] = useState<ReportTab>('salary');
+  const [activeTab, setActiveTab] = useState<ReportTab>('payroll');
 
   const handlePrev = () => {
     if (month === 1) {
@@ -49,13 +49,13 @@ export default function ReportPage() {
         <SummaryCardList />
         <ReportTabBar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className="flex-1 py-[var(--space-2)] pb-[var(--pb-content)]">
-          {activeTab === 'salary' && (
-            <SalaryStatusTab year={year} month={month} />
+          {activeTab === 'payroll' && (
+            <PayrollStatusTab year={year} month={month} />
           )}
           {activeTab === 'staff' && <StaffComparisonTab />}
           {activeTab === 'auction' && <AuctionInsightTab />}
         </main>
-        <BottomNav activeTab="salary" />
+        <BottomNav activeTab="payroll" />
       </div>
     </div>
   );
