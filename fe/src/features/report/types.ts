@@ -14,10 +14,10 @@ export interface MonthlyHighlightItem {
   name: string;
   bgColor: string;
   iconColor: string;
-  iconType: 'salary' | 'attendance' | 'late';
+  iconType: 'payroll' | 'attendance' | 'late';
 }
 
-export interface SalaryBreakdownItem {
+export interface PayrollBreakdownItem {
   id: string;
   label: string;
   amount: number;
@@ -63,7 +63,7 @@ export interface AuctionInsightItem {
   variant: 'orange' | 'purple';
 }
 
-export interface SalaryRankingItem {
+export interface PayrollRankingItem {
   id: string;
   rank: number;
   name: string;
