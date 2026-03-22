@@ -62,6 +62,10 @@
   --color-status-grey-bg: #e7e7e7;
   --color-status-grey-border: #d1d5db;
 
+  --color-status-blue-dot: #3b82f6;
+  --color-status-blue-bg: #dbeafe;
+  --color-status-blue-border: #bfdbfe;
+
   /* 🎨 색상: 상태 뱃지 (StatusBadge 컴포넌트) */
   --color-badge-green-bg: #e9f5c5;
   --color-badge-green-text: #111827;
@@ -201,7 +205,7 @@
   /* ── 직원 비교 ── */
   --color-attendance-bg: #e3f2fd;
   --color-ranking-3rd: #fdba74;
-  --color-highlight-salary-icon: #0f172a;
+  --color-highlight-payroll-icon: #0f172a;
   --color-highlight-attendance-bg: #ecdeff;
   --color-highlight-attendance-label: #581c87;
   --color-highlight-attendance-icon: #7e22ce;
