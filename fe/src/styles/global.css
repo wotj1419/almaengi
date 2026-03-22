@@ -176,6 +176,7 @@
   --radius-md: 12px;
   --radius-lg: 15px;
   --radius-xl: 20px;
+  --radius-2xl: 16px;
 
   /* 🎨 컴포넌트 크기 */
   --size-checkbox: 15px;
@@ -186,6 +187,34 @@
   --size-photo-slot: 75px;
   --size-photo-preview-w: 240px;
   --size-photo-preview-h: 180px;
+
+  /* ── 월 선택 바 ── */
+  --gap-month-selector: 29px;
+
+  /* ── 근태 테이블 ── */
+  --color-table-header-bg: #f8fafc;
+  --color-table-header-text: #64748b;
+  --color-table-value-good: #3b82f6;
+  --color-table-value-warning: #ea580c;
+  --color-table-row-warning-bg: rgba(255, 240, 235, 0.5);
+
+  /* ── 직원 비교 ── */
+  --color-attendance-bg: #e3f2fd;
+  --color-ranking-3rd: #fdba74;
+  --color-highlight-salary-icon: #0f172a;
+  --color-highlight-attendance-bg: #ecdeff;
+  --color-highlight-attendance-label: #581c87;
+  --color-highlight-attendance-icon: #7e22ce;
+  --color-highlight-late-bg: #fff0eb;
+  --color-highlight-late-label: #7c2d12;
+  --color-highlight-late-icon: #ea580c;
+  --radius-highlight: 21.15px;
+
+  /* ── 도넛 차트 ── */
+  --chart-donut-size: 200;
+  --chart-donut-radius: 70;
+  --chart-donut-stroke-width: 26;
+  --chart-donut-gap: 4;
 
   /* 🎨 z-index */
   --z-content: 10;
