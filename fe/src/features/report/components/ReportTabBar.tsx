@@ -1,7 +1,7 @@
-export type ReportTab = 'salary' | 'staff' | 'auction';
+export type ReportTab = 'payroll' | 'staff' | 'auction';
 
 const TABS: { id: ReportTab; label: string }[] = [
-  { id: 'salary', label: '급여 현황' },
+  { id: 'payroll', label: '급여 현황' },
   { id: 'staff', label: '직원 비교' },
   { id: 'auction', label: '경매 인사이트' },
 ];

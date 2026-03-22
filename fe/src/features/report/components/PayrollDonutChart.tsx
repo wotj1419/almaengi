@@ -1,13 +1,13 @@
 import { Play } from 'lucide-react';
 import { PieChart, Pie } from 'recharts';
-import { mockSalaryBreakdown } from '../data/mockReport';
+import { mockPayrollBreakdown } from '../data/mockReport';
 
-const chartData = mockSalaryBreakdown.map((item) => ({
+const chartData = mockPayrollBreakdown.map((item) => ({
   ...item,
   fill: item.color,
 }));
 
-export default function SalaryDonutChart() {
+export default function PayrollDonutChart() {
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-6)]">
       <p className="text-[length:var(--text-ml)] text-[color:var(--color-text-primary)] font-bold mb-[var(--space-5)]">
@@ -43,7 +43,7 @@ export default function SalaryDonutChart() {
 
       {/* 범례 */}
       <div className="flex flex-col divide-y divide-[var(--color-border-light)]">
-        {mockSalaryBreakdown.map((item) => (
+        {mockPayrollBreakdown.map((item) => (
           <div
             key={item.id}
             className="flex items-center justify-between py-[var(--space-4)]"
