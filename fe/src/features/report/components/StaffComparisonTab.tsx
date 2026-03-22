@@ -4,7 +4,7 @@ import { mockStaffAlerts } from '../data/mockReport';
 import AlertCard from './AlertCard';
 import MonthlyHighlights from './MonthlyHighlights';
 import AttendanceTable from './AttendanceTable';
-import SalaryRankingCard from './SalaryRankingCard';
+import PayrollRankingCard from './PayrollRankingCard';
 import type { AlertCardData } from '../types';
 
 const ICON_CONFIG: Record<
@@ -56,7 +56,7 @@ export default function StaffComparisonTab() {
       })}
       <MonthlyHighlights />
       <AttendanceTable />
-      <SalaryRankingCard />
+      <PayrollRankingCard />
     </div>
   );
 }
