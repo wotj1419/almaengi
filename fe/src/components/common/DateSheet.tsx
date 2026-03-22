@@ -7,6 +7,7 @@ interface DatePickerModalProps {
   selectedDate: Dayjs;
   onConfirm: (date: Dayjs) => void;
   onClose: () => void;
+  minDate?: Dayjs;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -16,11 +17,16 @@ export default function DatePickerModal({
   selectedDate,
   onConfirm,
   onClose,
+  minDate,
 }: DatePickerModalProps) {
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
   const [tempDate, setTempDate] = useState(selectedDate);
 
   if (!isOpen) return null;
+
+  const minDay = minDate?.startOf('day');
+  const canGoPrev =
+    !minDay || currentMonth.startOf('month').isAfter(minDay.startOf('month'));
 
   const startOfMonth = currentMonth.startOf('month');
   const endOfMonth = currentMonth.endOf('month');
@@ -55,6 +61,7 @@ export default function DatePickerModal({
   }
 
   const handlePrevMonth = () => {
+    if (!canGoPrev) return;
     setCurrentMonth(currentMonth.subtract(1, 'month'));
   };
 
@@ -64,7 +71,9 @@ export default function DatePickerModal({
 
   const handleDateClick = (day: number, isCurrent: boolean) => {
     if (!isCurrent) return;
-    setTempDate(currentMonth.date(day));
+    const date = currentMonth.date(day);
+    if (minDay && date.isBefore(minDay)) return;
+    setTempDate(date);
   };
 
   const isSelected = (day: number, isCurrent: boolean) => {
@@ -85,8 +94,15 @@ export default function DatePickerModal({
       <div className="relative w-full max-w-80 mx-4 bg-white rounded-[var(--radius-lg)] pt-3.5 overflow-hidden inline-flex flex-col justify-center items-center gap-3.5">
         {/* 헤더: 월 네비게이션 */}
         <div className="self-stretch px-7 inline-flex justify-between items-center">
-          <button onClick={handlePrevMonth} className="p-1">
-            <ChevronLeft className="w-6 h-6 text-gray-400" strokeWidth={2} />
+          <button
+            onClick={handlePrevMonth}
+            className="p-1"
+            disabled={!canGoPrev}
+          >
+            <ChevronLeft
+              className={`w-6 h-6 ${canGoPrev ? 'text-gray-400' : 'text-gray-200'}`}
+              strokeWidth={2}
+            />
           </button>
           <span className="text-gray-900 text-lg font-bold leading-7">
             {currentMonth.year()}년 {currentMonth.month() + 1}월
@@ -115,6 +131,11 @@ export default function DatePickerModal({
           {allDays.map((cell, idx) => {
             const selected = isSelected(cell.day, cell.current);
             const isSunday = idx % 7 === 0;
+            const isPast =
+              cell.current &&
+              !!minDay &&
+              currentMonth.date(cell.day).isBefore(minDay);
+            const disabled = !cell.current || isPast;
 
             return (
               <button
@@ -123,13 +144,13 @@ export default function DatePickerModal({
                 className={`w-9 h-9 flex items-center justify-center rounded-full text-base leading-6 ${
                   selected
                     ? 'bg-[var(--color-action-todo)] text-black font-bold'
-                    : !cell.current
+                    : disabled
                       ? 'text-gray-200 font-normal'
                       : isSunday
                         ? 'text-red-400 font-normal'
                         : 'text-gray-800 font-normal'
                 }`}
-                disabled={!cell.current}
+                disabled={disabled}
               >
                 {cell.day}
               </button>

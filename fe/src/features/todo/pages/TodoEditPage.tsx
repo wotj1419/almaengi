@@ -9,68 +9,71 @@ import TodoInfoSection from '../components/TodoInfoSection';
 import TodoDetailSection from '../components/TodoDetailSection';
 import TodoPhotoSection from '../components/TodoPhotoSection';
 import { useTodoStore } from '@/stores/useTodoStore';
-
-function parseDeadline(deadline: string): {
-  date: Dayjs | null;
-  time: { hour: number; minute: number } | null;
-} {
-  const match = deadline.match(/(\d+)월\s*(\d+)일(?:\s*(\d+):(\d+)까지)?/);
-  if (!match) return { date: null, time: null };
-
-  const month = parseInt(match[1]);
-  const day = parseInt(match[2]);
-  const date = dayjs()
-    .month(month - 1)
-    .date(day);
-
-  if (!match[3]) return { date, time: null };
-
-  return {
-    date,
-    time: { hour: parseInt(match[3]), minute: parseInt(match[4]) },
-  };
-}
+import type { TaskImage } from '@/features/todo/types';
 
 export default function TodoEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const todos = useTodoStore((s) => s.todos);
   const updateTodo = useTodoStore((s) => s.updateTodo);
-  const todo = todos.find((t) => t.id === id);
+  const todo = todos.find((t) => t.task_id === Number(id));
 
-  const parsed = todo
-    ? parseDeadline(todo.deadline)
-    : { date: null, time: null };
+  const parsedDate = todo ? dayjs(todo.due_at) : null;
+  const parsedTime = todo
+    ? { hour: dayjs(todo.due_at).hour(), minute: dayjs(todo.due_at).minute() }
+    : null;
 
   const [title, setTitle] = useState(todo?.title ?? '');
-  const [detail, setDetail] = useState(todo?.detail ?? '');
-  const [photos, setPhotos] = useState<string[]>(todo?.photos ?? []);
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>(
-    todo?.employees ?? []
+  const [description, setDescription] = useState(todo?.description ?? '');
+  const [images, setImages] = useState<TaskImage[]>(todo?.images ?? []);
+  const [assigneeEmployeeIds, setAssigneeEmployeeIds] = useState<number[]>(
+    todo?.assignee_employee_ids ?? []
   );
-  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(parsed.date);
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(parsedDate);
   const [selectedTime, setSelectedTime] = useState<{
     hour: number;
     minute: number;
-  } | null>(parsed.time);
+  } | null>(parsedTime);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    assignee?: string;
+    date?: string;
+    description?: string;
+  }>({});
 
   if (!todo || !id) return null;
 
   const handleSubmit = () => {
-    const deadline = (() => {
+    const newErrors: typeof errors = {};
+    if (!title.trim()) newErrors.title = '제목을 입력해 주세요.';
+    if (assigneeEmployeeIds.length === 0)
+      newErrors.assignee = '담당 직원을 선택해 주세요.';
+    if (!selectedDate || !selectedTime)
+      newErrors.date = '완료 기한의 날짜와 시간을 모두 선택해 주세요.';
+    if (!description.trim())
+      newErrors.description = '상세 내용을 입력해 주세요.';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+    const due_at = (() => {
       if (!selectedDate) return '';
-      const datePart = selectedDate.format('M월 D일');
-      if (!selectedTime) return datePart;
-      const timePart = `${String(selectedTime.hour).padStart(2, '0')}:${String(selectedTime.minute).padStart(2, '0')}`;
-      return `${datePart} ${timePart}까지`;
+      const base = selectedDate.startOf('day');
+      if (!selectedTime) return base.toISOString();
+      return base
+        .hour(selectedTime.hour)
+        .minute(selectedTime.minute)
+        .second(0)
+        .toISOString();
     })();
 
-    updateTodo(id, {
+    updateTodo(Number(id), {
       title,
-      detail,
-      deadline,
-      employees: selectedEmployees,
-      photos,
+      description,
+      due_at,
+      assignee_employee_ids: assigneeEmployeeIds,
+      images,
     });
     navigate(ROUTES.TODO_DETAIL.replace(':id', id));
   };
@@ -85,16 +88,38 @@ export default function TodoEditPage() {
         <div className="flex flex-col gap-[var(--space-7)] p-[var(--space-5)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] border border-[var(--color-border-light)] shadow-[var(--shadow-form-card)] w-full">
           <TodoInfoSection
             title={title}
-            onTitleChange={setTitle}
-            selectedEmployees={selectedEmployees}
-            onEmployeesChange={setSelectedEmployees}
+            onTitleChange={(v) => {
+              setTitle(v);
+              setErrors((e) => ({ ...e, title: undefined }));
+            }}
+            assigneeEmployeeIds={assigneeEmployeeIds}
+            onAssigneeChange={(ids) => {
+              setAssigneeEmployeeIds(ids);
+              setErrors((e) => ({ ...e, assignee: undefined }));
+            }}
             selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
+            onDateChange={(v) => {
+              setSelectedDate(v);
+              setErrors((e) => ({ ...e, date: undefined }));
+            }}
             selectedTime={selectedTime}
-            onTimeChange={setSelectedTime}
+            onTimeChange={(v) => {
+              setSelectedTime(v);
+              setErrors((e) => ({ ...e, date: undefined }));
+            }}
+            titleError={errors.title}
+            assigneeError={errors.assignee}
+            dateError={errors.date}
           />
-          <TodoDetailSection detail={detail} onDetailChange={setDetail} />
-          <TodoPhotoSection photos={photos} onPhotosChange={setPhotos} />
+          <TodoDetailSection
+            detail={description}
+            onDetailChange={(v) => {
+              setDescription(v);
+              setErrors((e) => ({ ...e, description: undefined }));
+            }}
+            error={errors.description}
+          />
+          <TodoPhotoSection images={images} onImagesChange={setImages} />
         </div>
         <PrimaryButton label="수정하기" onClick={handleSubmit} />
       </main>

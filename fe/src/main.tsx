@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 async function enableMocking() {
   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MSW === 'true') {
     const { worker } = await import('./mocks/browser');
-    return worker.start({ onUnhandledRequest: 'bypass' });
+    return worker.start({ onUnhandledRequest: 'error' });
   }
 
   return undefined;

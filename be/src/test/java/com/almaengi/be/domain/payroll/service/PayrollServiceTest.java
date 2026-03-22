@@ -32,10 +32,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class PayrollGenerateServiceTest {
+class PayrollServiceTest {
 
     @InjectMocks
-    private PayrollGenerateService generateService;
+    private PayrollService payrollService;
 
     @Mock
     private PayrollRepository payrollRepository;
@@ -103,7 +103,7 @@ class PayrollGenerateServiceTest {
                     .willReturn(Map.of("소득세(3%)", 14861L, "지방소득세(0.3%)", 1486L));
 
             // when
-            Payroll result = generateService.generatePayroll(employeeId, targetMonth);
+            Payroll result = payrollService.generatePayroll(employeeId, targetMonth);
 
             // then
             assertThat(result.getBasicPay()).isEqualTo(412800L);
@@ -124,7 +124,7 @@ class PayrollGenerateServiceTest {
                     .willReturn(true);
 
             // when & then
-            assertThatThrownBy(() -> generateService.generatePayroll(employeeId, targetMonth))
+            assertThatThrownBy(() -> payrollService.generatePayroll(employeeId, targetMonth))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYROLL_ALREADY_EXISTS);
         }
@@ -161,7 +161,7 @@ class PayrollGenerateServiceTest {
                     .willThrow(new DataIntegrityViolationException("Unique constraint violated"));
 
             // when & then
-            assertThatThrownBy(() -> generateService.generatePayroll(employeeId, targetMonth))
+            assertThatThrownBy(() -> payrollService.generatePayroll(employeeId, targetMonth))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYROLL_ALREADY_EXISTS);
         }

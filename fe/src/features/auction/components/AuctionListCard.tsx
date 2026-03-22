@@ -9,6 +9,7 @@ interface AuctionListCardProps {
   onViewResult?: (id: number) => void;
   onEdit?: (id: number) => void;
   onStop?: (id: number) => void;
+  onDeleteCompleted?: (id: number) => void;
 }
 
 export default function AuctionListCard({
@@ -19,6 +20,7 @@ export default function AuctionListCard({
   onViewResult,
   onEdit,
   onStop,
+  onDeleteCompleted,
 }: AuctionListCardProps) {
   return (
     <div className="flex flex-col gap-3.5">
@@ -59,6 +61,7 @@ export default function AuctionListCard({
               onViewResult={() => onViewResult?.(auction.id)}
               onEdit={() => onEdit?.(auction.id)}
               onStop={() => onStop?.(auction.id)}
+              onDeleteCompleted={() => onDeleteCompleted?.(auction.id)}
             />
           ))}
         </div>

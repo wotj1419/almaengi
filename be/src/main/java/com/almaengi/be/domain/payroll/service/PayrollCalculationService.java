@@ -159,7 +159,7 @@ public class PayrollCalculationService {
      * @param attendances       월 경계를 포함한 확장 범위의 출퇴근 기록
      * @param hourlyWage        시급
      * @param isOver5Employees  5인 이상 사업장 여부
-     * @param includeHolidayPay 5인 미만 사업장에서도 연장수당 지급 여부
+     * @param includeHolidayPay 5인 미만 사업장에서도 가산수당(연장·야간·휴일) 지급 여부 (5인 이상이면 무시)
      * @param targetMonth       정산 대상 월 (1일로 정규화된 값)
      */
     public long calculateOvertimePay(List<Attendance> attendances, int hourlyWage,

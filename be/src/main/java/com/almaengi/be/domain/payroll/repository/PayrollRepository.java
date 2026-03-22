@@ -29,4 +29,14 @@ public interface PayrollRepository extends JpaRepository<Payroll, Long> {
     Set<Long> findEmployeeIdsByStoreIdAndTargetMonth(
             @Param("storeId") Long storeId,
             @Param("targetMonth") LocalDate targetMonth);
+
+    // 사장님 대시보드: Payroll + StoreEmployee + User를 한 번에 조회 (N+1 방지, 직원명 오름차순)
+    @Query("SELECT p FROM Payroll p " +
+            "JOIN FETCH p.employee e " +
+            "JOIN FETCH e.user u " +
+            "WHERE e.store.id = :storeId AND p.targetMonth = :targetMonth " +
+            "ORDER BY u.name ASC")
+    List<Payroll> findAllByStoreIdAndTargetMonthWithEmployee(
+            @Param("storeId") Long storeId,
+            @Param("targetMonth") LocalDate targetMonth);
 }

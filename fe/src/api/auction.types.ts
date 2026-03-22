@@ -51,6 +51,10 @@ export interface CreateAuctionRequest {
   recruitCount: number;
 }
 
+export interface BidAuctionRequest {
+  bidWage: number;
+}
+
 export interface CloseAuctionRequest {
   selectedBidIds: number[];
 }

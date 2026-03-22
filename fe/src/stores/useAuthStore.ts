@@ -4,28 +4,32 @@ interface User {
   id: number;
   name: string;
   role: 'OWNER' | 'EMPLOYEE';
-  storeId: number; // 소속 매장 ID — 경매 목록 조회·등록 시 사용
 }
 
 interface AuthState {
   user: User | null;
+  activeStoreId: number | null;
   isLoggedIn: boolean;
-  login: (user: User, token: string) => void;
+  login: (user: User, token: string, activeStoreId: number | null) => void;
+  setActiveStoreId: (storeId: number | null) => void;
   logout: () => void;
 }
 
 const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  activeStoreId: null,
   isLoggedIn: false,
 
-  login: (user, token) => {
+  login: (user, token, activeStoreId) => {
     localStorage.setItem('accessToken', token);
-    set({ user, isLoggedIn: true });
+    set({ user, activeStoreId, isLoggedIn: true });
   },
+
+  setActiveStoreId: (storeId) => set({ activeStoreId: storeId }),
 
   logout: () => {
     localStorage.removeItem('accessToken');
-    set({ user: null, isLoggedIn: false });
+    set({ user: null, activeStoreId: null, isLoggedIn: false });
   },
 }));
 

@@ -11,6 +11,13 @@ import ActionGrid from '../components/ActionGrid';
 export default function HomePage() {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const hasToken = Boolean(localStorage.getItem('accessToken'));
+    if (!hasToken) {
+      navigate(ROUTES.LOGIN, { replace: true });
+    }
+  }, [navigate]);
+
   // 브라우저 뒤로가기 시 로그인 페이지로 이동 (회원가입 페이지로 돌아가는 것 방지)
   useEffect(() => {
     const handlePopState = () => {

@@ -6,6 +6,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
 import Header from '@/components/layout/Header';
 import { getApiErrorMessage } from '@/api/error';
+import useAuthStore from '@/stores/useAuthStore';
 import { useAuctionDetail, useCloseAuction } from '../hooks/useAuctionQueries';
 import BidderGroup from '../components/BidderGroup';
 
@@ -20,6 +21,7 @@ export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const auctionId = Number(id);
+  const activeStoreId = useAuthStore((state) => state.activeStoreId);
 
   const { data: detail } = useAuctionDetail(auctionId);
   const closeMutation = useCloseAuction();
@@ -29,6 +31,10 @@ export default function AuctionDetailPage() {
 
   const auction = detail?.auction;
   const bidders = detail?.bidders;
+  const hasBidders = Boolean(
+    bidders &&
+      bidders.group1.length + bidders.group2.length + bidders.group3.length > 0
+  );
 
   const toggleBidder = (bidId: number) => {
     if (selectedBidIds.includes(bidId)) {
@@ -45,6 +51,11 @@ export default function AuctionDetailPage() {
   };
 
   const handleClose = () => {
+    if (activeStoreId === null) {
+      toast.error('등록된 매장이 없어 경매를 마감할 수 없습니다.');
+      return;
+    }
+
     if (selectedBidIds.length === 0) {
       toast.error('낙찰할 입찰자를 선택해주세요.');
       return;
@@ -176,7 +187,7 @@ export default function AuctionDetailPage() {
           </div>
         </div>
 
-        {bidders && (
+        {hasBidders && bidders && (
           <>
             <BidderGroup
               title="우선 배정 유지"
@@ -206,6 +217,14 @@ export default function AuctionDetailPage() {
               onToggle={toggleBidder}
             />
           </>
+        )}
+
+        {!hasBidders && (
+          <section className="w-full bg-[var(--color-bg-white)] rounded-2xl border border-[var(--color-border-light)] p-6">
+            <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)] text-center">
+              아직 입찰한 알바생이 없습니다.
+            </p>
+          </section>
         )}
 
         {isInProgress && (

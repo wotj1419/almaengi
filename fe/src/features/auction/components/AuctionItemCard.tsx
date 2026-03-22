@@ -1,3 +1,5 @@
+import { Trash2 } from 'lucide-react';
+
 export interface Bidder {
   name: string;
   amount: string;
@@ -29,6 +31,7 @@ interface AuctionItemCardProps {
   onViewResult?: () => void;
   onEdit?: () => void;
   onStop?: () => void;
+  onDeleteCompleted?: () => void;
 }
 
 const STATUS_STYLES: Record<
@@ -59,9 +62,11 @@ export default function AuctionItemCard({
   onViewResult,
   onEdit,
   onStop,
+  onDeleteCompleted,
 }: AuctionItemCardProps) {
   const isCompleted = auction.status === 'completed';
   const statusStyle = STATUS_STYLES[auction.displayStatus];
+  const isActive = auction.displayStatus === 'active';
 
   const handlePrimaryAction = () => {
     if (auction.primaryAction === 'viewResult') {
@@ -78,13 +83,35 @@ export default function AuctionItemCard({
         <div
           className={`px-2.5 py-1 rounded-md inline-flex justify-center items-center ${statusStyle.badge}`}
         >
-          <span className={`text-xs font-bold leading-4 ${statusStyle.text}`}>
-            {auction.statusLabel}
-          </span>
+          {isActive ? (
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-bold leading-4 ${statusStyle.text}`}
+            >
+              <span className="tabular-nums min-w-[62px] text-right">
+                {auction.statusLabel}
+              </span>
+              <span className="shrink-0">후 종료</span>
+            </span>
+          ) : (
+            <span className={`text-xs font-bold leading-4 ${statusStyle.text}`}>
+              {auction.statusLabel}
+            </span>
+          )}
         </div>
-        <span className="text-right text-[var(--color-text-light)] text-xs font-medium leading-4">
-          {auction.registeredDate}
-        </span>
+        {isCompleted ? (
+          <button
+            type="button"
+            aria-label="종료 경매 삭제"
+            onClick={onDeleteCompleted}
+            className="inline-flex items-center justify-center rounded-md p-1 text-[var(--color-text-light)] hover:bg-[var(--color-bg-surface)]"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : (
+          <span className="text-right text-[var(--color-text-light)] text-xs font-medium leading-4">
+            {auction.registeredDate}
+          </span>
+        )}
       </div>
 
       <div className="self-stretch inline-flex justify-between items-start">
