@@ -18,7 +18,7 @@ const navItems: NavItem[] = [
     iconName: 'calendar',
   },
   { key: 'staff', label: '직원', path: ROUTES.EMPLOYEE, iconName: 'users' },
-  { key: 'salary', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
+  { key: 'payroll', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
   { key: 'store', label: '매장', path: ROUTES.STORE, iconName: 'store' },
 ];
 
