@@ -6,47 +6,17 @@ pipeline {
     }
 
     stages {
-        stage('Pull Latest Code') {
+        stage('Deploy') {
             steps {
                 sh """
                     cd ${PROJECT_DIR}
                     git fetch origin release
                     git reset --hard origin/release
+                    docker compose build be fe ai
+                    docker compose up -d be fe ai
+                    sleep 5
+                    docker compose restart nginx
                 """
-            }
-        }
-
-        stage('Build & Deploy') {
-            parallel {
-                stage('Backend') {
-                    steps {
-                        sh """
-                            cd ${PROJECT_DIR}
-                            docker compose build be
-                            docker compose up -d be
-                        """
-                    }
-                }
-                stage('Frontend') {
-                    steps {
-                        sh """
-                            cd ${PROJECT_DIR}
-                            docker compose build fe
-                            docker compose up -d fe
-                            sleep 5
-                            docker compose restart nginx
-                        """
-                    }
-                }
-                stage('AI') {
-                    steps {
-                        sh """
-                            cd ${PROJECT_DIR}
-                            docker compose build ai
-                            docker compose up -d ai
-                        """
-                    }
-                }
             }
         }
 
@@ -87,10 +57,9 @@ pipeline {
         failure {
             echo '배포 실패! 로그 확인:'
             sh """
-                cd ${PROJECT_DIR}
-                docker compose logs --tail 30 be
-                docker compose logs --tail 30 ai
-                docker compose logs --tail 10 nginx
+                docker logs almaengi-be-1 --tail 30 2>&1 || true
+                docker logs almaengi-ai-1 --tail 30 2>&1 || true
+                docker logs almaengi-nginx-1 --tail 10 2>&1 || true
             """
         }
     }
