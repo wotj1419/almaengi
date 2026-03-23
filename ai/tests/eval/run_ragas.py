@@ -26,6 +26,7 @@ from ragas.metrics._answer_relevance import ResponseRelevancy  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.service.rag_service import RagService  # noqa: E402
+from app.service.router_service import RouterService  # noqa: E402
 
 METRIC_NAMES = [
     "context_precision",
@@ -68,6 +69,7 @@ def strip_boilerplate(text: str) -> str:
 
 async def collect_samples(
     rag_service: RagService,
+    router_service: RouterService,
     questions: list[dict],
 ) -> list[SingleTurnSample]:
     samples: list[SingleTurnSample] = []
@@ -76,10 +78,12 @@ async def collect_samples(
     for i, q in enumerate(questions, 1):
         print(f"  [{i}/{total}] {q['question'][:40]}...")
 
+        intent = router_service.classify(q["question"])
         result = await rag_service.chat(
             query=q["question"],
             role=q.get("role", "OWNER"),
             store_id=1,
+            intent=intent,
         )
 
         child_chunks = await rag_service.search(q["question"])
@@ -111,7 +115,8 @@ async def run_evaluation(dataset_path: str, output_dir: str, label: str, limit: 
     print(f"평가 대상: 법령 질문 {len(legal_questions)}건")
 
     rag_service = RagService()
-    samples = await collect_samples(rag_service, legal_questions)
+    router_service = RouterService()
+    samples = await collect_samples(rag_service, router_service, legal_questions)
 
     eval_dataset = EvaluationDataset(samples=samples)  # type: ignore[arg-type]
 

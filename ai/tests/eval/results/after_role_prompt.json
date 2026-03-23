@@ -1,0 +1,11 @@
+{
+  "label": "after_role_prompt",
+  "timestamp": "2026-03-23T04:33:05.263696",
+  "num_questions": 50,
+  "metrics": {
+    "context_precision": 0.7878055555259975,
+    "context_recall": 0.5566666666666666,
+    "faithfulness": 0.38569968481810585,
+    "answer_relevancy": 0.656247980730727
+  }
+}

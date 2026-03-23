@@ -25,19 +25,34 @@ class RagService:
     def __init__(self) -> None:
         self.client = QdrantClient(url=settings.qdrant_url)
         self.embed_model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)
-        self.llm = ChatOpenAI(
-            api_key=SecretStr(settings.openai_api_key),
-            base_url=settings.openai_api_base or None,
-            model=settings.openai_model_default,
-            temperature=0.1,
-            max_completion_tokens=1024,
-        )
-        self.system_prompt = self._load_prompt("system_base.txt")
 
-    def _load_prompt(self, filename: str) -> str:
+    @staticmethod
+    def _load_prompt(filename: str) -> str:
         """프롬프트 파일 로드"""
         prompt_path = PROMPT_DIR / filename
         return prompt_path.read_text(encoding="utf-8")
+
+    def _get_system_prompt(self, role: str) -> str:
+        """역할에 따른 시스템 프롬프트 반환"""
+        if role == "OWNER":
+            return self._load_prompt("system_owner.txt")
+        elif role == "EMPLOYEE":
+            return self._load_prompt("system_employee.txt")
+        return self._load_prompt("system_base.txt")
+
+    def _get_llm(self, intent: str) -> ChatOpenAI:
+        """의도에 따라 LLM 모델 선택"""
+        if intent in ("COMPLEX_QUERY", "CALCULATION"):
+            model = settings.openai_model_complex
+        else:
+            model = settings.openai_model_default
+        return ChatOpenAI(
+            api_key=SecretStr(settings.openai_api_key),
+            base_url=settings.openai_api_base or None,
+            model=model,
+            temperature=0.1,
+            max_completion_tokens=1024,
+        )
 
     def _embed_query(self, query: str) -> list[float]:
         """질문을 BGE-m3로 임베딩"""
@@ -109,19 +124,24 @@ class RagService:
 
         return parent_chunks
 
-    async def generate_answer(self, query: str, context_docs: list[dict], child_chunks: list[dict]) -> dict:
+    async def generate_answer(
+        self, query: str, context_docs: list[dict], child_chunks: list[dict], role: str = "OWNER", intent: str = "LEGAL_QUERY"
+    ) -> dict:
         """검색된 문서 기반으로 LLM 답변 생성"""
         context_text = "\n\n---\n\n".join(
             f"[{doc['law_name']} 제{doc['article']}조]\n{doc['content']}" for doc in context_docs
         )
 
+        system_template = self._get_system_prompt(role)
+        llm = self._get_llm(intent)
+
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.system_prompt),
+                ("system", system_template),
             ]
         )
 
-        chain = prompt | self.llm | StrOutputParser()
+        chain = prompt | llm | StrOutputParser()
 
         try:
             answer = await chain.ainvoke(
@@ -151,9 +171,9 @@ class RagService:
 
         return {"answer": answer, "sources": sources}
 
-    async def chat(self, query: str, role: str, store_id: int) -> dict:
+    async def chat(self, query: str, role: str, store_id: int, intent: str = "LEGAL_QUERY") -> dict:
         """전체 RAG 파이프라인 실행 (검색 → 확장 → 답변)"""
-        logger.info("rag_pipeline_start", query=query, role=role, store_id=store_id)
+        logger.info("rag_pipeline_start", query=query, role=role, store_id=store_id, intent=intent)
         t0 = time.perf_counter()
 
         # 1. Dense Search
@@ -166,7 +186,7 @@ class RagService:
 
         # 3. LLM 답변 생성 (Parent Chunk를 context로 사용)
         context_docs = parent_chunks if parent_chunks else child_chunks
-        result = await self.generate_answer(query, context_docs, child_chunks)
+        result = await self.generate_answer(query, context_docs, child_chunks, role, intent)
         t3 = time.perf_counter()
 
         logger.info(
