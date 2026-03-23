@@ -47,10 +47,7 @@ export default function StoreRegisterPage() {
   return (
     <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
       <div className="w-full md:max-w-[600px] min-h-screen flex flex-col bg-[var(--color-bg-base)]">
-        <DetailHeader
-          title="새 매장 등록"
-          onBack={() => navigate(ROUTES.STORE)}
-        />
+        <DetailHeader title="새 매장 등록" onBack={() => navigate(-1)} />
 
         <main className="flex-1 px-[var(--space-5)] pt-[var(--space-7)] pb-[calc(110px+env(safe-area-inset-bottom,0px))]">
           <section className="flex flex-col gap-[var(--space-2)]">

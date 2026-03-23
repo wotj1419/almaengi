@@ -31,12 +31,12 @@ export default function ConfirmModal({
   return (
     <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-[var(--radius-lg)] w-[85%] max-w-[510px] overflow-hidden">
+      <div className="relative bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] w-[85%] max-w-[510px] overflow-hidden">
         {/* X 닫기 버튼 (showCloseButton이 true일 때만 렌더링) */}
         {showCloseButton && (
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 p-1 cursor-pointer"
+            className="absolute top-[var(--space-3)] right-[var(--space-3)] p-1 cursor-pointer"
           >
             <X size={20} color="var(--color-text-muted)" />
           </button>
