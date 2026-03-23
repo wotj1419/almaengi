@@ -1,6 +1,7 @@
 ﻿import { create } from 'zustand';
 
 export type RegisteredStore = {
+  storeId: number;
   name: string;
   address: string;
   businessNumber: string;
@@ -23,19 +24,45 @@ function createStoreCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function createStoreId() {
+  return Math.floor(1000 + Math.random() * 9000);
+}
+
+function withFallback(value: string, fallback: string) {
+  const trimmedValue = value.trim();
+  return trimmedValue || fallback;
+}
+
+function createMockStoreCode() {
+  return createStoreCode();
+}
+
+function createMockStoreId() {
+  return createStoreId();
+}
+
+function buildRegisteredStore(
+  previousStore: RegisteredStore | null,
+  payload: RegisterStorePayload
+): RegisteredStore {
+  return {
+    // mock 단계에서 경매 페이지 분기(activeStoreId)와 맞추기 위한 storeId
+    storeId: previousStore?.storeId ?? createMockStoreId(),
+    // 빈 입력으로 등록해도 화면 확인이 가능하도록 기본값을 채운다.
+    name: withFallback(payload.name, '싸피식당'),
+    address: withFallback(payload.address, '주소 미입력'),
+    businessNumber: withFallback(payload.businessNumber, '000-00-00000'),
+    // 기존 코드가 있으면 유지해서 관리 화면에서 값이 갑자기 바뀌지 않게 한다.
+    storeCode: previousStore?.storeCode ?? createMockStoreCode(),
+  };
+}
+
 const useStoreManageStore = create<StoreManageState>((set) => ({
   // API 연동 전까지 등록 화면과 관리 화면을 연결하는 UI 임시 상태.
   registeredStore: null,
   registerStore: (payload) =>
     set((state) => ({
-      registeredStore: {
-        // 빈 입력으로 등록해도 화면 확인이 가능하도록 기본값을 채운다.
-        name: payload.name.trim() || '\uC2F8\uD53C\uC2DD\uB2F9',
-        address: payload.address.trim() || '\uC8FC\uC18C \uBBF8\uC785\uB825',
-        businessNumber: payload.businessNumber.trim() || '000-00-00000',
-        // 기존 코드가 있으면 유지해서 관리 화면에서 값이 갑자기 바뀌지 않게 한다.
-        storeCode: state.registeredStore?.storeCode ?? createStoreCode(),
-      },
+      registeredStore: buildRegisteredStore(state.registeredStore, payload),
     })),
   clearRegisteredStore: () => set({ registeredStore: null }),
 }));

@@ -1,4 +1,4 @@
-export const ROUTES = {
+﻿export const ROUTES = {
   LANDING: '/', // 스플래시(랜딩) 페이지 - 3초 후 로그인으로 이동
   LOGIN: '/login',
   SIGNUP: '/signup',
@@ -6,7 +6,12 @@ export const ROUTES = {
   SIGNUP_COMPLETE: '/signup/complete',
   HOME: '/home',
   SCHEDULE: '/schedule',
+  // 직원 관리 메인 페이지 - 초대/승인/목록 관리
   EMPLOYEE: '/employee',
+  // 직원 상세 정보 페이지 - 프로필 및 출근 통계 조회
+  EMPLOYEE_DETAIL: '/employee/:employeeId',
+  // 직원 근로계약서 페이지 (현재 준비 중 플레이스홀더)
+  EMPLOYEE_CONTRACT: '/employee/:employeeId/contract',
   PAYROLL: '/payroll',
   STORE: '/store',
   // 매장 등록 진입 경로를 별도로 분리해 여러 화면에서 공통 사용한다.

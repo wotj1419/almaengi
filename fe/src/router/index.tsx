@@ -1,9 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
+﻿import { Routes, Route } from 'react-router-dom';
 import AuctionLayout from '@/features/auction/layouts/AuctionLayout';
 import { ROUTES } from '@/constants/routes';
 import HomePage from '@/features/home/pages/HomePage';
 import SchedulePage from '@/features/schedule/pages/SchedulePage';
 import EmployeePage from '@/features/employee/pages/EmployeePage';
+import EmployeeDetailPage from '@/features/employee/pages/EmployeeDetailPage';
+import EmployeeContractPage from '@/features/employee/pages/EmployeeContractPage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
 import StoreManagePage from '@/features/store/pages/StoreManagePage';
 import StoreRegisterPage from '@/features/store/pages/StoreRegisterPage';
@@ -44,7 +46,13 @@ export default function AppRouter() {
       <Route path={ROUTES.SIGNUP_COMPLETE} element={<SignupCompletePage />} />
       <Route path={ROUTES.HOME} element={<HomePage />} />
       <Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
+      {/* 직원 관리: 목록 → 상세 → 근로계약서 순으로 depth가 깊어진다 */}
       <Route path={ROUTES.EMPLOYEE} element={<EmployeePage />} />
+      <Route path={ROUTES.EMPLOYEE_DETAIL} element={<EmployeeDetailPage />} />
+      <Route
+        path={ROUTES.EMPLOYEE_CONTRACT}
+        element={<EmployeeContractPage />}
+      />
       <Route path={ROUTES.PAYROLL} element={<PayrollPage />} />
       <Route path={ROUTES.STORE} element={<StoreManagePage />} />
       {/* 매장 관리/경매 빈 상태에서 공통으로 진입하는 등록 페이지 */}
