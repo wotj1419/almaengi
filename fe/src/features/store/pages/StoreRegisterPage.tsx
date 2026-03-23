@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
+import useAuthStore from '@/stores/useAuthStore';
 import useStoreManageStore from '@/stores/useStoreManageStore';
 
 const LABEL_CLASS =
@@ -16,12 +17,19 @@ export default function StoreRegisterPage() {
   // 이미 등록된 값이 있으면 수정 화면처럼 초기값으로 보여준다.
   const registeredStore = useStoreManageStore((state) => state.registeredStore);
   const registerStore = useStoreManageStore((state) => state.registerStore);
+  const setActiveStoreId = useAuthStore((state) => state.setActiveStoreId);
 
   const [storeName, setStoreName] = useState(registeredStore?.name ?? '');
   const [address, setAddress] = useState(registeredStore?.address ?? '');
   const [businessNumber, setBusinessNumber] = useState(
     registeredStore?.businessNumber ?? ''
   );
+
+  const syncActiveStoreIdAfterRegister = () => {
+    const registeredStoreFromState =
+      useStoreManageStore.getState().registeredStore;
+    setActiveStoreId(registeredStoreFromState?.storeId ?? null);
+  };
 
   const handleRegister = () => {
     // 현재 단계는 UI 우선이므로 저장 대신 로컬 스토어에 즉시 반영한다.
@@ -30,6 +38,9 @@ export default function StoreRegisterPage() {
       address,
       businessNumber,
     });
+
+    // 경매 페이지 접근 제어(activeStoreId)와 등록 결과를 즉시 동기화한다.
+    syncActiveStoreIdAfterRegister();
     navigate(ROUTES.STORE);
   };
 
