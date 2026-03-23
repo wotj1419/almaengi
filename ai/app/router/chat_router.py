@@ -5,13 +5,15 @@ from app.common.logger import get_logger
 from app.schema.chat_schema import ChatRequest, ChatResponse, SourceDocument
 from app.service.chat_service import ChatService
 from app.service.rag_service import RagService
+from app.service.router_service import RouterService
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/ai", tags=["chat"])
 
 rag_service = RagService()
-chat_service = ChatService(rag_service)
+router_service = RouterService()
+chat_service = ChatService(rag_service, router_service)
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -25,6 +27,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         return ChatResponse(
             answer=result["answer"],
             sources=[SourceDocument(**s) for s in result["sources"]],
+            intent=result.get("intent"),
         )
     except AIServiceError as e:
         logger.error("chat_error", error=str(e))
