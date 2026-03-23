@@ -1,10 +1,11 @@
-﻿import { Camera, ChevronRight, Copy, LogOut, Plus, Store } from 'lucide-react';
+﻿import { Camera, ChevronRight, Copy, LogOut, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import useStoreManageStore from '@/stores/useStoreManageStore';
+import NoStoreCard from '../components/NoStoreCard';
 
 type MenuItem = {
   key: 'community' | 'qr' | 'documents';
@@ -24,6 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
     key: 'qr',
     title: 'QR 코드 관리',
     description: '직원이 출퇴근을 인증할 QR 코드를 관리해요',
+    path: ROUTES.STORE_QR,
   },
   {
     key: 'documents',
@@ -69,7 +71,7 @@ export default function StoreManagePage() {
   return (
     <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
       <div className="w-full md:max-w-[600px] min-h-screen flex flex-col bg-[var(--color-bg-base)]">
-        <DetailHeader title="매장 관리" />
+        <DetailHeader title="매장 관리" onBack={() => navigate(ROUTES.HOME)} />
 
         <main className="flex-1 pt-[var(--space-7)] pb-[calc(var(--height-bottom-nav)+40px+env(safe-area-inset-bottom,0px))]">
           {/* 등록 상태 유무에 따라 빈 상태 카드와 등록 카드 UI를 분기한다. */}
@@ -136,41 +138,7 @@ export default function StoreManagePage() {
               </div>
             </section>
           ) : (
-            <section className="mx-[var(--space-5)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-6 py-8 flex flex-col items-center gap-6">
-              <div className="size-24 rounded-full bg-[var(--color-bg-base)] flex items-center justify-center">
-                <div className="size-14 rounded-full border-2 border-[var(--color-border-muted)] border-dashed flex items-center justify-center">
-                  <Store
-                    size={26}
-                    color="var(--color-text-placeholder)"
-                    strokeWidth={2}
-                  />
-                </div>
-              </div>
-
-              <div className="text-center">
-                <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)] leading-8">
-                  등록된 매장이 없습니다
-                </h2>
-                <p className="mt-2 text-[length:var(--text-md2)] text-[var(--color-text-muted)] leading-6">
-                  새로운 매장을 등록하고
-                  <br />
-                  편리하게 직원을 관리해보세요
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRegisterClick}
-                className="w-full max-w-[280px] h-14 rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-[var(--color-text-primary)] font-bold text-[length:var(--text-md2)] shadow-[var(--shadow-form-card)] inline-flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Plus
-                  size={18}
-                  color="var(--color-text-primary)"
-                  strokeWidth={2.6}
-                />
-                <span>새 매장 등록하기</span>
-              </button>
-            </section>
+            <NoStoreCard />
           )}
 
           <section className={LIST_SECTION_CLASS}>

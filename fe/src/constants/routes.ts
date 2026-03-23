@@ -16,6 +16,7 @@
   STORE: '/store',
   // 매장 등록 진입 경로를 별도로 분리해 여러 화면에서 공통 사용한다.
   STORE_REGISTER: '/store/register',
+  STORE_QR: '/store/qr',
   STORE_COMMUNITY: '/store/community',
   STORE_CHAT_NEW: '/store/community/chat/new',
   STORE_CHAT_ROOM: '/store/community/chat/:chatRoomId',

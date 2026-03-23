@@ -11,15 +11,26 @@ export interface StoreInfo {
 }
 
 export async function getMyStores() {
-  const { data } = await instance.get<ApiResponse<StoreInfo[]>>('/api/v1/stores');
+  const { data } =
+    await instance.get<ApiResponse<StoreInfo[]>>('/api/v1/stores');
   return data.data;
 }
 
 export async function getMyStoresWithToken(accessToken: string) {
-  const { data } = await instance.get<ApiResponse<StoreInfo[]>>('/api/v1/stores', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
+    '/api/v1/stores',
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  return data.data;
+}
+
+export async function getStore(storeId: number) {
+  const { data } = await instance.get<ApiResponse<StoreInfo>>(
+    `/api/v1/stores/${storeId}`
+  );
   return data.data;
 }
