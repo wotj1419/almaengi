@@ -30,6 +30,19 @@ public interface PayrollRepository extends JpaRepository<Payroll, Long> {
             @Param("storeId") Long storeId,
             @Param("targetMonth") LocalDate targetMonth);
 
+    /**
+     * 승인된 급여를 조회합니다. (이체 대상)
+     * employee → user를 fetch join하여 계좌 정보에 접근할 수 있습니다.
+     */
+    @Query("SELECT p FROM Payroll p " +
+            "JOIN FETCH p.employee e " +
+            "JOIN FETCH e.user u " +
+            "WHERE e.store.id = :storeId AND p.targetMonth = :targetMonth " +
+            "AND p.isApproved = true")
+    List<Payroll> findApprovedByStoreIdAndTargetMonth(
+            @Param("storeId") Long storeId,
+            @Param("targetMonth") LocalDate targetMonth);
+
     // 사장님 대시보드: Payroll + StoreEmployee + User를 한 번에 조회 (N+1 방지, 직원명 오름차순)
     @Query("SELECT p FROM Payroll p " +
             "JOIN FETCH p.employee e " +

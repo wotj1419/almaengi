@@ -49,6 +49,10 @@ public class Store extends BaseTimeEntity {
     @Column(name = "is_over_5_employees", nullable = false)
     private Boolean isOver5Employees = false;
 
+    /** 급여일 (1~31). null이면 급여일 미설정 */
+    @Column(name = "pay_day")
+    private Integer payDay;
+
     @Column(name = "is_closed", nullable = false)
     private Boolean isClosed = false;
 

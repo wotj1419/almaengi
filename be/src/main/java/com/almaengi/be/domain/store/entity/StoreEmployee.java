@@ -91,6 +91,24 @@ public class StoreEmployee extends BaseTimeEntity {
     }
 
     /**
+     * 퇴근 시 실근무시간을 이번 주 근무시간에 누적합니다.
+     * 총 근무시간이 휴게시간보다 짧으면 누적하지 않습니다.
+     *
+     * @param totalMinutes 출근~퇴근 총 시간(분)
+     * @param breakMinutes 휴게시간(분)
+     */
+    public void addWorkedMinutes(int totalMinutes, int breakMinutes) {
+        int netMinutes = totalMinutes - breakMinutes;
+        if (netMinutes <= 0) {
+            return;
+        }
+        if (this.workedMinutes == null) {
+            this.workedMinutes = 0;
+        }
+        this.workedMinutes += netMinutes;
+    }
+
+    /**
      * 알바생의 이번 주 예정 근무 시간(대타 확정 등)을 추가합니다.
      */
     public void addWillWorkingMinutes(int minutesToAdd) {

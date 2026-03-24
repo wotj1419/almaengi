@@ -166,6 +166,31 @@ public class  PayrollQueryService {
                 .build();
     }
 
+    /**
+     * 매장 단위 급여 일괄 승인
+     * 해당 매장+월의 미승인 급여를 전체 승인합니다.
+     */
+    @Transactional
+    public int approveAllPayrolls(Long userId, Long storeId, LocalDate targetMonth) {
+        validateStoreOwnership(userId, storeId);
+
+        LocalDate normalizedMonth = targetMonth.withDayOfMonth(1);
+        List<Payroll> payrolls = payrollRepository
+                .findAllByEmployeeStoreIdAndTargetMonth(storeId, normalizedMonth);
+
+        int approvedCount = 0;
+        for (Payroll payroll : payrolls) {
+            if (!payroll.getIsApproved()) {
+                payroll.approve();
+                approvedCount++;
+            }
+        }
+
+        log.info("매장 단위 급여 일괄 승인 완료 - storeId: {}, targetMonth: {}, approvedCount: {}",
+                storeId, normalizedMonth, approvedCount);
+        return approvedCount;
+    }
+
     // ─── Private Methods ───
 
     /**
