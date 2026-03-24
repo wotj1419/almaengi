@@ -16,6 +16,7 @@
     "axios": "^1.13.6",
     "boring-avatars": "^2.0.4",
     "dayjs": "^1.11.19",
+    "firebase": "^12.11.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.577.0",
