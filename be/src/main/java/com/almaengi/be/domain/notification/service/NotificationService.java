@@ -82,6 +82,28 @@ public class NotificationService {
 
     }
 
+    // 채팅용 push-only 발송.
+    // - Notification 엔티티에는 저장하지 않고 푸시 알림만 전송
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendPushOnly(User receiver, String title, String body, String type, String targetId) {
+        List<UserFcmToken> tokens = userFcmTokenRepository.findAllByUserId(receiver.getId());
+
+        try {
+            if(tokens.isEmpty()) {
+                log.info("해당 유저(id:{})의 FCM 토큰이 없어 push 발송이 취소되었습니다.", receiver.getId());
+                return;
+            }
+
+            for(UserFcmToken token : tokens) {
+                fcmService.sendPushNotification(token.getDeviceToken(), title, body,
+                        type != null ? type : "",
+                        targetId != null ? targetId : "");
+            }
+        } catch(Exception e) {
+            log.warn("push-only 발송 실패 - receiverId: {}, type: {}, targetId: {}, reason: {}", receiver.getId(), type, targetId, e.getMessage(), e);
+        }
+    }
+
     /**
      * 당일 동일 알림 중복 여부를 확인합니다.
      *

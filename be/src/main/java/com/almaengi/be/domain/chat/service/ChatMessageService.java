@@ -11,17 +11,23 @@ import com.almaengi.be.domain.chat.repository.ChatRoomMemberRepository;
 import com.almaengi.be.domain.chat.repository.ChatRoomRepository;
 import com.almaengi.be.domain.chat.type.ChatMessageType;
 import com.almaengi.be.domain.chat.type.ChatRoomType;
+import com.almaengi.be.domain.notification.service.NotificationService;
+import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -35,6 +41,8 @@ public class ChatMessageService {
     private final ChatBotProperties chatBotProperties;
     private final ChatBotAsyncService chatBotAsyncService;
     private final ChatIntegrityValidator chatIntegrityValidator;
+
+    private final NotificationService notificationService;
 
     /**
      * 메세지 전송
@@ -58,6 +66,12 @@ public class ChatMessageService {
 
         // 메세지 저장과 같은 transaction 에서 room 포인터 갱신 (정합성이 핵심)
         room.updateLastMessagePointer(saved.getId(), saved.getSentAt());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                notifyChatPushOnly(room, sender, saved);
+            }
+        });
 
         // BOT 방이면 챗봇 응답 생성.
         if(room.getRoomType() == ChatRoomType.BOT && !userId.equals(chatBotProperties.getBotUserId()))
@@ -135,5 +149,38 @@ public class ChatMessageService {
     private ChatRoomMember getActiveMemberOrThrow(Long roomId, Long userId) {
         return chatRoomMemberRepository.findByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_MEMBER_NOT_ACTIVE));
+    }
+
+    private void notifyChatPushOnly(ChatRoom room, User sender, ChatMessage savedMessage) {
+        try {
+            Long botUserId = chatBotProperties.getBotUserId();
+            List<ChatRoomMember> activeMembers = chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(room.getId());
+
+            String roomName = (room.getName() != null && !room.getName().isBlank()) ? room.getName() : "채팅방";
+            String title = "[" + roomName + "] 새 메시지";
+            String body = buildPushBody(sender.getName(), savedMessage.getContent());
+
+            for(ChatRoomMember member : activeMembers) {
+                Long receiverId = member.getUser().getId();
+                // 송신자 제외
+                if(receiverId.equals(sender.getId())) continue;
+                // 봇 제외
+                if (botUserId != null && receiverId.equals(botUserId)) continue;
+
+                notificationService.sendPushOnly(member.getUser(), title, body, NotificationType.CHAT.name(), String.valueOf(room.getId()));
+            }
+        } catch(Exception e) {
+            // push-only 실패가 메시지 저장 성공을 깨지 않도록 best-effort
+            log.warn("FCM push-only 송신 실패. roomId={}, senderId={}, reason={}", room.getId(), sender.getId(), e.getMessage(), e);
+        }
+    }
+    private String buildPushBody(String senderName, String content) {
+        String safeSender = (senderName == null || senderName.isBlank()) ? "알 수 없음" : senderName;
+        String safeContent = (content == null) ? "" : content.replaceAll("\\s+", " ").trim();
+
+        if(safeContent.length() > 80)
+            safeContent = safeContent.substring(0, 80) + "...";
+
+        return safeSender +": " + safeContent;
     }
 }

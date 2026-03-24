@@ -26,6 +26,8 @@ function resolveRoute(type, targetId) {
       return '/schedule';
     case 'SALARY':
       return '/payroll';
+    case 'CHAT':
+      return targetId ? `/chat/rooms/${targetId}` : '/notification';
     default:
       return '/notification';
   }
