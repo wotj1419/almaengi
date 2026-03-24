@@ -90,7 +90,7 @@ public class StoreEmployeeService {
                 .store(store)
                 .user(user)
                 .hireDate(LocalDate.now())
-                .status(StoreEmployeeStatus.INVITED)
+                .status(StoreEmployeeStatus.WORKING)
                 .hourlyWage(0)
                 .taxType(TaxType.NONE)
                 .workedMinutes(0)
