@@ -31,6 +31,7 @@ const MENU_ITEMS: MenuItem[] = [
     key: 'documents',
     title: '문서함',
     description: '매장 운영에 필요한 문서와 데이터를 손쉽게 관리해요',
+    path: ROUTES.DOCUMENTS,
   },
 ];
 

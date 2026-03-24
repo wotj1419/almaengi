@@ -1,4 +1,4 @@
-﻿import { Routes, Route } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AuctionLayout from '@/features/auction/layouts/AuctionLayout';
 import { ROUTES } from '@/constants/routes';
 import HomePage from '@/features/home/pages/HomePage';
@@ -7,6 +7,14 @@ import EmployeePage from '@/features/employee/pages/EmployeePage';
 import EmployeeDetailPage from '@/features/employee/pages/EmployeeDetailPage';
 import EmployeeContractPage from '@/features/employee/pages/EmployeeContractPage';
 import PayrollPage from '@/features/payroll/pages/PayrollPage';
+import {
+  ContractDetailPage,
+  ContractRequestPage,
+  DocumentsHomePage,
+  EtcDocumentRequestPage,
+  MyDocumentsPage,
+  PayslipDetailPage,
+} from '@/features/documents';
 import StoreManagePage from '@/features/store/pages/StoreManagePage';
 import StoreRegisterPage from '@/features/store/pages/StoreRegisterPage';
 import StorePage from '@/features/store/pages/StorePage';
@@ -36,6 +44,26 @@ import RoleSelectPage from '@/features/login/pages/RoleSelectPage';
 import SignupPage from '@/features/login/pages/SignupPage';
 import SignupCompletePage from '@/features/login/pages/SignupCompletePage';
 
+function LegacyDocumentsPayslipRedirect() {
+  const { payslipId = '' } = useParams();
+  const targetPath = ROUTES.DOCUMENTS_PAYSLIP_DETAIL.replace(
+    ':payslipId',
+    payslipId
+  );
+
+  return <Navigate replace to={targetPath} />;
+}
+
+function LegacyDocumentsContractRedirect() {
+  const { contractId = '' } = useParams();
+  const targetPath = ROUTES.DOCUMENTS_CONTRACT_DETAIL.replace(
+    ':contractId',
+    contractId
+  );
+
+  return <Navigate replace to={targetPath} />;
+}
+
 export default function AppRouter() {
   return (
     <Routes>
@@ -55,6 +83,48 @@ export default function AppRouter() {
         element={<EmployeeContractPage />}
       />
       <Route path={ROUTES.PAYROLL} element={<PayrollPage />} />
+      <Route path={ROUTES.DOCUMENTS} element={<DocumentsHomePage />} />
+      <Route path={ROUTES.DOCUMENTS_MY} element={<MyDocumentsPage />} />
+      <Route
+        path={ROUTES.DOCUMENTS_REQUEST}
+        element={<ContractRequestPage />}
+      />
+      <Route
+        path={ROUTES.DOCUMENTS_REQUEST_ETC}
+        element={<EtcDocumentRequestPage />}
+      />
+      <Route
+        path={ROUTES.DOCUMENTS_PAYSLIP_DETAIL}
+        element={<PayslipDetailPage />}
+      />
+      <Route
+        path={ROUTES.DOCUMENTS_CONTRACT_DETAIL}
+        element={<ContractDetailPage />}
+      />
+      <Route
+        path="/documents"
+        element={<Navigate replace to={ROUTES.DOCUMENTS} />}
+      />
+      <Route
+        path="/documents/my"
+        element={<Navigate replace to={ROUTES.DOCUMENTS_MY} />}
+      />
+      <Route
+        path="/documents/request"
+        element={<Navigate replace to={ROUTES.DOCUMENTS_REQUEST} />}
+      />
+      <Route
+        path="/documents/request/etc"
+        element={<Navigate replace to={ROUTES.DOCUMENTS_REQUEST_ETC} />}
+      />
+      <Route
+        path="/documents/payslip/:payslipId"
+        element={<LegacyDocumentsPayslipRedirect />}
+      />
+      <Route
+        path="/documents/contract/:contractId"
+        element={<LegacyDocumentsContractRedirect />}
+      />
       <Route path={ROUTES.STORE} element={<StoreManagePage />} />
       {/* 매장 관리/경매 빈 상태에서 공통으로 진입하는 등록 페이지 */}
       <Route path={ROUTES.STORE_REGISTER} element={<StoreRegisterPage />} />
