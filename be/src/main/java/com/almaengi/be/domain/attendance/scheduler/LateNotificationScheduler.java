@@ -1,6 +1,7 @@
 package com.almaengi.be.domain.attendance.scheduler;
 
 import com.almaengi.be.domain.notification.service.NotificationService;
+import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
@@ -23,7 +24,7 @@ import java.util.Set;
  * - 중복 방지: DB에 당일 동일 직원의 LATE 알림이 있으면 스킵
  * - 트랜잭션: 스케줄러 자체에 @Transactional 없음
  *   → store.getOwner() LAZY 문제는 findOpenStoresWithOwner() fetch join으로 해결
- *   → sendLateNotification()이 자체 @Transactional로 DB 저장 수행
+ *   → sendNotification()이 자체 @Transactional로 DB 저장 수행
  */
 @Slf4j
 @Component
@@ -58,11 +59,19 @@ public class LateNotificationScheduler {
 
             for (String employeeIdStr : lateEmployeeIds) {
                 Long employeeId = Long.parseLong(employeeIdStr);
-                String employeeName = getEmployeeName(employeeId);
 
-                // 중복 체크 + 알림 전송은 NotificationService에 위임
-                notificationService.sendLateNotification(
-                        owner, employeeId, employeeName, store.getName());
+                // 당일 중복 체크: 이미 같은 직원에 대한 LATE 알림을 보냈으면 스킵
+                if (notificationService.isAlreadySentToday(
+                        owner.getId(), NotificationType.LATE, employeeId)) {
+                    continue;
+                }
+
+                String employeeName = getEmployeeName(employeeId);
+                String title = "지각 알림";
+                String body = employeeName + "님이 지각 중입니다. (" + store.getName() + ")";
+
+                notificationService.sendNotification(
+                        owner, NotificationType.LATE, title, body, employeeId);
             }
         }
     }

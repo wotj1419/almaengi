@@ -83,53 +83,18 @@ public class NotificationService {
     }
 
     /**
-     * 지각 알림 전송 (중복 방지 포함).
-     * 당일 동일 직원에 대한 LATE 알림이 이미 존재하면 스킵하고,
-     * 없으면 DB 저장 + FCM 푸시를 직접 수행합니다.
+     * 당일 동일 알림 중복 여부를 확인합니다.
      *
-     * sendNotification()을 내부 호출(self-invocation)하면 프록시를 거치지 않아
-     * 클래스 레벨 readOnly 트랜잭션에서 save() flush가 누락될 수 있으므로,
-     * 직접 save + FCM 로직을 수행합니다.
-     *
-     * @param owner        알림 수신자 (매장 사장님)
-     * @param employeeId   지각 직원 ID (Notification.targetId로 저장됨)
-     * @param employeeName 지각 직원 이름 (알림 본문에 표시)
-     * @param storeName    매장 이름 (알림 본문에 표시)
+     * @param receiverId 수신자 ID
+     * @param type       알림 유형
+     * @param targetId   대상 ID (예: employeeId)
+     * @return 이미 전송된 알림이 있으면 true
      */
-    @Transactional
-    public void sendLateNotification(User owner, Long employeeId, String employeeName, String storeName) {
-        // 당일 중복 체크: 이미 같은 직원에 대한 LATE 알림을 보냈으면 스킵
-        boolean alreadySent = notificationRepository
+    @Transactional(readOnly = true)
+    public boolean isAlreadySentToday(Long receiverId, NotificationType type, Long targetId) {
+        return notificationRepository
                 .existsByReceiverIdAndTypeAndTargetIdAndCreatedAtGreaterThanEqual(
-                        owner.getId(), NotificationType.LATE, employeeId, LocalDate.now().atStartOfDay());
-        if (alreadySent) {
-            return;
-        }
-
-        // DB 저장 (self-invocation 방지를 위해 직접 수행)
-        String title = "지각 알림";
-        String body = employeeName + "님이 지각 중입니다. (" + storeName + ")";
-
-        Notification notification = Notification.builder()
-                .receiver(owner)
-                .title(title)
-                .body(body)
-                .type(NotificationType.LATE)
-                .targetId(employeeId)
-                .build();
-        notificationRepository.save(notification);
-
-        // FCM 푸시 전송
-        List<UserFcmToken> tokens = userFcmTokenRepository.findAllByUserId(owner.getId());
-        if (tokens.isEmpty()) {
-            log.info("해당 유저(id:{})의 FCM 토큰이 없어 지각 알림 발송이 취소되었습니다.", owner.getId());
-            return;
-        }
-        for (UserFcmToken token : tokens) {
-            fcmService.sendPushNotification(
-                    token.getDeviceToken(), title, body,
-                    NotificationType.LATE.toString(), String.valueOf(employeeId));
-        }
+                        receiverId, type, targetId, LocalDate.now().atStartOfDay());
     }
 
     // 특정 유저의 알림함 조회

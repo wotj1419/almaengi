@@ -77,10 +77,7 @@ public class PayrollController implements PayrollControllerDocs {
         return ApiResponse.success();
     }
 
-    /**
-     * 매장 단위 급여 일괄 승인
-     * 해당 월의 미승인 급여를 전체 승인합니다.
-     */
+    @Override
     @PatchMapping("/approve-all")
     public ApiResponse<Integer> approveAllPayrolls(
             @AuthUser Long userId,
@@ -117,10 +114,7 @@ public class PayrollController implements PayrollControllerDocs {
         return ApiResponse.success(response);
     }
 
-    /**
-     * 수동 급여 이체
-     * 자동 이체 실패 시 사장님이 직접 이체를 실행합니다.
-     */
+    @Override
     @PostMapping("/transfer")
     public ApiResponse<Void> transferPayrolls(
             @AuthUser Long userId,

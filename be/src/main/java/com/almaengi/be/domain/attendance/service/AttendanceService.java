@@ -86,8 +86,10 @@ public class AttendanceService {
         //    - clockOut=null → 퇴근
         //    - clockOut≠null → 이미 퇴근 완료
         if (attendance == null) {
-            return clockIn(employee, today, null);
-        } else if (attendance.getClockIn() == null) {
+            attendance = createAttendance(employee, today);
+        }
+
+        if (attendance.getClockIn() == null) {
             return clockIn(attendance);
         } else if (attendance.getClockOut() == null) {
             return clockOut(attendance, request.getOvertimeConfirm());
@@ -96,27 +98,27 @@ public class AttendanceService {
         }
     }
 
-    private AttendanceResponseDto clockIn(StoreEmployee employee, LocalDate today, Attendance existing) {
+    /**
+     * 스케줄 없는 직원의 출근 시 Attendance를 새로 생성합니다.
+     */
+    private Attendance createAttendance(StoreEmployee employee, LocalDate today) {
+        DayOfWeek dayOfWeek = DayOfWeek.from(today.getDayOfWeek().getValue() % 7);
+        WorkSchedule schedule = workScheduleRepository
+                .findFirstByEmployeeIdAndDayOfWeek(employee.getId(), dayOfWeek)
+                .orElse(null);
+
+        return Attendance.builder()
+                .employee(employee)
+                .targetDate(today)
+                .scheduledStartTime(schedule != null ? schedule.getStartTime() : null)
+                .scheduledEndTime(schedule != null ? schedule.getEndTime() : null)
+                .status(AttendanceStatus.WAITING)
+                .build();
+    }
+
+    private AttendanceResponseDto clockIn(Attendance attendance) {
         LocalDateTime now = LocalDateTime.now();
-        Attendance attendance;
-
-        if (existing != null) {
-            attendance = existing;
-        } else {
-            // Java DayOfWeek(1=월~7=일) → 커스텀 DayOfWeek(0=일~6=토) 변환
-            DayOfWeek dayOfWeek = DayOfWeek.from(today.getDayOfWeek().getValue() % 7);
-            WorkSchedule schedule = workScheduleRepository
-                    .findFirstByEmployeeIdAndDayOfWeek(employee.getId(), dayOfWeek)
-                    .orElse(null);
-
-            attendance = Attendance.builder()
-                    .employee(employee)
-                    .targetDate(today)
-                    .scheduledStartTime(schedule != null ? schedule.getStartTime() : null)
-                    .scheduledEndTime(schedule != null ? schedule.getEndTime() : null)
-                    .status(AttendanceStatus.WAITING)
-                    .build();
-        }
+        StoreEmployee employee = attendance.getEmployee();
 
         attendance.clockIn(now);
 
@@ -256,12 +258,6 @@ public class AttendanceService {
                 .date(date)
                 .attendances(logs)
                 .build();
-    }
-
-    // ========== 출퇴근 내부 메서드 ==========
-
-    private AttendanceResponseDto clockIn(Attendance attendance) {
-        return clockIn(attendance.getEmployee(), attendance.getTargetDate(), attendance);
     }
 
     /**

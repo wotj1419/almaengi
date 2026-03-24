@@ -87,4 +87,32 @@ public interface PayrollControllerDocs {
             @Parameter(description = "조회 대상 월 (yyyy-MM)", example = "2026-03")
             @RequestParam String targetMonth
     );
+
+    @Operation(summary = "급여 일괄 승인", description = "해당 월의 미승인 급여를 전체 승인합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공 (승인된 건수 반환)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "P005: 해당 매장의 급여를 관리할 권한이 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "P007: 잘못된 정산 월 형식입니다.")
+    })
+    ApiResponse<Integer> approveAllPayrolls(
+            @Parameter(hidden = true) @AuthUser Long userId,
+            @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
+            @Parameter(description = "대상 월 (yyyy-MM)", example = "2026-03")
+            @RequestParam String targetMonth
+    );
+
+    @Operation(summary = "수동 급여 이체", description = "자동 이체 실패 시 사장님이 직접 이체를 실행합니다. 승인된 미이체 급여만 이체됩니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "이체 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "P005: 해당 매장의 급여를 관리할 권한이 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "P007: 잘못된 정산 월 형식입니다.<br>T001: 잔액이 부족합니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S001: 해당 매장을 찾을 수 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "T002: 급여 이체에 실패했습니다.")
+    })
+    ApiResponse<Void> transferPayrolls(
+            @Parameter(hidden = true) @AuthUser Long userId,
+            @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
+            @Parameter(description = "대상 월 (yyyy-MM)", example = "2026-03")
+            @RequestParam String targetMonth
+    );
 }

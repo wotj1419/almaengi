@@ -23,6 +23,11 @@ spring:
       ddl-auto: validate
     show-sql: false
 
+ssafy:
+  finance:
+    api-key: ${SSAFY_FINANCE_API_KEY}
+    base-url: ${SSAFY_FINANCE_BASE_URL}
+
 app:
   cookie:
     secure: true
