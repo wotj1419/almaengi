@@ -13,6 +13,12 @@
   // 직원 근로계약서 페이지 (현재 준비 중 플레이스홀더)
   EMPLOYEE_CONTRACT: '/employee/:employeeId/contract',
   PAYROLL: '/payroll',
+  DOCUMENTS: '/store/documents',
+  DOCUMENTS_MY: '/store/documents/my',
+  DOCUMENTS_PAYSLIP_DETAIL: '/store/documents/payslip/:payslipId',
+  DOCUMENTS_CONTRACT_DETAIL: '/store/documents/contract/:contractId',
+  DOCUMENTS_REQUEST: '/store/documents/request',
+  DOCUMENTS_REQUEST_ETC: '/store/documents/request/etc',
   STORE: '/store',
   // 매장 등록 진입 경로를 별도로 분리해 여러 화면에서 공통 사용한다.
   STORE_REGISTER: '/store/register',

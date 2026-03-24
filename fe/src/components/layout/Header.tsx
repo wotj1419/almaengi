@@ -27,7 +27,9 @@ export default function Header({
 
   return (
     <div
-      className="relative z-[var(--z-content)] w-full shrink-0 flex items-center justify-between px-[var(--space-5)] pb-[var(--space-5)] ${auctionStyle ? 'bg-transparent : 'bg[var(--color-bg-dark)]'}'}"
+      className={`relative z-[var(--z-content)] w-full shrink-0 flex items-center justify-between px-[var(--space-5)] pb-[var(--space-5)] ${
+        auctionStyle ? 'bg-transparent' : 'bg-[var(--color-bg-dark)]'
+      }`}
       style={{ paddingTop: 'calc(45px + env(safe-area-inset-top, 0px))' }}
     >
       {title ? (
