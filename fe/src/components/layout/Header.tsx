@@ -1,6 +1,7 @@
 import { Bell, ChevronDown, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
+import { useUnreadNotificationCount } from '@/features/notification/hooks/useNotificationQueries';
 
 interface HeaderProps {
   storeName?: string;
@@ -18,6 +19,11 @@ export default function Header({
   auctionStyle = false,
 }: HeaderProps) {
   const navigate = useNavigate();
+
+
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const shouldShowNotificationBadge = hasNotification && unreadCount > 0;
+  const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
 
   return (
     <div
@@ -70,8 +76,10 @@ export default function Header({
               color={auctionStyle ? 'black' : 'white'}
               strokeWidth={1.95}
             />
-            {hasNotification && (
-              <div className="absolute top-0 right-0 size-[8px] bg-[var(--color-danger)] rounded-full border-[1.5px] border-[var(--color-bg-dark)]" />
+            {shouldShowNotificationBadge && (
+              <div className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-danger)] text-white text-[10px] font-bold leading-[18px] text-center border border-[var(--color-bg-dark)]">
+                {unreadLabel}
+              </div>
             )}
           </button>
         </>

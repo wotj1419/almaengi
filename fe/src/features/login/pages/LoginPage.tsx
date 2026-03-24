@@ -101,6 +101,11 @@ export default function LoginPage() {
         res.data.accessToken,
         activeStoreId
       );
+
+      // FCM 토큰 동기화는 App 루트의 useFcmBootstrap()에서 단일 책임으로 수행합니다.
+      // WHY: LoginPage에서도 중복으로 getToken을 호출하면 Chrome Push 서비스에서
+      // TOO_MANY_REGISTRATIONS / AbortError가 발생할 수 있어, 실행 경로를 하나로 통일합니다.
+
       // 로그인 성공 시 홈으로 이동 (replace: 뒤로가기로 로그인 페이지 재진입 방지)
       navigate(ROUTES.HOME, { replace: true });
     } catch {
