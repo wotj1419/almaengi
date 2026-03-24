@@ -1,0 +1,18 @@
+{
+  "label": "after_prompt_v3",
+  "timestamp": "2026-03-24T14:00:25.444190",
+  "num_questions": 50,
+  "metrics": {
+    "context_precision": 0.8001166666360389,
+    "context_recall": 0.7766666666666666,
+    "faithfulness": 0.7003282828282829,
+    "answer_relevancy": 0.7895536432856648
+  },
+  "metrics_raw": {
+    "context_precision": 0.8001166666360389,
+    "context_recall": 0.7766666666666666,
+    "faithfulness": 0.7003282828282829,
+    "answer_relevancy": 0.694807206091385
+  },
+  "answer_relevancy_noise_excluded": 6
+}
