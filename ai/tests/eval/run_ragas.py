@@ -86,8 +86,9 @@ async def collect_samples(
             intent=intent,
         )
 
-        child_chunks = await rag_service.search(q["question"])
-        context_texts = [chunk["content"] for chunk in child_chunks]
+        # chat()이 실제 LLM에 전달한 context_docs를 그대로 사용
+        context_docs = result.get("context_docs", [])
+        context_texts = [doc["content"] for doc in context_docs]
 
         samples.append(
             SingleTurnSample(
@@ -155,22 +156,38 @@ async def run_evaluation(dataset_path: str, output_dir: str, label: str, limit: 
                 break
 
     avg_scores: dict[str, float] = {}
+    avg_scores_raw: dict[str, float] = {}
     for name in METRIC_NAMES:
         col = col_map.get(name)
         if col and col in ragas_df.columns:
-            val = float(ragas_df[col].mean())
+            raw_val = float(ragas_df[col].mean())
+            avg_scores_raw[name] = 0.0 if math.isnan(raw_val) else raw_val
+
+            # answer_relevancy: 0.0 노이즈 제외 (메트릭 역질문 생성 실패로 인한 이상치)
+            if name == "answer_relevancy":
+                filtered = ragas_df[col][ragas_df[col] > 0.0]
+                val = float(filtered.mean()) if len(filtered) > 0 else 0.0
+            else:
+                val = raw_val
             avg_scores[name] = 0.0 if math.isnan(val) else val
         else:
             avg_scores[name] = 0.0
+            avg_scores_raw[name] = 0.0
 
     out_dir = PROJECT_ROOT / output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # answer_relevancy 노이즈 제외 건수
+    ar_col = col_map.get("answer_relevancy")
+    ar_noise_count = int((ragas_df[ar_col] == 0.0).sum()) if ar_col else 0
 
     result_dict = {
         "label": label,
         "timestamp": datetime.now().isoformat(),
         "num_questions": len(legal_questions),
         "metrics": avg_scores,
+        "metrics_raw": avg_scores_raw,
+        "answer_relevancy_noise_excluded": ar_noise_count,
     }
 
     json_path = out_dir / f"{label}.json"
@@ -186,6 +203,7 @@ async def run_evaluation(dataset_path: str, output_dir: str, label: str, limit: 
             "question": row.get("user_input", ""),
             "response": row.get("response", ""),
             "reference": row.get("reference", ""),
+            "retrieved_contexts": row.get("retrieved_contexts", []),
         }
         for name in METRIC_NAMES:
             col = col_map.get(name)
@@ -223,7 +241,9 @@ async def run_evaluation(dataset_path: str, output_dir: str, label: str, limit: 
     print(f"{'='*50}")
     for name, score in avg_scores.items():
         bar = "█" * int(score * 20) + "░" * (20 - int(score * 20))
-        print(f"  {name:<22} {bar} {score:.4f}")
+        raw = avg_scores_raw.get(name, score)
+        suffix = f" (raw: {raw:.4f}, 노이즈 {ar_noise_count}건 제외)" if name == "answer_relevancy" and ar_noise_count > 0 else ""
+        print(f"  {name:<22} {bar} {score:.4f}{suffix}")
     print(f"{'='*50}")
     print(f"  결과 저장: {json_path}")
     print(f"  상세 결과: {detail_path}")
