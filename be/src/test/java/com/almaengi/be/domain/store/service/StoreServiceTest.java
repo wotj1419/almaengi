@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.Optional;
 
+import com.almaengi.be.domain.chat.service.ChatRoomService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +41,9 @@ class StoreServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ChatRoomService chatRoomService;
 
     private User owner;
     private User otherUser;
@@ -86,6 +90,7 @@ class StoreServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getStoreName()).isEqualTo("알맹이 카페");
             verify(storeRepository, times(1)).save(any(Store.class));
+            verify(chatRoomService, times(1)).ensurePersonalBotRoomWithWelcome(OWNER_ID, STORE_ID);
         }
 
         @Test

@@ -1,5 +1,6 @@
 package com.almaengi.be.domain.store.service;
 
+import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreRequestDto;
 import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class StoreService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+    private final ChatRoomService chatRoomService;
 
     // 매장 정보 등록(create)
     @Transactional
@@ -38,8 +40,16 @@ public class StoreService {
                 .isOver5Employees(request.getIsOver5Employees())
                 .qrCode(UUID.randomUUID().toString())
                 .build();
-
         Store savedStore = storeRepository.save(store);
+
+        // 매장 생성 시, Chat-BOT 최초 인사
+        try {
+            chatRoomService.ensurePersonalBotRoomWithWelcome(userId, savedStore.getId());
+        } catch(Exception e) {
+            // 매장 생성 자체를 깨지 않도록 best-effort
+            log.warn("[CHAT-BOT] auto bot room init failed on createStore. storeId={}, userId={}, reason={}", savedStore.getId(), userId, e.getMessage());
+        }
+
         return StoreResponseDto.StoreInfo.from(savedStore);
     }
 

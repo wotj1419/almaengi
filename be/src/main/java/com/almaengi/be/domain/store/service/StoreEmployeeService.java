@@ -1,5 +1,6 @@
 package com.almaengi.be.domain.store.service;
 
+import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
@@ -33,6 +34,8 @@ public class StoreEmployeeService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+
+    private final ChatRoomService chatRoomService;
 
     private final RedisUtil redisUtil;
 
@@ -95,8 +98,16 @@ public class StoreEmployeeService {
                 .dependentsCount(0)
                 .includeHolidayPay(false)
                 .build();
-
         StoreEmployee savedEmployee = storeEmployeeRepository.save(newEmployee);
+
+        // 매장 합류 시, Chat-BOT 최초 인사
+        try {
+            chatRoomService.ensurePersonalBotRoomWithWelcome(userId, storeId);
+        } catch(Exception e) {
+            // 매장 합류 자체를 깨지 않도록 best-effort
+            log.warn("[CHAT-BOT] auto bot room init failed on createStore. storeId={}, userId={}, reason={}", storeId, userId, e.getMessage());
+        }
+
         return StoreEmployeeResponseDto.EmployeeInfo.from(savedEmployee);
     }
 

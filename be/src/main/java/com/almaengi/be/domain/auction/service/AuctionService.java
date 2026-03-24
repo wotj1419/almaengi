@@ -218,7 +218,7 @@ public class AuctionService {
                     .targetDate(auction.getTargetDate())
                     .scheduledStartTime(auction.getTargetStartTime())
                     .scheduledEndTime(auction.getTargetEndTime())
-                    .status(AttendanceStatus.ABSENT) // 기본값은 "결근"
+                    .status(AttendanceStatus.WAITING) // 기본값은 "WAITING"
                     .build();
             attendanceRepository.save(newAttendance);
 

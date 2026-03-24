@@ -1,5 +1,6 @@
 package com.almaengi.be.domain.store.service;
 
+import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
@@ -42,6 +43,10 @@ class StoreEmployeeServiceTest {
     private StoreRepository storeRepository;
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ChatRoomService chatRoomService;
+
     @Mock
     private RedisUtil redisUtil;
 
@@ -127,6 +132,7 @@ class StoreEmployeeServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getEmployeeId()).isEqualTo(100L);
         assertThat(response.getUserId()).isEqualTo(employeeId);
+        verify(chatRoomService).ensurePersonalBotRoomWithWelcome(employeeId, storeId);
     }
 
     @Test
