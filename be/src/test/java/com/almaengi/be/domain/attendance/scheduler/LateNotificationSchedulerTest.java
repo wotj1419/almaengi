@@ -20,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.almaengi.be.domain.auth.type.LoginType;
 import com.almaengi.be.domain.notification.service.NotificationService;
+import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
@@ -92,6 +93,7 @@ class LateNotificationSchedulerTest {
             when(storeRepository.findOpenStoresWithOwner()).thenReturn(List.of(store));
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(setOperations.members("store:10:late")).thenReturn(Set.of("50"));
+            when(notificationService.isAlreadySentToday(1L, NotificationType.LATE, 50L)).thenReturn(false);
             when(storeEmployeeRepository.findByIdWithUser(50L)).thenReturn(Optional.of(employee));
 
             // when
@@ -99,7 +101,24 @@ class LateNotificationSchedulerTest {
 
             // then
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 50L, "김알바", "알맹이카페");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "김알바님이 지각 중입니다. (알맹이카페)", 50L);
+        }
+
+        @Test
+        @DisplayName("당일 이미 알림을 보낸 직원은 스킵한다")
+        void skipWhenAlreadySentToday() {
+            // given
+            when(storeRepository.findOpenStoresWithOwner()).thenReturn(List.of(store));
+            when(redisTemplate.opsForSet()).thenReturn(setOperations);
+            when(setOperations.members("store:10:late")).thenReturn(Set.of("50"));
+            when(notificationService.isAlreadySentToday(1L, NotificationType.LATE, 50L)).thenReturn(true);
+
+            // when
+            lateNotificationScheduler.checkAndNotifyLate();
+
+            // then
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -114,7 +133,7 @@ class LateNotificationSchedulerTest {
             lateNotificationScheduler.checkAndNotifyLate();
 
             // then
-            verify(notificationService, never()).sendLateNotification(any(), any(), any(), any());
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -129,7 +148,7 @@ class LateNotificationSchedulerTest {
             lateNotificationScheduler.checkAndNotifyLate();
 
             // then
-            verify(notificationService, never()).sendLateNotification(any(), any(), any(), any());
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -143,7 +162,7 @@ class LateNotificationSchedulerTest {
 
             // then
             verify(redisTemplate, never()).opsForSet();
-            verify(notificationService, never()).sendLateNotification(any(), any(), any(), any());
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -166,6 +185,7 @@ class LateNotificationSchedulerTest {
             when(storeRepository.findOpenStoresWithOwner()).thenReturn(List.of(store));
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(setOperations.members("store:10:late")).thenReturn(Set.of("50", "51"));
+            when(notificationService.isAlreadySentToday(eq(1L), eq(NotificationType.LATE), anyLong())).thenReturn(false);
             when(storeEmployeeRepository.findByIdWithUser(50L)).thenReturn(Optional.of(employee));
             when(storeEmployeeRepository.findByIdWithUser(51L)).thenReturn(Optional.of(employee2));
 
@@ -174,9 +194,11 @@ class LateNotificationSchedulerTest {
 
             // then
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 50L, "김알바", "알맹이카페");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "김알바님이 지각 중입니다. (알맹이카페)", 50L);
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 51L, "이알바", "알맹이카페");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "이알바님이 지각 중입니다. (알맹이카페)", 51L);
         }
 
         @Test
@@ -209,44 +231,20 @@ class LateNotificationSchedulerTest {
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(setOperations.members("store:10:late")).thenReturn(Set.of("50"));
             when(setOperations.members("store:20:late")).thenReturn(Set.of("60"));
+            when(notificationService.isAlreadySentToday(eq(1L), eq(NotificationType.LATE), anyLong())).thenReturn(false);
             when(storeEmployeeRepository.findByIdWithUser(50L)).thenReturn(Optional.of(employee));
             when(storeEmployeeRepository.findByIdWithUser(60L)).thenReturn(Optional.of(employee2));
 
             // when
             lateNotificationScheduler.checkAndNotifyLate();
 
-            // then — 같은 사장님에게 매장별 알림이 각각 전송됨
+            // then
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 50L, "김알바", "알맹이카페");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "김알바님이 지각 중입니다. (알맹이카페)", 50L);
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 60L, "박알바", "알맹이베이커리");
-        }
-
-        @Test
-        @DisplayName("사장님이 매장 여러 개 중 한 매장에만 지각자가 있으면 해당 매장만 알림 전송한다")
-        void notifyOnlyStoreWithLate() {
-            // given
-            Store store2 = Store.builder()
-                    .owner(owner)
-                    .name("알맹이베이커리")
-                    .address("서울시 서초구")
-                    .qrCode("qr_test2")
-                    .build();
-            ReflectionTestUtils.setField(store2, "id", 20L);
-            ReflectionTestUtils.setField(store2, "isClosed", false);
-
-            when(storeRepository.findOpenStoresWithOwner()).thenReturn(List.of(store, store2));
-            when(redisTemplate.opsForSet()).thenReturn(setOperations);
-            when(setOperations.members("store:10:late")).thenReturn(Set.of());
-            when(setOperations.members("store:20:late")).thenReturn(Set.of("50"));
-            when(storeEmployeeRepository.findByIdWithUser(50L)).thenReturn(Optional.of(employee));
-
-            // when
-            lateNotificationScheduler.checkAndNotifyLate();
-
-            // then — 지각자 없는 매장은 알림 안 보냄, 지각자 있는 매장만 1회 호출
-            verify(notificationService, times(1))
-                    .sendLateNotification(owner, 50L, "김알바", "알맹이베이커리");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "박알바님이 지각 중입니다. (알맹이베이커리)", 60L);
         }
 
         @Test
@@ -256,6 +254,7 @@ class LateNotificationSchedulerTest {
             when(storeRepository.findOpenStoresWithOwner()).thenReturn(List.of(store));
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(setOperations.members("store:10:late")).thenReturn(Set.of("999"));
+            when(notificationService.isAlreadySentToday(1L, NotificationType.LATE, 999L)).thenReturn(false);
             when(storeEmployeeRepository.findByIdWithUser(999L)).thenReturn(Optional.empty());
 
             // when
@@ -263,7 +262,8 @@ class LateNotificationSchedulerTest {
 
             // then
             verify(notificationService, times(1))
-                    .sendLateNotification(owner, 999L, "직원", "알맹이카페");
+                    .sendNotification(owner, NotificationType.LATE,
+                            "지각 알림", "직원님이 지각 중입니다. (알맹이카페)", 999L);
         }
     }
 }
