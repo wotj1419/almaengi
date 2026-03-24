@@ -62,6 +62,9 @@ app:
     national-pension-max: 6170000
     health-insurance-min: 279300
     health-insurance-max: 119625000
+  chat:
+    bot-user-id: 999
+    rag-api-base-url: http://localhost:8000
 
 jwt:
   access-token-expiry: 1800000      # 30분

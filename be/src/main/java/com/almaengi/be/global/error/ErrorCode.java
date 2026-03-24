@@ -54,6 +54,17 @@ public enum ErrorCode {
     DUPLICATE_SCHEDULE(HttpStatus.CONFLICT, "S102", "중복된 스케줄입니다."),
     INVALID_DAY_OF_WEEK_FORMAT(HttpStatus.BAD_REQUEST, "S103", "잘못된 요일입니다."),
 
+    // Chat
+    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "채팅방을 찾을 수 없습니다."),
+    CHAT_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "C002", "채팅방 접근 권한이 없습니다."),
+    CHAT_MEMBER_NOT_ACTIVE(HttpStatus.FORBIDDEN, "C003", "채팅방의 활성 멤버가 아닙니다."),
+    CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "C004", "채팅 메시지를 찾을 수 없습니다."),
+    CHAT_MESSAGE_ROOM_MISMATCH(HttpStatus.BAD_REQUEST, "C005", "메시지와 채팅방 참조가 일치하지 않습니다."),
+    CHAT_INVALID_DM_PAIR(HttpStatus.BAD_REQUEST, "C006", "잘못된 DM 대상입니다."),
+    CHAT_INVALID_CURSOR(HttpStatus.BAD_REQUEST, "C007", "잘못된 커서입니다."),
+    CHAT_INVALID_REFERENCE(HttpStatus.BAD_REQUEST, "C008", "채팅 참조 정합성이 올바르지 않습니다."),
+    CHAT_BOT_UPSTREAM_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "C009", "챗봇 연동 서버 응답이 지연되거나 유효하지 않습니다."),
+
     // Notification
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "존재하지 않는 알림입니다."),
 
