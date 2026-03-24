@@ -289,6 +289,11 @@ public class AttendanceService {
 
         attendance.clockOut(now);
         attendance.updateOvertime(isOvertime && Boolean.TRUE.equals(overtimeConfirm));
+
+        // 실근무시간을 이번 주 worked_minutes에 누적
+        int totalMinutes = (int) java.time.Duration.between(attendance.getClockIn(), now).toMinutes();
+        attendance.getEmployee().addWorkedMinutes(totalMinutes, attendance.getBreakMinutes());
+
         attendanceRepository.save(attendance);
 
         Long storeId = attendance.getEmployee().getStore().getId();

@@ -58,6 +58,12 @@ public class Payroll extends BaseTimeEntity {
     @Column(name = "approved_at")
     private OffsetDateTime approvedAt;
 
+    @Column(name = "is_transferred", nullable = false)
+    private Boolean isTransferred = false;
+
+    @Column(name = "transferred_at")
+    private OffsetDateTime transferredAt;
+
     @Builder
     public Payroll(StoreEmployee employee, LocalDate targetMonth,
                    Integer totalWorkMinutes, Integer nightWorkMinutes,
@@ -99,5 +105,13 @@ public class Payroll extends BaseTimeEntity {
         this.totalAllowance = totalAllowance;
         this.totalDeduction = totalDeduction;
         this.netPay = netPay;
+    }
+
+    /**
+     * 이체 완료 처리합니다.
+     */
+    public void completeTransfer() {
+        this.isTransferred = true;
+        this.transferredAt = OffsetDateTime.now();
     }
 }

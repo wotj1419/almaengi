@@ -82,7 +82,20 @@ public enum ErrorCode {
     GPS_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "A202", "매장 반경을 벗어난 위치입니다."),
     ALREADY_CLOCKED_OUT(HttpStatus.CONFLICT, "A203", "이미 퇴근 처리가 완료되었습니다."),
     INVALID_DASHBOARD_STATUS(HttpStatus.BAD_REQUEST, "A204", "유효하지 않은 대시보드 상태입니다."),
-    INVALID_ATTENDANCE_LOG_DATE(HttpStatus.BAD_REQUEST, "A205", "근태 로그는 전일까지만 조회할 수 있습니다.");
+    INVALID_ATTENDANCE_LOG_DATE(HttpStatus.BAD_REQUEST, "A205", "근태 로그는 전일까지만 조회할 수 있습니다."),
+
+    // Finance
+    FINANCE_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "금융망 API 호출에 실패했습니다."),
+    FINANCE_ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "F002", "이미 금융망 계정이 등록되어 있습니다."),
+    FINANCE_USER_KEY_NOT_FOUND(HttpStatus.BAD_REQUEST, "F003", "금융망 계정이 생성되지 않았습니다. 먼저 계정을 생성해주세요."),
+    FINANCE_BANK_NOT_FOUND(HttpStatus.BAD_REQUEST, "F004", "해당 은행코드의 수시입출금 상품을 찾을 수 없습니다."),
+    FINANCE_ACCOUNT_NOT_FOUND(HttpStatus.BAD_REQUEST, "F005", "계좌가 등록되지 않았습니다. 먼저 계좌를 생성해주세요."),
+
+    // Transfer
+    TRANSFER_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "T001", "잔액이 부족합니다."),
+    TRANSFER_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "T002", "급여 이체에 실패했습니다."),
+    PAYROLL_NOT_ALL_APPROVED(HttpStatus.BAD_REQUEST, "T003", "미승인된 급여가 존재합니다."),
+    PAYROLL_ALREADY_TRANSFERRED(HttpStatus.CONFLICT, "T004", "이미 이체가 완료된 급여입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

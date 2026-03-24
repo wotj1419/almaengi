@@ -44,6 +44,12 @@ public class User extends BaseTimeEntity {
 
     private LocalDate birthDate;
 
+    @Column(length = 20)
+    private String accountNo;
+
+    @Column(length = 10)
+    private String bankCode;
+
     @Column(nullable = false)
     private Boolean isWithdraw = false;
 
@@ -60,6 +66,14 @@ public class User extends BaseTimeEntity {
         this.email = email;
         this.birthDate = birthDate;
         this.isWithdraw = false;
+    }
+
+    /**
+     * 계좌 정보를 등록합니다.
+     */
+    public void updateAccount(String accountNo, String bankCode) {
+        this.accountNo = accountNo;
+        this.bankCode = bankCode;
     }
 
     public void withdraw() {

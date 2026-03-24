@@ -5,6 +5,9 @@ import com.almaengi.be.domain.payroll.dto.PayrollRequestDto;
 import com.almaengi.be.domain.payroll.dto.PayrollResponseDto;
 import com.almaengi.be.domain.payroll.service.PayrollQueryService;
 import com.almaengi.be.domain.payroll.service.PayrollService;
+import com.almaengi.be.domain.payroll.service.PayrollTransferService;
+import com.almaengi.be.domain.store.entity.Store;
+import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import com.almaengi.be.global.error.BusinessException;
@@ -25,6 +28,8 @@ public class PayrollController implements PayrollControllerDocs {
 
     private final PayrollQueryService payrollQueryService;
     private final PayrollService payrollService;
+    private final PayrollTransferService payrollTransferService;
+    private final StoreRepository storeRepository;
 
     @Override
     @GetMapping("/me")
@@ -72,6 +77,21 @@ public class PayrollController implements PayrollControllerDocs {
         return ApiResponse.success();
     }
 
+    /**
+     * 매장 단위 급여 일괄 승인
+     * 해당 월의 미승인 급여를 전체 승인합니다.
+     */
+    @PatchMapping("/approve-all")
+    public ApiResponse<Integer> approveAllPayrolls(
+            @AuthUser Long userId,
+            @PathVariable Long storeId,
+            @RequestParam String targetMonth) {
+
+        LocalDate month = parseTargetMonth(targetMonth);
+        int approvedCount = payrollQueryService.approveAllPayrolls(userId, storeId, month);
+        return ApiResponse.success(approvedCount);
+    }
+
     @Override
     @PostMapping("/generate")
     public ApiResponse<PayrollResponseDto.GenerateResult> generatePayrolls(
@@ -95,6 +115,28 @@ public class PayrollController implements PayrollControllerDocs {
         LocalDate month = parseTargetMonth(targetMonth);
         PayrollResponseDto.MonthlySummary response = payrollQueryService.getMonthlySummary(userId, storeId, month);
         return ApiResponse.success(response);
+    }
+
+    /**
+     * 수동 급여 이체
+     * 자동 이체 실패 시 사장님이 직접 이체를 실행합니다.
+     */
+    @PostMapping("/transfer")
+    public ApiResponse<Void> transferPayrolls(
+            @AuthUser Long userId,
+            @PathVariable Long storeId,
+            @RequestParam String targetMonth) {
+
+        LocalDate month = parseTargetMonth(targetMonth);
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.PAYROLL_STORE_NOT_OWNED);
+        }
+
+        payrollTransferService.transferStorePayroll(store, month);
+        return ApiResponse.success();
     }
 
     // ─── Private Helpers ───
