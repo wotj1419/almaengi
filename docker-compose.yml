@@ -16,6 +16,8 @@ services:
     build: ./be
     expose:
       - "8090"
+    volumes:
+      - contract_documents:/home/ubuntu/documents
     environment:
       - SPRING_PROFILES_ACTIVE=prod,secret
       - SERVER_PORT=8090
@@ -149,3 +151,4 @@ volumes:
   qdrant_data:
   frontend_build:
   jenkins_data:
+  contract_documents:

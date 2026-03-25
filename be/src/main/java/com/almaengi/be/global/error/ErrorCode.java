@@ -95,7 +95,19 @@ public enum ErrorCode {
     TRANSFER_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "T001", "잔액이 부족합니다."),
     TRANSFER_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "T002", "급여 이체에 실패했습니다."),
     PAYROLL_NOT_ALL_APPROVED(HttpStatus.BAD_REQUEST, "T003", "미승인된 급여가 존재합니다."),
-    PAYROLL_ALREADY_TRANSFERRED(HttpStatus.CONFLICT, "T004", "이미 이체가 완료된 급여입니다.");
+    PAYROLL_ALREADY_TRANSFERRED(HttpStatus.CONFLICT, "T004", "이미 이체가 완료된 급여입니다."),
+    
+    // Contract
+    CONTRACT_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "해당 근로계약서를 찾을 수 없습니다."),
+    CONTRACT_INVALID_STATUS(HttpStatus.BAD_REQUEST, "C002", "현재 상태에서는 해당 작업을 수행할 수 없습니다."),
+    CONTRACT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "C003", "해당 근로계약서에 접근할 권한이 없습니다."),
+    CONTRACT_STORE_NOT_OWNED(HttpStatus.FORBIDDEN, "C004", "해당 매장의 근로계약서를 관리할 권한이 없습니다."),
+    CONTRACT_PDF_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "C005", "근로계약서 PDF 생성에 실패했습니다."),
+    CONTRACT_PDF_NOT_FOUND(HttpStatus.NOT_FOUND, "C006", "근로계약서 PDF 파일을 찾을 수 없습니다."),
+    CONTRACT_INVALID_EMPLOYEE(HttpStatus.BAD_REQUEST, "C007", "재직 중인 직원에 대해서만 계약서를 생성할 수 있습니다."),
+    CONTRACT_PERIOD_OVERLAP(HttpStatus.CONFLICT, "C008", "해당 직원에게 동일 기간에 유효한 계약서가 이미 존재합니다."),
+    CONTRACT_INVALID_WORK_TIME(HttpStatus.BAD_REQUEST, "C009", "근무시간 또는 휴게시간 설정이 올바르지 않습니다."),
+    CONTRACT_INVALID_DATE(HttpStatus.BAD_REQUEST, "C010", "계약 기간 설정이 올바르지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
