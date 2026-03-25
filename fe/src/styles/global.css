@@ -220,6 +220,13 @@
   --chart-donut-stroke-width: 26;
   --chart-donut-gap: 4;
 
+  /* ── 출퇴근 상태 도넛 차트 (recharts fill용 실제 색상값) ── */
+  --chart-attendance-working: #65a30d;
+  --chart-attendance-late: #f6723f;
+  --chart-attendance-done: #8b5cf6;
+  --chart-attendance-track: #e5e7eb;
+  --chart-attendance-track-active: rgba(255, 255, 255, 0.45);
+
   /* 🎨 z-index */
   --z-content: 10;
   --z-nav: 50;
@@ -284,4 +291,14 @@ body {
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* html5-qrcode: 라이브러리가 video에 고정 크기를 attribute로 설정하므로 강제 오버라이드 */
+#qr-reader {
+  width: 100% !important;
+}
+#qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover;
 }

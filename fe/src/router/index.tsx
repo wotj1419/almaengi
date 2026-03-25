@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AuctionLayout from '@/features/auction/layouts/AuctionLayout';
 import { ROUTES } from '@/constants/routes';
+import useAuthStore from '@/stores/useAuthStore';
 import HomePage from '@/features/home/pages/HomePage';
+import EmployeeHomePage from '@/features/home/pages/EmployeeHomePage';
 import SchedulePage from '@/features/schedule/pages/SchedulePage';
 import EmployeePage from '@/features/employee/pages/EmployeePage';
 import EmployeeDetailPage from '@/features/employee/pages/EmployeeDetailPage';
@@ -32,8 +34,11 @@ import AuctionDetailPage from '@/features/auction/pages/AuctionDetailPage';
 import AuctionRegisterPage from '@/features/auction/pages/AuctionRegisterPage';
 import AuctionEditPage from '@/features/auction/pages/AuctionEditPage';
 import AuctionResultPage from '@/features/auction/pages/AuctionResultPage';
+import EmployeeAuctionPage from '@/features/auction/pages/EmployeeAuctionPage';
+import EmployeeAuctionDetailPage from '@/features/auction/pages/EmployeeAuctionDetailPage';
 import BoardPage from '@/features/board/pages/BoardPage';
 import AttendancePage from '@/features/attendance/pages/AttendancePage';
+import AttendanceCheckPage from '@/features/attendance/pages/AttendanceCheckPage';
 import ChatbotPage from '@/features/chatbot/pages/ChatbotPage';
 import ReportPage from '@/features/report/pages/ReportPage';
 import NotificationPage from '@/features/notification/pages/NotificationPage';
@@ -65,6 +70,8 @@ function LegacyDocumentsContractRedirect() {
 }
 
 export default function AppRouter() {
+  const role = useAuthStore((state) => state.user?.role);
+
   return (
     <Routes>
       {/* 스플래시(랜딩) 페이지 - 앱 최초 진입 시 표시 */}
@@ -73,7 +80,10 @@ export default function AppRouter() {
       <Route path={ROUTES.SIGNUP} element={<RoleSelectPage />} />
       <Route path={ROUTES.SIGNUP_INFO} element={<SignupPage />} />
       <Route path={ROUTES.SIGNUP_COMPLETE} element={<SignupCompletePage />} />
-      <Route path={ROUTES.HOME} element={<HomePage />} />
+      <Route
+        path={ROUTES.HOME}
+        element={role === 'OWNER' ? <HomePage /> : <EmployeeHomePage />}
+      />
       <Route path={ROUTES.SCHEDULE} element={<SchedulePage />} />
       {/* 직원 관리: 목록 → 상세 → 근로계약서 순으로 depth가 깊어진다 */}
       <Route path={ROUTES.EMPLOYEE} element={<EmployeePage />} />
@@ -136,18 +146,35 @@ export default function AppRouter() {
       <Route path={ROUTES.STORE_BOARD_DETAIL} element={<PostDetailPage />} />
       <Route path={ROUTES.TODO} element={<TodoPage />} />
       <Route element={<AuctionLayout />}>
-        <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
-        <Route path="/auction/register" element={<AuctionRegisterPage />} />
-        <Route path="/auction/edit/:id" element={<AuctionEditPage />} />
-        <Route path="/auction/result/:id" element={<AuctionResultPage />} />
-        <Route path="/auction/:id" element={<AuctionDetailPage />} />
+        <Route
+          path={ROUTES.AUCTION}
+          element={role === 'OWNER' ? <AuctionPage /> : <EmployeeAuctionPage />}
+        />
+        {/* owner 전용 경매 routes */}
+        {role === 'OWNER' && (
+          <>
+            <Route path="/auction/register" element={<AuctionRegisterPage />} />
+            <Route path="/auction/edit/:id" element={<AuctionEditPage />} />
+            <Route path="/auction/result/:id" element={<AuctionResultPage />} />
+          </>
+        )}
+        <Route
+          path="/auction/:id"
+          element={
+            role === 'OWNER' ? (
+              <AuctionDetailPage />
+            ) : (
+              <EmployeeAuctionDetailPage />
+            )
+          }
+        />
       </Route>
       <Route path={ROUTES.TODO_NEW} element={<TodoRegisterPage />} />
       <Route path={ROUTES.TODO_DETAIL} element={<TodoDetailPage />} />
       <Route path={ROUTES.TODO_EDIT} element={<TodoEditPage />} />
-      <Route path={ROUTES.AUCTION} element={<AuctionPage />} />
       <Route path={ROUTES.BOARD} element={<BoardPage />} />
       <Route path={ROUTES.ATTENDANCE} element={<AttendancePage />} />
+      <Route path={ROUTES.ATTENDANCE_CHECK} element={<AttendanceCheckPage />} />
       <Route path={ROUTES.CHATBOT} element={<ChatbotPage />} />
       <Route path={ROUTES.REPORT} element={<ReportPage />} />
       <Route path={ROUTES.NOTIFICATION} element={<NotificationPage />} />

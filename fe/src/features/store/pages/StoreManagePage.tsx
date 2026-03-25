@@ -5,7 +5,7 @@ import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import useStoreManageStore from '@/stores/useStoreManageStore';
-import NoStoreCard from '../components/NoStoreCard';
+import NoStoreCard from '@/components/common/NoStoreCard';
 
 type MenuItem = {
   key: 'community' | 'qr' | 'documents';
@@ -139,7 +139,15 @@ export default function StoreManagePage() {
               </div>
             </section>
           ) : (
-            <NoStoreCard />
+            <NoStoreCard
+              description={
+                <>
+                  새로운 매장을 등록하고
+                  <br />
+                  편리하게 직원을 관리해보세요
+                </>
+              }
+            />
           )}
 
           <section className={LIST_SECTION_CLASS}>

@@ -1,15 +1,16 @@
-import { House, Calendar, Users, Wallet, Store } from 'lucide-react';
+import { House, Calendar, Users, Wallet, Store, FileText } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
+import useAuthStore from '@/stores/useAuthStore';
 
 interface NavItem {
   key: string;
   label: string;
   path: string;
-  iconName: 'house' | 'calendar' | 'users' | 'wallet' | 'store';
+  iconName: 'house' | 'calendar' | 'users' | 'wallet' | 'store' | 'file-text';
 }
 
-const navItems: NavItem[] = [
+const ownerNavItems: NavItem[] = [
   { key: 'home', label: '홈', path: ROUTES.HOME, iconName: 'house' },
   {
     key: 'schedule',
@@ -20,6 +21,23 @@ const navItems: NavItem[] = [
   { key: 'staff', label: '직원', path: ROUTES.EMPLOYEE, iconName: 'users' },
   { key: 'payroll', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
   { key: 'store', label: '매장', path: ROUTES.STORE, iconName: 'store' },
+];
+
+const employeeNavItems: NavItem[] = [
+  { key: 'home', label: '홈', path: ROUTES.HOME, iconName: 'house' },
+  {
+    key: 'schedule',
+    label: '스케줄',
+    path: ROUTES.SCHEDULE,
+    iconName: 'calendar',
+  },
+  { key: 'payroll', label: '급여', path: ROUTES.PAYROLL, iconName: 'wallet' },
+  {
+    key: 'documents',
+    label: '문서',
+    path: ROUTES.WORKER_DOCUMENTS,
+    iconName: 'file-text',
+  },
 ];
 
 interface BottomNavProps {
@@ -65,6 +83,8 @@ function NavIcon({
           className="translate-y-[2px]"
         />
       );
+    case 'file-text':
+      return <FileText size={28} color={color} strokeWidth={1.7} />;
     default:
       return null;
   }
@@ -73,6 +93,9 @@ function NavIcon({
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const role = useAuthStore((state) => state.user?.role);
+
+  const navItems = role === 'OWNER' ? ownerNavItems : employeeNavItems;
 
   const currentTab =
     activeTab ??

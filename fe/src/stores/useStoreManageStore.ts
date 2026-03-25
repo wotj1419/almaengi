@@ -9,6 +9,7 @@ export type RegisteredStore = {
 };
 
 type RegisterStorePayload = {
+  storeId?: number;
   name: string;
   address: string;
   businessNumber: string;
@@ -46,8 +47,8 @@ function buildRegisteredStore(
   payload: RegisterStorePayload
 ): RegisteredStore {
   return {
-    // mock 단계에서 경매 페이지 분기(activeStoreId)와 맞추기 위한 storeId
-    storeId: previousStore?.storeId ?? createMockStoreId(),
+    // API 응답값을 우선 사용하고, 없으면 기존/임시 값을 사용한다.
+    storeId: payload.storeId ?? previousStore?.storeId ?? createMockStoreId(),
     // 빈 입력으로 등록해도 화면 확인이 가능하도록 기본값을 채운다.
     name: withFallback(payload.name, '싸피식당'),
     address: withFallback(payload.address, '주소 미입력'),

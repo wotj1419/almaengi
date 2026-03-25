@@ -1,8 +1,11 @@
 ﻿import { MapPin, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
+import { getApiErrorMessage } from '@/api/error';
+import { createStore } from '@/api/store';
 import useAuthStore from '@/stores/useAuthStore';
 import useStoreManageStore from '@/stores/useStoreManageStore';
 
@@ -24,24 +27,35 @@ export default function StoreRegisterPage() {
   const [businessNumber, setBusinessNumber] = useState(
     registeredStore?.businessNumber ?? ''
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const syncActiveStoreIdAfterRegister = () => {
-    const registeredStoreFromState =
-      useStoreManageStore.getState().registeredStore;
-    setActiveStoreId(registeredStoreFromState?.storeId ?? null);
-  };
+  const handleRegister = async () => {
+    if (isSubmitting) return;
 
-  const handleRegister = () => {
-    // 현재 단계는 UI 우선이므로 저장 대신 로컬 스토어에 즉시 반영한다.
-    registerStore({
-      name: storeName,
-      address,
-      businessNumber,
-    });
+    setIsSubmitting(true);
+    const resolvedStoreName = storeName.trim() || '싸피식당';
+    const resolvedAddress = address.trim() || '주소 미입력';
 
-    // 경매 페이지 접근 제어(activeStoreId)와 등록 결과를 즉시 동기화한다.
-    syncActiveStoreIdAfterRegister();
-    navigate(ROUTES.STORE);
+    try {
+      const createdStore = await createStore({
+        storeName: resolvedStoreName,
+        address: resolvedAddress,
+      });
+
+      // API에서 생성된 storeId를 UI 상태/권한 분기 상태에 동일하게 반영한다.
+      registerStore({
+        storeId: createdStore.storeId,
+        name: resolvedStoreName,
+        address: resolvedAddress,
+        businessNumber,
+      });
+      setActiveStoreId(createdStore.storeId);
+      navigate(ROUTES.STORE);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, '매장 등록에 실패했어요.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -121,9 +135,10 @@ export default function StoreRegisterPage() {
           <button
             type="button"
             onClick={handleRegister}
-            className="w-full h-14 rounded-[var(--radius-lg)] bg-[var(--color-primary)] shadow-[var(--shadow-card)] text-[length:var(--text-md2)] font-bold text-[var(--color-text-primary)] cursor-pointer"
+            disabled={isSubmitting}
+            className="w-full h-14 rounded-[var(--radius-lg)] bg-[var(--color-primary)] shadow-[var(--shadow-card)] text-[length:var(--text-md2)] font-bold text-[var(--color-text-primary)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
           >
-            등록
+            {isSubmitting ? '등록 중...' : '등록'}
           </button>
         </div>
       </div>

@@ -10,6 +10,13 @@ export interface StoreInfo {
   isOver5Employees: boolean;
 }
 
+export interface CreateStoreRequest {
+  storeName: string;
+  address: string;
+  phone?: string | null;
+  isOver5Employees?: boolean;
+}
+
 export async function getMyStores() {
   const { data } =
     await instance.get<ApiResponse<StoreInfo[]>>('/api/v1/stores');
@@ -31,6 +38,14 @@ export async function getMyStoresWithToken(accessToken: string) {
 export async function getStore(storeId: number) {
   const { data } = await instance.get<ApiResponse<StoreInfo>>(
     `/api/v1/stores/${storeId}`
+  );
+  return data.data;
+}
+
+export async function createStore(body: CreateStoreRequest) {
+  const { data } = await instance.post<ApiResponse<StoreInfo>>(
+    '/api/v1/stores',
+    body
   );
   return data.data;
 }

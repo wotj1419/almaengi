@@ -2,7 +2,11 @@ import { Plus, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 
-export default function NoStoreCard() {
+type Props = {
+  description: React.ReactNode;
+};
+
+export default function NoStoreCard({ description }: Props) {
   const navigate = useNavigate();
 
   return (
@@ -22,9 +26,7 @@ export default function NoStoreCard() {
           등록된 매장이 없습니다
         </h2>
         <p className="mt-2 text-[length:var(--text-md2)] text-[var(--color-text-muted)] leading-6">
-          새로운 매장을 등록하고
-          <br />
-          편리하게 직원을 관리해보세요
+          {description}
         </p>
       </div>
 
