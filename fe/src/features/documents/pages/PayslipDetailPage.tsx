@@ -1,8 +1,9 @@
 ﻿import { ExternalLink } from 'lucide-react';
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
 import { findPayslipById } from '@/features/documents/data/mockDocuments';
+import { ROUTES } from '@/constants/routes';
 
 const PAGE_TEXT = {
   title: '급여명세서',
@@ -15,11 +16,29 @@ const PAGE_TEXT = {
 
 export default function PayslipDetailPage() {
   const { payslipId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as {
+    year?: number;
+    month?: number;
+    from?: string;
+  } | null;
   const payslip = useMemo(() => findPayslipById(payslipId), [payslipId]);
+
+  const handleBack =
+    locationState?.from === 'payroll' &&
+    locationState.year &&
+    locationState.month
+      ? () =>
+          navigate(ROUTES.PAYROLL, {
+            state: { year: locationState.year, month: locationState.month },
+          })
+      : undefined;
 
   return (
     <DocumentsPageLayout
       title={PAGE_TEXT.title}
+      onBack={handleBack}
       mainClassName="px-[var(--space-5)] pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))] pt-[var(--space-5)]"
     >
       {!payslip ? (
