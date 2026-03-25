@@ -31,6 +31,7 @@ export default function AttendanceCheckPage() {
   // GPS 좌표를 ref로 관리 — QR 스캔 콜백에서 최신값 참조
   const coordsRef = useRef<{ lat: number; lon: number } | null>(null);
   const isProcessingRef = useRef(false);
+
   // StrictMode 이중 실행 방지 — 컴포넌트 인스턴스 내에서만 유지됨
   const scannerStartedRef = useRef(false);
 

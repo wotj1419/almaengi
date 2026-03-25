@@ -1,5 +1,5 @@
-import { House, Calendar, Users, Wallet, Store, FileText } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Calendar, FileText, House, Store, Users, Wallet } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import useAuthStore from '@/stores/useAuthStore';
 
@@ -7,7 +7,7 @@ interface NavItem {
   key: string;
   label: string;
   path: string;
-  iconName: 'house' | 'calendar' | 'users' | 'wallet' | 'store' | 'file-text';
+  iconName: 'house' | 'calendar' | 'users' | 'wallet' | 'store' | 'documents';
 }
 
 const ownerNavItems: NavItem[] = [
@@ -36,7 +36,7 @@ const employeeNavItems: NavItem[] = [
     key: 'documents',
     label: '문서',
     path: ROUTES.WORKER_DOCUMENTS,
-    iconName: 'file-text',
+    iconName: 'documents',
   },
 ];
 
@@ -83,11 +83,26 @@ function NavIcon({
           className="translate-y-[2px]"
         />
       );
-    case 'file-text':
-      return <FileText size={28} color={color} strokeWidth={1.7} />;
+    case 'documents':
+      return <FileText size={28} color={color} strokeWidth={1.8} />;
     default:
       return null;
   }
+}
+
+function resolveCurrentTab(pathname: string, navItems: NavItem[]) {
+  const matched = navItems.find((item) => {
+    if (item.key === 'documents') {
+      return (
+        pathname === ROUTES.WORKER_DOCUMENTS ||
+        pathname.startsWith('/documents/')
+      );
+    }
+
+    return pathname === item.path;
+  });
+
+  return matched?.key ?? 'home';
 }
 
 export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
@@ -95,12 +110,9 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const location = useLocation();
   const role = useAuthStore((state) => state.user?.role);
 
-  const navItems = role === 'OWNER' ? ownerNavItems : employeeNavItems;
-
+  const navItems = role === 'EMPLOYEE' ? employeeNavItems : ownerNavItems;
   const currentTab =
-    activeTab ??
-    navItems.find((item) => item.path === location.pathname)?.key ??
-    'home';
+    activeTab ?? resolveCurrentTab(location.pathname, navItems);
 
   const handleClick = (item: NavItem) => {
     if (onTabChange) {

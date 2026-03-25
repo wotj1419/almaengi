@@ -41,4 +41,6 @@
   NOTIFICATION: '/notification',
   // 알바생 문서함 (workflow.md 2.9)
   WORKER_DOCUMENTS: '/documents',
+  WORKER_DOCUMENTS_PAYSLIP_DETAIL: '/documents/payslip/:payslipId',
+  WORKER_DOCUMENTS_CONTRACT_SIGN: '/documents/contract/:contractId/sign',
 } as const;
