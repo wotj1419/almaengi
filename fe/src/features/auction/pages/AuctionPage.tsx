@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ROUTES } from '@/constants/routes';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
 import Header from '@/components/layout/Header';
 import { getApiErrorMessage } from '@/api/error';
 import useAuthStore from '@/stores/useAuthStore';
+import NoStoreCard from '@/components/common/NoStoreCard';
 import AuctionListCard from '../components/AuctionListCard';
 import AuctionSummaryCard from '../components/AuctionSummaryCard';
+import { mockAuctionDtos } from '../data/mockAuctions';
 import { useAuctions, useDeleteAuction } from '../hooks/useAuctionQueries';
 import { toAuctionItem } from '../utils/auctionMapper';
 
@@ -63,6 +64,8 @@ export default function AuctionPage() {
   const [countdownTick, setCountdownTick] = useState(() => Date.now());
 
   const { data: auctionDtos = [] } = useAuctions(activeStoreId);
+  const isUsingMockAuctions = auctionDtos.length === 0;
+  const auctionSourceDtos = isUsingMockAuctions ? mockAuctionDtos : auctionDtos;
   const deleteMutation = useDeleteAuction();
 
   useEffect(() => {
@@ -76,8 +79,8 @@ export default function AuctionPage() {
   const auctions = useMemo(() => {
     // countdownTick drives re-computation every second for live countdown labels.
     void countdownTick;
-    return auctionDtos.map(toAuctionItem);
-  }, [auctionDtos, countdownTick]);
+    return auctionSourceDtos.map(toAuctionItem);
+  }, [auctionSourceDtos, countdownTick]);
   const hiddenCompletedAuctionIdSet = useMemo(
     () => new Set(hiddenCompletedAuctionIds),
     [hiddenCompletedAuctionIds]
@@ -154,22 +157,18 @@ export default function AuctionPage() {
       <Header storeName="부산갈매기 수완점" hasNotification auctionStyle />
 
       <main className="px-[15px] pt-2.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-3.5">
-        {activeStoreId === null ? (
-          <section className="w-full bg-[var(--color-bg-white)] rounded-2xl border border-[var(--color-border-light)] p-6 flex flex-col gap-4">
-            <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)]">
-              등록된 매장이 없습니다
-            </h2>
-            <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)]">
-              경매 기능을 사용하려면 매장을 등록해야 합니다.
-            </p>
-            <button
-              // 매장이 없으면 홈이 아닌 매장 등록 화면으로 바로 안내한다.
-              onClick={() => navigate(ROUTES.STORE_REGISTER)}
-              className="h-12 bg-[var(--color-primary)] rounded-xl text-[var(--color-text-primary)] text-lg font-bold"
-            >
-              매장 등록 하기
-            </button>
-          </section>
+        {activeStoreId === null && !isUsingMockAuctions ? (
+          <div className="-mx-[15px]">
+            <NoStoreCard
+              description={
+                <>
+                  경매 기능을 사용하려면
+                  <br />
+                  매장을 등록해야 합니다
+                </>
+              }
+            />
+          </div>
         ) : (
           <>
             <AuctionSummaryCard

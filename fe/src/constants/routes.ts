@@ -35,7 +35,10 @@
   AUCTION: '/auction',
   BOARD: '/board',
   ATTENDANCE: '/attendance',
+  ATTENDANCE_CHECK: '/attendance/check',
   CHATBOT: '/chatbot',
   REPORT: '/report',
   NOTIFICATION: '/notification',
+  // 알바생 문서함 (workflow.md 2.9)
+  WORKER_DOCUMENTS: '/documents',
 } as const;

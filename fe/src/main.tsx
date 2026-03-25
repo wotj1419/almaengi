@@ -20,7 +20,14 @@ const queryClient = new QueryClient({
 async function enableMocking() {
   if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MSW === 'true') {
     const { worker } = await import('./mocks/browser');
-    return worker.start({ onUnhandledRequest: 'error' });
+    return worker.start({
+      onUnhandledRequest(request, print) {
+        // /api/* 경로만 에러 처리, 페이지 네비게이션·정적 자산은 통과
+        if (new URL(request.url).pathname.startsWith('/api/')) {
+          print.error();
+        }
+      },
+    });
   }
 
   return undefined;

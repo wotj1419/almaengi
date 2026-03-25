@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import useAuthStore from '@/stores/useAuthStore';
 import { getStore, type StoreInfo } from '@/api/store';
-import NoStoreCard from '../components/NoStoreCard';
+import NoStoreCard from '@/components/common/NoStoreCard';
 
 export default function QrManagePage() {
   const navigate = useNavigate();
@@ -76,7 +76,15 @@ export default function QrManagePage() {
         >
           {!activeStoreId ? (
             <div className="w-full">
-              <NoStoreCard />
+              <NoStoreCard
+                description={
+                  <>
+                    새로운 매장을 등록하고
+                    <br />
+                    편리하게 직원을 관리해보세요
+                  </>
+                }
+              />
             </div>
           ) : error ? (
             <p className="text-[length:var(--text-2xl)] font-bold text-[var(--color-text-muted)]">
