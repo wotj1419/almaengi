@@ -137,8 +137,6 @@
   --text-2xl: 25px;
   --text-3xl: 32px;
 
-  /* 🎨 간격 (padding, margin, gap) */
-  --space-0-5: 2px;
   /* ── 자간 ── */
   --tracking-tight: -0.3px;
   --tracking-tighter: -0.5px;
