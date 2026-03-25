@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AuctionLayout from '@/features/auction/layouts/AuctionLayout';
 import { ROUTES } from '@/constants/routes';
 import useAuthStore from '@/stores/useAuthStore';
@@ -13,6 +13,9 @@ import {
   ContractDetailPage,
   ContractRequestPage,
   DocumentsHomePage,
+  EmployeeContractSignPage,
+  EmployeeDocumentsPage,
+  EmployeePayslipDetailPage,
   EtcDocumentRequestPage,
   MyDocumentsPage,
   PayslipDetailPage,
@@ -48,26 +51,6 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import RoleSelectPage from '@/features/login/pages/RoleSelectPage';
 import SignupPage from '@/features/login/pages/SignupPage';
 import SignupCompletePage from '@/features/login/pages/SignupCompletePage';
-
-function LegacyDocumentsPayslipRedirect() {
-  const { payslipId = '' } = useParams();
-  const targetPath = ROUTES.DOCUMENTS_PAYSLIP_DETAIL.replace(
-    ':payslipId',
-    payslipId
-  );
-
-  return <Navigate replace to={targetPath} />;
-}
-
-function LegacyDocumentsContractRedirect() {
-  const { contractId = '' } = useParams();
-  const targetPath = ROUTES.DOCUMENTS_CONTRACT_DETAIL.replace(
-    ':contractId',
-    contractId
-  );
-
-  return <Navigate replace to={targetPath} />;
-}
 
 export default function AppRouter() {
   const role = useAuthStore((state) => state.user?.role);
@@ -112,28 +95,26 @@ export default function AppRouter() {
         element={<ContractDetailPage />}
       />
       <Route
-        path="/documents"
-        element={<Navigate replace to={ROUTES.DOCUMENTS} />}
+        path={ROUTES.WORKER_DOCUMENTS}
+        element={
+          role === 'EMPLOYEE' ? (
+            <EmployeeDocumentsPage />
+          ) : (
+            <Navigate replace to={ROUTES.DOCUMENTS} />
+          )
+        }
+      />
+      <Route
+        path={ROUTES.WORKER_DOCUMENTS_PAYSLIP_DETAIL}
+        element={<EmployeePayslipDetailPage />}
+      />
+      <Route
+        path={ROUTES.WORKER_DOCUMENTS_CONTRACT_SIGN}
+        element={<EmployeeContractSignPage />}
       />
       <Route
         path="/documents/my"
         element={<Navigate replace to={ROUTES.DOCUMENTS_MY} />}
-      />
-      <Route
-        path="/documents/request"
-        element={<Navigate replace to={ROUTES.DOCUMENTS_REQUEST} />}
-      />
-      <Route
-        path="/documents/request/etc"
-        element={<Navigate replace to={ROUTES.DOCUMENTS_REQUEST_ETC} />}
-      />
-      <Route
-        path="/documents/payslip/:payslipId"
-        element={<LegacyDocumentsPayslipRedirect />}
-      />
-      <Route
-        path="/documents/contract/:contractId"
-        element={<LegacyDocumentsContractRedirect />}
       />
       <Route path={ROUTES.STORE} element={<StoreManagePage />} />
       {/* 매장 관리/경매 빈 상태에서 공통으로 진입하는 등록 페이지 */}

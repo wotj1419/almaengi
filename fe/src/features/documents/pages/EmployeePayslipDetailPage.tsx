@@ -1,44 +1,28 @@
-﻿import { ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
-import { findPayslipById } from '@/features/documents/data/mockDocuments';
-import { ROUTES } from '@/constants/routes';
+import { findEmployeePayslipById } from '@/features/documents/data/mockEmployeeDocuments';
 
 const PAGE_TEXT = {
   title: '급여명세서',
   notFoundTitle: '급여명세서를 찾을 수 없습니다.',
-  notFoundDescription: '목록에서 다시 선택해주세요.',
+  notFoundDescription: '문서함 목록에서 다시 선택해주세요.',
   openInNewTab: '새 창으로 열기',
   download: '다운로드',
   preview: 'PDF 미리보기',
 } as const;
 
-export default function PayslipDetailPage() {
+export default function EmployeePayslipDetailPage() {
   const { payslipId } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const locationState = location.state as {
-    year?: number;
-    month?: number;
-    from?: string;
-  } | null;
-  const payslip = useMemo(() => findPayslipById(payslipId), [payslipId]);
-
-  const handleBack =
-    locationState?.from === 'payroll' &&
-    locationState.year &&
-    locationState.month
-      ? () =>
-          navigate(ROUTES.PAYROLL, {
-            state: { year: locationState.year, month: locationState.month },
-          })
-      : undefined;
+  const payslip = useMemo(
+    () => findEmployeePayslipById(payslipId),
+    [payslipId]
+  );
 
   return (
     <DocumentsPageLayout
       title={PAGE_TEXT.title}
-      onBack={handleBack}
       mainClassName="px-[var(--space-5)] pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))] pt-[var(--space-5)]"
     >
       {!payslip ? (

@@ -38,6 +38,10 @@ dependencies {
 	// Firebase Admin SDK
 	implementation 'com.google.firebase:firebase-admin:9.8.0'
 
+	// PDF generation (Flying Saucer HTML→PDF + Thymeleaf template)
+	implementation 'org.xhtmlrenderer:flying-saucer-pdf-openpdf:9.3.2'
+	implementation 'org.thymeleaf:thymeleaf:3.1.2.RELEASE'
+
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'org.postgresql:postgresql'
