@@ -43,6 +43,8 @@ logging:
 app:
   auction:
     legal-minimum-wage: 10320
+  contract:
+    storage-path: /home/ubuntu/documents
   payroll:
     night-start: "22:00"
     night-end: "06:00"

@@ -405,60 +405,89 @@ COMMENT ON COLUMN notifications.modified_at     IS '수정일시';
 
 
 -- =========================
--- 14) employment_contracts (근로계약서)
+-- 14) contracts (근로계약서)
 -- =========================
-CREATE TABLE employment_contracts (
-                                      contract_id        BIGSERIAL    PRIMARY KEY,         -- 근로계약서 PK
-                                      store_id           BIGINT       NOT NULL,            -- 매장 PK
-                                      employee_id        BIGINT       NOT NULL,            -- 직원 PK
-                                      contract_title     VARCHAR(100) NOT NULL,            -- 제목
-                                      contract_body      TEXT         NOT NULL,            -- 계약 본문 내용
-                                      status             VARCHAR(20)  NOT NULL DEFAULT 'DRAFT', -- 상태
-                                      signed_owner_at    TIMESTAMPTZ,                      -- 사장 서명 시간(고용주)
-                                      signed_employee_at TIMESTAMPTZ,                      -- 서명 완료 시간(근로자)
-                                      created_at         TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 생성일시
-                                      updated_at         TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 수정일시
-                                      CONSTRAINT fk_employment_contracts_store
-                                          FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE RESTRICT,
-                                      CONSTRAINT fk_employment_contracts_employee
-                                          FOREIGN KEY (employee_id) REFERENCES store_employees(employee_id) ON DELETE RESTRICT
+CREATE TABLE contracts (
+                           contract_id                  BIGSERIAL    PRIMARY KEY,                      -- 근로계약서 PK
+                           employee_id                  BIGINT       NOT NULL,                         -- 직원 PK (store_employees)
+                           contract_start_date          DATE         NOT NULL,                         -- 계약 시작일
+                           contract_end_date            DATE,                                          -- 계약 종료일 (NULL = 무기계약)
+                           workplace                    VARCHAR(255) NOT NULL,                         -- 근무장소
+                           job_description              VARCHAR(500) NOT NULL,                         -- 업무 내용
+                           work_start_time              TIME         NOT NULL,                         -- 근무 시작 시간
+                           work_end_time                TIME         NOT NULL,                         -- 근무 종료 시간
+                           break_start_time             TIME,                                          -- 휴게 시작 시간 (없을 수 있음)
+                           break_end_time               TIME,                                          -- 휴게 종료 시간 (없을 수 있음)
+                           work_days_per_week           INTEGER      NOT NULL,                         -- 주당 근무일수
+                           weekly_holiday               VARCHAR(50)  NOT NULL,                         -- 주휴일 (예: 일요일, 토요일·일요일)
+                           wage_type                    VARCHAR(10)  NOT NULL,                         -- 임금 유형 (MONTHLY/DAILY/HOURLY)
+                           wage_amount                  BIGINT       NOT NULL,                         -- 임금액 (원)
+                           has_bonus                    BOOLEAN      NOT NULL,                         -- 상여금 유무
+                           bonus_amount                 BIGINT,                                        -- 상여금액
+                           has_other_allowance          BOOLEAN      NOT NULL,                         -- 기타급여 유무
+                           other_allowance_details      VARCHAR(500),                                  -- 기타급여 내역
+                           pay_day_description          VARCHAR(50)  NOT NULL,                         -- 임금지급일 (예: 매월 10일)
+                           payment_method               VARCHAR(20)  NOT NULL,                         -- 지급방법 (DIRECT/BANK_TRANSFER)
+                           employment_insurance         BOOLEAN      NOT NULL,                         -- 고용보험 적용
+                           industrial_accident_insurance BOOLEAN     NOT NULL,                         -- 산재보험 적용
+                           national_pension             BOOLEAN      NOT NULL,                         -- 국민연금 적용
+                           health_insurance             BOOLEAN      NOT NULL,                         -- 건강보험 적용
+                           contract_date                DATE         NOT NULL,                         -- 계약 체결일
+                           employee_address             VARCHAR(255) NOT NULL,                         -- 근로자 주소
+                           status                       VARCHAR(20)  NOT NULL DEFAULT 'DRAFT',         -- 상태 (DRAFT/OWNER_SIGNED/COMPLETED)
+                           owner_signature              TEXT,                                          -- 사업주 서명 (Base64)
+                           owner_signed_at              TIMESTAMPTZ,                                   -- 사업주 서명 일시
+                           employee_signature           TEXT,                                          -- 근로자 서명 (Base64)
+                           employee_signed_at           TIMESTAMPTZ,                                   -- 근로자 서명 일시
+                           pdf_file_path                VARCHAR(500),                                  -- PDF 파일 경로
+                           version                      BIGINT       NOT NULL DEFAULT 0,               -- 낙관적 잠금 버전
+                           created_at                   TIMESTAMPTZ  NOT NULL DEFAULT now(),            -- 생성일시
+                           updated_at                   TIMESTAMPTZ  NOT NULL DEFAULT now(),            -- 수정일시
+                           CONSTRAINT fk_contracts_employee
+                               FOREIGN KEY (employee_id) REFERENCES store_employees(employee_id) ON DELETE RESTRICT,
+                           CONSTRAINT chk_contracts_work_days
+                               CHECK (work_days_per_week BETWEEN 1 AND 7),
+                           CONSTRAINT chk_contracts_wage_amount
+                               CHECK (wage_amount >= 0),
+                           CONSTRAINT chk_contracts_status
+                               CHECK (status IN ('DRAFT', 'OWNER_SIGNED', 'COMPLETED'))
 );
-COMMENT ON TABLE  employment_contracts IS '근로계약서';
-COMMENT ON COLUMN employment_contracts.contract_id        IS '근로계약서 PK';
-COMMENT ON COLUMN employment_contracts.store_id           IS '매장 PK';
-COMMENT ON COLUMN employment_contracts.employee_id        IS '직원 PK';
-COMMENT ON COLUMN employment_contracts.contract_title     IS '제목';
-COMMENT ON COLUMN employment_contracts.contract_body      IS '계약 본문 내용';
-COMMENT ON COLUMN employment_contracts.status             IS '상태';
-COMMENT ON COLUMN employment_contracts.signed_owner_at    IS '사장 서명 시간(고용주)';
-COMMENT ON COLUMN employment_contracts.signed_employee_at IS '서명 완료 시간(근로자)';
-COMMENT ON COLUMN employment_contracts.created_at         IS '생성일시';
-COMMENT ON COLUMN employment_contracts.updated_at         IS '수정일시';
-
-
--- =========================
--- 14.1) contract_signatures (근로계약서 서명)
--- =========================
-CREATE TABLE contract_signatures (
-                                     signature_id        BIGSERIAL    PRIMARY KEY,        -- 근로계약서 PK (서명)
-                                     contract_id         BIGINT       NOT NULL,           -- 근로계약서 PK
-                                     signed_by_user_id   BIGINT       NOT NULL,           -- 서명자 유저 PK
-                                     signer_role         VARCHAR(20)  NOT NULL,           -- 서명자 역할
-                                     signature_image_url VARCHAR(255) NOT NULL,           -- 서명 이미지 경로
-                                     signed_at           TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 서명 일시
-                                     CONSTRAINT fk_contract_signatures_contract
-                                         FOREIGN KEY (contract_id) REFERENCES employment_contracts(contract_id) ON DELETE CASCADE,
-                                     CONSTRAINT fk_contract_signatures_user
-                                         FOREIGN KEY (signed_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
-                                     CONSTRAINT uq_contract_signatures_role UNIQUE (contract_id, signer_role)
-);
-COMMENT ON TABLE  contract_signatures IS '근로계약서 서명';
-COMMENT ON COLUMN contract_signatures.signature_id        IS '근로계약서 PK (서명)';
-COMMENT ON COLUMN contract_signatures.contract_id         IS '근로계약서 PK';
-COMMENT ON COLUMN contract_signatures.signed_by_user_id   IS '서명자 유저 PK';
-COMMENT ON COLUMN contract_signatures.signer_role         IS '서명자 역할';
-COMMENT ON COLUMN contract_signatures.signature_image_url IS '서명 이미지 경로';
-COMMENT ON COLUMN contract_signatures.signed_at           IS '서명 일시';
+COMMENT ON TABLE  contracts IS '근로계약서';
+COMMENT ON COLUMN contracts.contract_id                   IS '근로계약서 PK';
+COMMENT ON COLUMN contracts.employee_id                   IS '직원 PK';
+COMMENT ON COLUMN contracts.contract_start_date           IS '계약 시작일';
+COMMENT ON COLUMN contracts.contract_end_date             IS '계약 종료일 (NULL=무기계약)';
+COMMENT ON COLUMN contracts.workplace                     IS '근무장소';
+COMMENT ON COLUMN contracts.job_description               IS '업무 내용';
+COMMENT ON COLUMN contracts.work_start_time               IS '근무 시작 시간';
+COMMENT ON COLUMN contracts.work_end_time                 IS '근무 종료 시간';
+COMMENT ON COLUMN contracts.break_start_time              IS '휴게 시작 시간';
+COMMENT ON COLUMN contracts.break_end_time                IS '휴게 종료 시간';
+COMMENT ON COLUMN contracts.work_days_per_week            IS '주당 근무일수';
+COMMENT ON COLUMN contracts.weekly_holiday                IS '주휴일';
+COMMENT ON COLUMN contracts.wage_type                     IS '임금 유형 (MONTHLY/DAILY/HOURLY)';
+COMMENT ON COLUMN contracts.wage_amount                   IS '임금액 (원)';
+COMMENT ON COLUMN contracts.has_bonus                     IS '상여금 유무';
+COMMENT ON COLUMN contracts.bonus_amount                  IS '상여금액';
+COMMENT ON COLUMN contracts.has_other_allowance           IS '기타급여 유무';
+COMMENT ON COLUMN contracts.other_allowance_details       IS '기타급여 내역';
+COMMENT ON COLUMN contracts.pay_day_description           IS '임금지급일';
+COMMENT ON COLUMN contracts.payment_method                IS '지급방법 (DIRECT/BANK_TRANSFER)';
+COMMENT ON COLUMN contracts.employment_insurance          IS '고용보험 적용';
+COMMENT ON COLUMN contracts.industrial_accident_insurance IS '산재보험 적용';
+COMMENT ON COLUMN contracts.national_pension              IS '국민연금 적용';
+COMMENT ON COLUMN contracts.health_insurance              IS '건강보험 적용';
+COMMENT ON COLUMN contracts.contract_date                 IS '계약 체결일';
+COMMENT ON COLUMN contracts.employee_address              IS '근로자 주소';
+COMMENT ON COLUMN contracts.status                        IS '상태 (DRAFT/OWNER_SIGNED/COMPLETED)';
+COMMENT ON COLUMN contracts.owner_signature               IS '사업주 서명 (Base64)';
+COMMENT ON COLUMN contracts.owner_signed_at               IS '사업주 서명 일시';
+COMMENT ON COLUMN contracts.employee_signature             IS '근로자 서명 (Base64)';
+COMMENT ON COLUMN contracts.employee_signed_at            IS '근로자 서명 일시';
+COMMENT ON COLUMN contracts.pdf_file_path                 IS 'PDF 파일 경로';
+COMMENT ON COLUMN contracts.version                       IS '낙관적 잠금 버전';
+COMMENT ON COLUMN contracts.created_at                    IS '생성일시';
+COMMENT ON COLUMN contracts.updated_at                    IS '수정일시';
 
 
 -- =========================
@@ -742,7 +771,7 @@ CREATE INDEX idx_shift_auctions_store_date_status    ON shift_auctions(store_id,
 CREATE INDEX idx_auction_bids_auction_id             ON auction_bids(auction_id);
 CREATE INDEX idx_auction_bids_bidder_id              ON auction_bids(bidder_id);
 CREATE INDEX idx_notifications_receiver_read_created ON notifications(receiver_id, is_read, created_at DESC);
-CREATE INDEX idx_employment_contracts_store_employee ON employment_contracts(store_id, employee_id, status);
+CREATE INDEX idx_contracts_employee_status ON contracts(employee_id, status);
 CREATE INDEX idx_store_tasks_store_status_due        ON store_tasks(store_id, status, due_at);
 CREATE INDEX idx_payout_transactions_employee_status ON payout_transactions(employee_id, status);
 CREATE INDEX idx_tax_file_jobs_store_status_created  ON tax_file_jobs(store_id, job_status, created_at DESC);
