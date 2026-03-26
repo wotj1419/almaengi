@@ -11,6 +11,11 @@ export default defineConfig({
         target: 'http://localhost:8090',
         changeOrigin: true,
       },
+      '/ws-chat': {
+        target: 'http://localhost:8090',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   plugins: [

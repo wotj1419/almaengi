@@ -7,9 +7,18 @@ import RevenueCard from '../components/RevenueCard';
 import AlertBanner from '../components/AlertBanner';
 import WorkStatusCard from '../components/WorkStatusCard';
 import ActionGrid from '../components/ActionGrid';
+import useAuthStore from '@/stores/useAuthStore';
+import { useChatStore } from '@/stores/useChatStore';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const storeId = useAuthStore((s) => s.activeStoreId);
+  const fetchRooms = useChatStore((s) => s.fetchRooms);
+
+  // 홈 진입 시 채팅방 목록 미리 로딩 (AlertBanner BOT 방 탐색용)
+  useEffect(() => {
+    if (storeId) fetchRooms(storeId);
+  }, [storeId, fetchRooms]);
 
   useEffect(() => {
     const hasToken = Boolean(localStorage.getItem('accessToken'));

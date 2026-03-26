@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import { MessageSquarePlus, Pencil } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
+import useAuthStore from '@/stores/useAuthStore';
 import ChatRoomCard from '../components/ChatRoomCard';
 import PostCard from '../components/PostCard';
 import StoreTabs, { type Tab } from '../components/StoreTabs';
@@ -21,8 +23,15 @@ export default function StorePage() {
       `${ROUTES.STORE_COMMUNITY}?tab=${tab === '채팅방' ? 'chat' : 'board'}`,
       { replace: true, state: location.state }
     );
+  const storeId = useAuthStore((s) => s.activeStoreId);
   const rooms = useChatStore((s) => s.rooms);
+  const fetchRooms = useChatStore((s) => s.fetchRooms);
   const posts = useBoardStore((s) => s.posts);
+
+  // 채팅방 목록 불러오기
+  useEffect(() => {
+    if (storeId) fetchRooms(storeId);
+  }, [storeId, fetchRooms]);
 
   // NOTICE(공지) 게시글 상단 고정, 나머지는 최신순
   const sortedPosts = [...posts]
@@ -35,11 +44,11 @@ export default function StorePage() {
 
   // 알맹이 챗봇 최상단 고정, 나머지는 최신 메시지 순 (내림차순)
   const sortedRooms = [...rooms].sort((a, b) => {
-    if (a.roomType === 'CHATBOT') return -1;
-    if (b.roomType === 'CHATBOT') return 1;
-    return (
-      new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-    );
+    if (a.roomType === 'BOT') return -1;
+    if (b.roomType === 'BOT') return 1;
+    const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+    const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+    return timeB - timeA;
   });
 
   return (

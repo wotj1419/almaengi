@@ -4,13 +4,15 @@ import Avatar from 'boring-avatars';
 import { Check } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
+import useAuthStore from '@/stores/useAuthStore';
 import { mockEmployees } from '../data/mockChat';
 import { useChatStore } from '@/stores/useChatStore';
 
 export default function NewChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const createRoom = useChatStore((s) => s.createRoom);
+  const storeId = useAuthStore((s) => s.activeStoreId);
+  const createDirectRoom = useChatStore((s) => s.createDirectRoom);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const toggleSelect = (userId: number) => {
@@ -22,14 +24,13 @@ export default function NewChatPage() {
     });
   };
 
-  const handleConfirm = () => {
-    if (selectedIds.size === 0) return;
+  const handleConfirm = async () => {
+    if (selectedIds.size === 0 || !storeId) return;
 
-    const selectedUsers = mockEmployees
-      .filter((e) => selectedIds.has(e.userId))
-      .map((e) => ({ userId: e.userId, name: e.name, position: e.position }));
-
-    const roomId = createRoom(selectedUsers);
+    // 1명 선택 → DM 방 생성/재사용
+    // TODO: 2명 이상 선택 → 그룹방 생성 (추후 구현)
+    const targetUserId = [...selectedIds][0];
+    const roomId = await createDirectRoom(storeId, targetUserId);
     navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)), {
       state: location.state,
     });
@@ -55,6 +56,7 @@ export default function NewChatPage() {
       />
 
       <main className="flex-1 flex flex-col">
+        {/* TODO: mockEmployees → BE 직원 목록 API로 교체 */}
         {mockEmployees.map((employee) => {
           const isSelected = selectedIds.has(employee.userId);
 
