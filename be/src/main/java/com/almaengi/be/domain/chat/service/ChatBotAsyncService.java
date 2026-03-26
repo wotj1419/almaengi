@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.util.List;
 @Slf4j
 @Service
@@ -32,6 +33,7 @@ public class ChatBotAsyncService {
     private final RagClient ragClient;
     private final ObjectMapper objectMapper;
     private final ChatRedisPublisher chatRedisPublisher;
+
     /**
      * 사용자 질문 저장 후 호출되는 비동기 처리.
      * 1) 최근 히스토리 구성
@@ -79,6 +81,15 @@ public class ChatBotAsyncService {
             log.warn("[CHAT-BOT] rag fails. roomId={}, userMessageId={}, reason={}",
                     roomId, userMessageId, e.getMessage());
             // 실패 시에도 클라이언트에서 일관된 필드 구조를 받을 수 있게 기본값 세팅
+
+        //     User requester = userRepository.findById(requesterId).orElse(null);
+        //     String role = (requester != null && requester.getRole() != null)
+        //             ? requester.getRole().name()
+        //             : "EMPLOYEE";
+
+        //     answer = ragClient.ask(storeId, roomId, requesterId, userMessageId, question, role, history);
+        // } catch(Exception e) {
+        //     log.warn("[CHAT-BOT] rag fails. roomId = {}, userMessageId = {}, reason = {}", roomId, userMessageId, e.getMessage());
             answer = FALLBACK_TEXT;
             sources = List.of();
             intent = null;

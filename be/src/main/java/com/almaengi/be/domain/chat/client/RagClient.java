@@ -16,3 +16,6 @@ public interface RagClient {
     // intent: AI 의도 분류 결과
     record RagResult(String answer, List<String> sources, String intent) {}
 }
+    // String ask(Long storeId, Long roomId, Long userId, Long messageId, String question, String role, List<String> history);
+// }
+

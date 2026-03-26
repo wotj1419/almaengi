@@ -15,6 +15,7 @@ public class HttpRagClient implements RagClient {
     // AI 서버 신규 엔드포인트
     private static final String AI_ASK_PATH = "/ask";
     @Override
+
     public RagResult ask(RagRequest request) {
         try {
             RestClient restClient = RestClient.create(chatBotProperties.getRagApiBaseUrl());
@@ -45,6 +46,17 @@ public class HttpRagClient implements RagClient {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
+    // public String ask(Long storeId, Long roomId, Long userId, Long messageId, String question, String role, List<String> history) {
+    //     RestClient restClient = RestClient.create(chatBotProperties.getRagApiBaseUrl());
+
+    //     RagAskResponse response = restClient.post()
+    //             .uri("/ask")
+    //             .contentType(MediaType.APPLICATION_JSON)
+    //             .body(new RagAskRequest(storeId, question, role, history))
+    //             .retrieve()
+    //             .body(RagAskResponse.class);
+
+    //     if(response == null || response.answer() == null || response.answer().isBlank())
             throw new BusinessException(ErrorCode.CHAT_BOT_UPSTREAM_FAILED);
         }
     }
@@ -61,6 +73,7 @@ public class HttpRagClient implements RagClient {
             String question,
             String role,
             @JsonProperty("store_id") Long storeId,
+
             List<String> history
     ) {}
     /**

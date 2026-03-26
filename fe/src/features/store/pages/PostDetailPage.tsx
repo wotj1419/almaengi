@@ -6,13 +6,14 @@ import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import StoreTabs from '../components/StoreTabs';
 import { useBoardStore } from '@/stores/useBoardStore';
-import { CURRENT_USER_ID } from '@/stores/useChatStore';
+import useAuthStore from '@/stores/useAuthStore';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
 
 export default function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const userId = useAuthStore((s) => s.user?.id ?? 0);
   const post = useBoardStore((s) =>
     s.posts.find((p) => p.postId === Number(postId))
   );
@@ -21,7 +22,7 @@ export default function PostDetailPage() {
   const addComment = useBoardStore((s) => s.addComment);
   const toggleCheck = useBoardStore((s) => s.toggleCheck);
   const [commentInput, setCommentInput] = useState('');
-  const isChecked = post?.checkedUserIds.includes(CURRENT_USER_ID) ?? false;
+  const isChecked = post?.checkedUserIds.includes(userId) ?? false;
 
   if (!post) {
     return (
@@ -48,7 +49,7 @@ export default function PostDetailPage() {
     if (!trimmed) return;
     addComment(post.postId, {
       postId: post.postId,
-      writerId: CURRENT_USER_ID,
+      writerId: userId,
       parentCommentId: null,
       content: trimmed,
       writerName: '사장님',
@@ -136,7 +137,7 @@ export default function PostDetailPage() {
           {/* 확인 버튼 */}
           <div className="flex items-center justify-end gap-[var(--space-1-5)] mt-[var(--space-5)]">
             <button
-              onClick={() => toggleCheck(post.postId, CURRENT_USER_ID)}
+              onClick={() => toggleCheck(post.postId, userId)}
               className="flex items-center gap-[var(--space-1-5)] cursor-pointer"
             >
               <CircleCheckBig
