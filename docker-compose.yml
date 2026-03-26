@@ -32,6 +32,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6380
       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAKAO_API_KEY=${KAKAO_API_KEY}
+      - KAKAO_LOCAL_BASE_URL=https://dapi.kakao.com
     depends_on:
       postgres:
         condition: service_healthy
