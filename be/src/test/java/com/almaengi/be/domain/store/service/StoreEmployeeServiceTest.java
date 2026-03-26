@@ -3,6 +3,7 @@ package com.almaengi.be.domain.store.service;
 import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
+import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
@@ -162,6 +163,78 @@ class StoreEmployeeServiceTest {
     }
 
     @Test
+    @DisplayName("내 매장 목록 조회 성공 - 재직 중이며 폐업되지 않은 매장만 반환")
+    void getMyStores_Success_OnlyWorkingAndOpenStores() {
+        // given
+        Long userId = 2L;
+
+        User employeeUser = User.builder().name("직원").build();
+        ReflectionTestUtils.setField(employeeUser, "id", userId);
+        User owner = User.builder().name("사장님").build();
+        ReflectionTestUtils.setField(owner, "id", 1L);
+
+        Store openStore = Store.builder()
+                .owner(owner)
+                .name("영업중 매장")
+                .address("서울시 강남구")
+                .phone("010-1111-1111")
+                .qrCode("qr-open")
+                .isOver5Employees(false)
+                .build();
+        ReflectionTestUtils.setField(openStore, "id", 10L);
+
+        Store closedStore = Store.builder()
+                .owner(owner)
+                .name("폐업 매장")
+                .address("서울시 송파구")
+                .phone("010-2222-2222")
+                .qrCode("qr-closed")
+                .isOver5Employees(false)
+                .build();
+        ReflectionTestUtils.setField(closedStore, "id", 11L);
+        closedStore.closeStore();
+
+        Store resignedStore = Store.builder()
+                .owner(owner)
+                .name("퇴사한 매장")
+                .address("서울시 마포구")
+                .phone("010-3333-3333")
+                .qrCode("qr-resigned")
+                .isOver5Employees(false)
+                .build();
+        ReflectionTestUtils.setField(resignedStore, "id", 12L);
+
+        StoreEmployee workingEmployee = createEmployee(1001L, openStore, employeeUser, StoreEmployeeStatus.WORKING);
+        StoreEmployee resignedEmployee = createEmployee(1002L, resignedStore, employeeUser, StoreEmployeeStatus.RESIGNED);
+        StoreEmployee closedStoreEmployee = createEmployee(1003L, closedStore, employeeUser, StoreEmployeeStatus.WORKING);
+
+        given(storeEmployeeRepository.findByUserId(userId))
+                .willReturn(List.of(workingEmployee, resignedEmployee, closedStoreEmployee));
+
+        // when
+        List<StoreResponseDto.StoreInfo> result = storeEmployeeService.getMyStores(userId);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStoreId()).isEqualTo(10L);
+        assertThat(result.get(0).getStoreName()).isEqualTo("영업중 매장");
+    }
+
+    @Test
+    @DisplayName("내 매장 목록 조회 성공 - 소속 매장이 없으면 빈 배열 반환")
+    void getMyStores_Success_Empty() {
+        // given
+        Long userId = 2L;
+        given(storeEmployeeRepository.findByUserId(userId)).willReturn(List.of());
+
+        // when
+        List<StoreResponseDto.StoreInfo> result = storeEmployeeService.getMyStores(userId);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("직원 목록 조회 성공 - 사장님 요청 시 사장 제외, 직원 전체 반환")
     void getStoreEmployees_Success_ByOwner() {
         // given
@@ -266,10 +339,14 @@ class StoreEmployeeServiceTest {
     }
 
     private StoreEmployee createWorkingEmployee(Long employeeId, Store store, User user) {
+        return createEmployee(employeeId, store, user, StoreEmployeeStatus.WORKING);
+    }
+
+    private StoreEmployee createEmployee(Long employeeId, Store store, User user, StoreEmployeeStatus status) {
         StoreEmployee employee = StoreEmployee.builder()
                 .store(store)
                 .user(user)
-                .status(StoreEmployeeStatus.WORKING)
+                .status(status)
                 .position("직원")
                 .hourlyWage(10000)
                 .taxType(TaxType.NONE)
