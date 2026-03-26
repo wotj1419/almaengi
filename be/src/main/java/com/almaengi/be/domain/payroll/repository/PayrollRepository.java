@@ -23,12 +23,6 @@ public interface PayrollRepository extends JpaRepository<Payroll, Long> {
     // 중복 생성 방지용
     boolean existsByEmployeeIdAndTargetMonth(Long employeeId, LocalDate targetMonth);
 
-    // 매장 전체 직원의 급여 존재 여부를 한 번에 조회 (배치 최적화)
-    @Query("SELECT p.employee.id FROM Payroll p " +
-            "WHERE p.employee.store.id = :storeId AND p.targetMonth = :targetMonth")
-    Set<Long> findEmployeeIdsByStoreIdAndTargetMonth(
-            @Param("storeId") Long storeId,
-            @Param("targetMonth") LocalDate targetMonth);
 
     /**
      * 승인된 급여를 조회합니다. (이체 대상)
@@ -50,6 +44,30 @@ public interface PayrollRepository extends JpaRepository<Payroll, Long> {
             "WHERE e.store.id = :storeId AND p.targetMonth = :targetMonth " +
             "ORDER BY u.name ASC")
     List<Payroll> findAllByStoreIdAndTargetMonthWithEmployee(
+            @Param("storeId") Long storeId,
+            @Param("targetMonth") LocalDate targetMonth);
+
+    /**
+     * 급여명세서 조회용: Payroll + employee + user + store + owner를 한 번에 조회합니다.
+     * 권한 검증(사장님/본인)과 파일 경로 구성에 필요합니다.
+     */
+    @Query("SELECT p FROM Payroll p " +
+            "JOIN FETCH p.employee e " +
+            "JOIN FETCH e.user u " +
+            "JOIN FETCH e.store s " +
+            "JOIN FETCH s.owner o " +
+            "WHERE p.id = :payrollId")
+    Optional<Payroll> findByIdWithEmployeeAndStoreAndOwner(@Param("payrollId") Long payrollId);
+
+    /**
+     * 급여명세서 생성용: 매장의 특정 월 Payroll을 employee+user+store와 함께 조회합니다.
+     */
+    @Query("SELECT p FROM Payroll p " +
+            "JOIN FETCH p.employee e " +
+            "JOIN FETCH e.user u " +
+            "JOIN FETCH e.store s " +
+            "WHERE s.id = :storeId AND p.targetMonth = :targetMonth")
+    List<Payroll> findAllByStoreIdAndTargetMonthWithEmployeeAndStore(
             @Param("storeId") Long storeId,
             @Param("targetMonth") LocalDate targetMonth);
 }

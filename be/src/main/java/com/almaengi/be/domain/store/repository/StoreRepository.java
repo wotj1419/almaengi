@@ -34,4 +34,11 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     @Query("SELECT s FROM Store s JOIN FETCH s.owner " +
             "WHERE s.payDay IN :payDays AND s.isClosed = false")
     List<Store> findByPayDayInAndIsClosedFalse(@Param("payDays") List<Integer> payDays);
+
+    /**
+     * 운영 중인 전 매장을 owner와 함께 조회합니다.
+     * 급여 자동 정산 스케줄러에서 사용합니다.
+     */
+    @Query("SELECT s FROM Store s JOIN FETCH s.owner WHERE s.isClosed = false")
+    List<Store> findAllActiveWithOwner();
 }

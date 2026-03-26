@@ -79,12 +79,11 @@ class PayrollServiceTest {
             LocalDate targetMonth = LocalDate.of(2026, 3, 1);
             StoreEmployee employee = createMockEmployee();
 
-            given(payrollRepository.existsByEmployeeIdAndTargetMonth(employeeId, targetMonth))
-                    .willReturn(false);
+            given(payrollRepository.findByEmployeeIdAndTargetMonth(employeeId, targetMonth))
+                    .willReturn(Optional.empty());
             given(storeEmployeeRepository.findById(employeeId))
                     .willReturn(Optional.of(employee));
 
-            // 출퇴근 기록 조회 (해당 월 + 주휴수당용 확장 범위 모두 동일한 mock 사용)
             given(attendanceRepository
                     .findAllByEmployeeIdAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
                             eq(employeeId), any(LocalDate.class), any(LocalDate.class)))
@@ -114,19 +113,86 @@ class PayrollServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 이미 해당 월 급여 존재 → PAYROLL_ALREADY_EXISTS")
-        void fail_alreadyExists() {
+        @DisplayName("성공: 기존 급여 존재 시 삭제 후 재생성")
+        void success_deleteAndRegenerate() {
             // given
             Long employeeId = 10L;
             LocalDate targetMonth = LocalDate.of(2026, 3, 1);
+            StoreEmployee employee = createMockEmployee();
 
-            given(payrollRepository.existsByEmployeeIdAndTargetMonth(employeeId, targetMonth))
-                    .willReturn(true);
+            Payroll existingPayroll = Payroll.builder()
+                    .employee(employee)
+                    .targetMonth(targetMonth)
+                    .totalWorkMinutes(1000)
+                    .nightWorkMinutes(0)
+                    .basicPay(100000L)
+                    .totalAllowance(0L)
+                    .totalDeduction(0L)
+                    .netPay(100000L)
+                    .build();
+            ReflectionTestUtils.setField(existingPayroll, "id", 99L);
+
+            given(payrollRepository.findByEmployeeIdAndTargetMonth(employeeId, targetMonth))
+                    .willReturn(Optional.of(existingPayroll));
+            given(storeEmployeeRepository.findById(employeeId))
+                    .willReturn(Optional.of(employee));
+
+            given(attendanceRepository
+                    .findAllByEmployeeIdAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
+                            eq(employeeId), any(LocalDate.class), any(LocalDate.class)))
+                    .willReturn(List.of());
+
+            given(calculationService.calculateTotalWorkMinutes(any())).willReturn(2400);
+            given(calculationService.calculateNightWorkMinutes(any())).willReturn(0);
+            given(calculationService.calculateBasicPay(2400, 10320)).willReturn(412800L);
+            given(calculationService.calculateWeeklyHolidayPay(any(), eq(10320), eq(targetMonth)))
+                    .willReturn(82560L);
+            given(calculationService.calculateOvertimePay(any(), eq(10320), eq(true), eq(false), eq(targetMonth)))
+                    .willReturn(0L);
+            given(calculationService.calculateNightPay(0, 10320)).willReturn(0L);
+            given(calculationService.calculateDeduction(495360L, TaxType.INCOME_3_3)).willReturn(16347L);
+            given(calculationService.calculateDeductionDetails(495360L, TaxType.INCOME_3_3))
+                    .willReturn(Map.of("소득세(3%)", 14861L, "지방소득세(0.3%)", 1486L));
+
+            // when
+            Payroll result = payrollService.generatePayroll(employeeId, targetMonth);
+
+            // then — 기존 급여 삭제 후 새로 생성됨
+            verify(payrollDetailRepository).deleteAllByPayrollId(99L);
+            verify(payrollRepository).delete(existingPayroll);
+            verify(payrollRepository).flush();
+            verify(payrollRepository).save(any(Payroll.class));
+            assertThat(result.getNetPay()).isEqualTo(479013L);
+        }
+
+        @Test
+        @DisplayName("실패: 이미 이체 완료된 급여 → PAYROLL_ALREADY_TRANSFERRED")
+        void fail_alreadyTransferred() {
+            // given
+            Long employeeId = 10L;
+            LocalDate targetMonth = LocalDate.of(2026, 3, 1);
+            StoreEmployee employee = createMockEmployee();
+
+            Payroll transferredPayroll = Payroll.builder()
+                    .employee(employee)
+                    .targetMonth(targetMonth)
+                    .totalWorkMinutes(1000)
+                    .nightWorkMinutes(0)
+                    .basicPay(100000L)
+                    .totalAllowance(0L)
+                    .totalDeduction(0L)
+                    .netPay(100000L)
+                    .build();
+            transferredPayroll.approve();
+            transferredPayroll.completeTransfer();
+
+            given(payrollRepository.findByEmployeeIdAndTargetMonth(employeeId, targetMonth))
+                    .willReturn(Optional.of(transferredPayroll));
 
             // when & then
             assertThatThrownBy(() -> payrollService.generatePayroll(employeeId, targetMonth))
                     .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYROLL_ALREADY_EXISTS);
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYROLL_ALREADY_TRANSFERRED);
         }
 
         @Test
@@ -137,8 +203,8 @@ class PayrollServiceTest {
             LocalDate targetMonth = LocalDate.of(2026, 3, 1);
             StoreEmployee employee = createMockEmployee();
 
-            given(payrollRepository.existsByEmployeeIdAndTargetMonth(employeeId, targetMonth))
-                    .willReturn(false);
+            given(payrollRepository.findByEmployeeIdAndTargetMonth(employeeId, targetMonth))
+                    .willReturn(Optional.empty());
             given(storeEmployeeRepository.findById(employeeId))
                     .willReturn(Optional.of(employee));
             given(attendanceRepository
