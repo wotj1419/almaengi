@@ -37,3 +37,8 @@ logging:
     name: logs/application.log
   level:
     root: info
+
+kakao:
+  local:
+    base-url: https://dapi.kakao.com
+    rest-api-key: ${KAKAO_API_KEY}
