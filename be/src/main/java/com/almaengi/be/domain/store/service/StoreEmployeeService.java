@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -129,12 +130,20 @@ public class StoreEmployeeService {
         Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
-        if(!store.getOwner().getId().equals(userId))
+        if(!store.getOwner().getId().equals(userId) && !storeEmployeeRepository.existsByStoreIdAndUserId(storeId, userId))
             throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
 
-        return storeEmployeeRepository.findByStoreId(storeId).stream()
+        List<StoreEmployeeResponseDto.EmployeeInfo> result = new ArrayList<>();
+        if(!store.getOwner().getId().equals(userId))
+            result.add(StoreEmployeeResponseDto.EmployeeInfo.fromOwner(store.getOwner()));
+
+        List<StoreEmployeeResponseDto.EmployeeInfo> employeeInfos = storeEmployeeRepository.findByStoreId(storeId).stream()
+                .filter(employee -> !employee.getUser().getId().equals(userId))
                 .map(StoreEmployeeResponseDto.EmployeeInfo::from)
                 .toList();
+
+        result.addAll(employeeInfos);
+        return result;
     }
 
     // 직원 기초 정보 변경

@@ -3,6 +3,7 @@ package com.almaengi.be.domain.store.dto;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import com.almaengi.be.domain.store.type.TaxType;
+import com.almaengi.be.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -55,6 +56,21 @@ public class StoreEmployeeResponseDto {
                     .includeHolidayPay(employee.getIncludeHolidayPay())
                     .hireDate(employee.getHireDate())
                     .status(employee.getStatus())
+                    .build();
+        }
+
+        // 사장님은 StoreEmployee 엔티티가 없으므로 별도 매핑
+        public static EmployeeInfo fromOwner(User owner) {
+            return EmployeeInfo.builder()
+                    .employeeId(null)             // StoreEmployee PK가 없으므로 null
+                    .userId(owner.getId())
+                    .name(owner.getName())
+                    .position("사장님")           // 화면 표시용
+                    .hourlyWage(null)
+                    .taxType(null)
+                    .includeHolidayPay(null)
+                    .hireDate(null)
+                    .status(null)
                     .build();
         }
     }
