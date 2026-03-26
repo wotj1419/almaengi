@@ -3,6 +3,7 @@ package com.almaengi.be.domain.store.controller;
 import com.almaengi.be.domain.store.controller.docs.StoreEmployeeControllerDocs;
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
+import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.domain.store.service.StoreEmployeeService;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
@@ -30,6 +31,13 @@ public class StoreEmployeeController implements StoreEmployeeControllerDocs {
     public ApiResponse<StoreEmployeeResponseDto.EmployeeInfo> joinStore(@AuthUser Long userId,
                                                                         @Valid @RequestBody StoreEmployeeRequestDto.Join request) {
         StoreEmployeeResponseDto.EmployeeInfo response = storeEmployeeService.joinStore(userId, request);
+        return ApiResponse.success(response);
+    }
+
+    @Override
+    @GetMapping("/employees/my")
+    public ApiResponse<List<StoreResponseDto.StoreInfo>> getMyStoresEmployee(@AuthUser Long userId) {
+        List<StoreResponseDto.StoreInfo> response = storeEmployeeService.getMyStores(userId);
         return ApiResponse.success(response);
     }
 
