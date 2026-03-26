@@ -1,5 +1,5 @@
 -- =========================================================
--- Schema v1.9 (PostgreSQL)
+-- Schema v1.11 (PostgreSQL)
 -- =========================================================
 
 -- =========================
@@ -16,6 +16,8 @@ CREATE TABLE users (
                        is_withdraw   BOOLEAN      NOT NULL DEFAULT FALSE,   -- 탈퇴여부
                        withdrawn_at  TIMESTAMPTZ,                           -- 탈퇴 일시
                        birth_date    DATE,                                  -- 생년월일
+                       account_no    VARCHAR(20),                           -- 계좌번호
+                       bank_code     VARCHAR(10),                           -- 은행코드
                        created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),   -- 생성일시
                        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),   -- 수정일시
                        CONSTRAINT chk_users_password_for_local
@@ -35,11 +37,33 @@ COMMENT ON COLUMN users.email        IS '이메일';
 COMMENT ON COLUMN users.is_withdraw  IS '탈퇴여부';
 COMMENT ON COLUMN users.withdrawn_at IS '탈퇴 일시';
 COMMENT ON COLUMN users.birth_date   IS '생년월일';
+COMMENT ON COLUMN users.account_no   IS '계좌번호';
+COMMENT ON COLUMN users.bank_code    IS '은행코드';
 COMMENT ON COLUMN users.created_at   IS '생성일시';
 COMMENT ON COLUMN users.updated_at   IS '수정일시';
 
 CREATE UNIQUE INDEX uq_users_email_lower ON users ((lower(email)));
 
+
+-- =========================
+-- 1.5) user_fcm_token (FCM 토큰)
+-- =========================
+CREATE TABLE user_fcm_token (
+                                token_id        BIGSERIAL PRIMARY KEY,
+                                user_id         BIGINT NOT NULL,
+                                device_token    TEXT NOT NULL,
+                                last_active_at  TIMESTAMP WITHOUT TIME ZONE,
+                                CONSTRAINT uk_user_fcm_token_device_token UNIQUE (device_token),
+                                CONSTRAINT fk_user_fcm_token_user
+                                    FOREIGN KEY (user_id)
+                                        REFERENCES users (user_id)
+                                        ON DELETE CASCADE
+);
+COMMENT ON TABLE  user_fcm_token                    IS 'FCM 토큰';
+COMMENT ON COLUMN user_fcm_token.token_id           IS 'FCM 토큰 PK';
+COMMENT ON COLUMN user_fcm_token.user_id            IS '사용자 식별자';
+COMMENT ON COLUMN user_fcm_token.device_token       IS '기기 식별 토큰';
+COMMENT ON COLUMN user_fcm_token.last_active_at     IS '마지막 활성시간';
 
 -- =========================
 -- 2) stores (매장)
@@ -54,6 +78,7 @@ CREATE TABLE stores (
                         latitude             DOUBLE PRECISION,                    -- 위도
                         longitude            DOUBLE PRECISION,                    -- 경도
                         is_over_5_employees  BOOLEAN      NOT NULL DEFAULT FALSE, -- 5인 이상 사업장 여부
+                        pay_day              INTEGER,                              -- 급여일 (1~31)
                         is_closed            BOOLEAN      NOT NULL DEFAULT FALSE, -- 폐업 여부
                         created_at           TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 생성일시
                         updated_at           TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 수정일시
@@ -70,6 +95,7 @@ COMMENT ON COLUMN stores.qr_code             IS 'QR코드';
 COMMENT ON COLUMN stores.latitude            IS '위도';
 COMMENT ON COLUMN stores.longitude           IS '경도';
 COMMENT ON COLUMN stores.is_over_5_employees IS '5인 이상 사업장 여부';
+COMMENT ON COLUMN stores.pay_day             IS '급여일 (1~31)';
 COMMENT ON COLUMN stores.is_closed           IS '폐업 여부';
 COMMENT ON COLUMN stores.created_at          IS '생성일시';
 COMMENT ON COLUMN stores.updated_at          IS '수정일시';
@@ -97,7 +123,8 @@ CREATE TABLE store_employees (
                                      FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE RESTRICT,
                                  CONSTRAINT fk_store_employees_user
                                      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
-                                 CONSTRAINT uq_store_employees_store_user UNIQUE (store_id, user_id)
+                                 CONSTRAINT uq_store_employees_store_user UNIQUE (store_id, user_id),
+                                 CONSTRAINT uq_store_employees_store_employee UNIQUE (store_id, employee_id)
 );
 COMMENT ON TABLE  store_employees IS '직원';
 COMMENT ON COLUMN store_employees.employee_id          IS '직원 PK';
@@ -122,7 +149,7 @@ COMMENT ON COLUMN store_employees.updated_at           IS '수정일시';
 CREATE TABLE work_schedules (
                                 schedule_id    BIGSERIAL   PRIMARY KEY,              -- 근무 일정 PK
                                 employee_id    BIGINT      NOT NULL,                 -- 직원 PK
-                                day_of_week    SMALLINT    NOT NULL CHECK (day_of_week BETWEEN 0 AND 6), -- 요일
+                                day_of_week    INTEGER     NOT NULL, -- 요일
                                 start_time     TIME        NOT NULL,                 -- 출근 시간
                                 end_time       TIME        NOT NULL,                 -- 퇴근 시간
                                 break_minutes  INTEGER     NOT NULL DEFAULT 0 CHECK (break_minutes >= 0), -- 휴게 시간(분)
@@ -197,6 +224,8 @@ CREATE TABLE payrolls (
                           net_pay            BIGINT       NOT NULL DEFAULT 0 CHECK (net_pay >= 0), -- 실수령액
                           is_approved        BOOLEAN      NOT NULL DEFAULT FALSE, -- 최종 승인 여부
                           approved_at        TIMESTAMPTZ,                      -- 최종 승인 일시
+                          is_transferred     BOOLEAN      NOT NULL DEFAULT FALSE, -- 이체 완료 여부
+                          transferred_at     TIMESTAMPTZ,                      -- 이체 완료 일시
                           created_at         TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 생성일시
                           updated_at         TIMESTAMPTZ  NOT NULL DEFAULT now(), -- 수정일시
                           CONSTRAINT fk_payrolls_employee
@@ -220,6 +249,8 @@ COMMENT ON COLUMN payrolls.total_deduction    IS '총 공제액';
 COMMENT ON COLUMN payrolls.net_pay            IS '실수령액';
 COMMENT ON COLUMN payrolls.is_approved        IS '최종 승인 여부';
 COMMENT ON COLUMN payrolls.approved_at        IS '최종 승인 일시';
+COMMENT ON COLUMN payrolls.is_transferred    IS '이체 완료 여부';
+COMMENT ON COLUMN payrolls.transferred_at    IS '이체 완료 일시';
 COMMENT ON COLUMN payrolls.created_at         IS '생성일시';
 COMMENT ON COLUMN payrolls.updated_at         IS '수정일시';
 
@@ -275,21 +306,25 @@ COMMENT ON COLUMN documents.uploaded_at IS '업로드 일시';
 
 
 -- =========================
--- 9) employee_documents (제출 문서함)
+-- 9) employee_documents (매장 문서함)
 -- =========================
 CREATE TABLE employee_documents (
                                     doc_id       BIGSERIAL    PRIMARY KEY,               -- 문서함 PK
+                                    store_id     BIGINT       NOT NULL,                  -- 매장 PK
                                     employee_id  BIGINT       NOT NULL,                  -- 직원 PK
                                     doc_type     VARCHAR(50)  NOT NULL,                  -- 문서 종류
                                     file_url     VARCHAR(255) NOT NULL,                  -- 문서 경로
                                     status       VARCHAR(20)  NOT NULL DEFAULT 'SUBMITTED', -- 문서 상태
                                     expire_date  DATE,                                   -- 만료일
                                     uploaded_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),    -- 업로드 일시
-                                    CONSTRAINT fk_employee_documents_employee
-                                        FOREIGN KEY (employee_id) REFERENCES store_employees(employee_id) ON DELETE CASCADE
+                                    CONSTRAINT fk_employee_documents_store_employee
+                                        FOREIGN KEY (store_id, employee_id)
+                                            REFERENCES store_employees(store_id, employee_id)
+                                            ON DELETE CASCADE
 );
-COMMENT ON TABLE  employee_documents IS '제출 문서함';
+COMMENT ON TABLE  employee_documents IS '매장 문서함';
 COMMENT ON COLUMN employee_documents.doc_id      IS '문서함 PK';
+COMMENT ON COLUMN employee_documents.store_id    IS '매장 PK';
 COMMENT ON COLUMN employee_documents.employee_id IS '직원 PK';
 COMMENT ON COLUMN employee_documents.doc_type    IS '문서 종류';
 COMMENT ON COLUMN employee_documents.file_url    IS '문서 경로';
@@ -388,7 +423,7 @@ CREATE TABLE notifications (
                                target_id        BIGINT,                             -- 이동용 ID
                                is_read          BOOLEAN      NOT NULL DEFAULT FALSE, -- 읽음 여부
                                created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 생성일시
-                               modified_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 수정일시
+                               updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 수정일시
                                CONSTRAINT fk_notifications_receiver
                                    FOREIGN KEY (receiver_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
@@ -401,7 +436,7 @@ COMMENT ON COLUMN notifications.type            IS '알림타입';
 COMMENT ON COLUMN notifications.target_id       IS '이동용 ID';
 COMMENT ON COLUMN notifications.is_read         IS '읽음 여부';
 COMMENT ON COLUMN notifications.created_at      IS '생성일시';
-COMMENT ON COLUMN notifications.modified_at     IS '수정일시';
+COMMENT ON COLUMN notifications.updated_at      IS '수정일시';
 
 
 -- =========================
@@ -448,9 +483,7 @@ CREATE TABLE contracts (
                            CONSTRAINT chk_contracts_work_days
                                CHECK (work_days_per_week BETWEEN 1 AND 7),
                            CONSTRAINT chk_contracts_wage_amount
-                               CHECK (wage_amount >= 0),
-                           CONSTRAINT chk_contracts_status
-                               CHECK (status IN ('DRAFT', 'OWNER_SIGNED', 'COMPLETED'))
+                               CHECK (wage_amount >= 0)
 );
 COMMENT ON TABLE  contracts IS '근로계약서';
 COMMENT ON COLUMN contracts.contract_id                   IS '근로계약서 PK';
@@ -560,23 +593,21 @@ CREATE INDEX idx_task_images_task_id ON task_images(task_id);
 -- 16) chat_rooms (채팅방)
 -- =========================
 CREATE TABLE chat_rooms (
-    room_id          BIGSERIAL    PRIMARY KEY,                           -- 채팅방 PK
-    store_id         BIGINT       NOT NULL,                              -- 매장 PK
-    room_type        VARCHAR(20)  NOT NULL DEFAULT 'DM',                -- 방 타입 [DM, GROUP, STORE_ALL, BOT]
-    name             VARCHAR(100),                                       -- 채팅방 이름
-    created_by       BIGINT,                                             -- 생성자 사용자 PK
-    last_message_id  BIGINT,                                             -- 마지막 메시지 PK
-    last_message_at  TIMESTAMPTZ,                                        -- 마지막 메시지 시각
-    sort_priority    INTEGER      NOT NULL DEFAULT 0,                    -- 정렬 우선순위 (BOT 상단 고정용)
-    is_archived      BOOLEAN      NOT NULL DEFAULT FALSE,                -- 보관 여부
-    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                -- 생성일시
-    updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                -- 수정일시
-    CONSTRAINT fk_chat_rooms_store
-        FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_rooms_created_by
-        FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
-    CONSTRAINT chk_chat_rooms_room_type
-        CHECK (room_type IN ('DM', 'GROUP', 'STORE_ALL', 'BOT'))
+                            room_id          BIGSERIAL    PRIMARY KEY,                           -- 채팅방 PK
+                            store_id         BIGINT       NOT NULL,                              -- 매장 PK
+                            room_type        VARCHAR(20)  NOT NULL DEFAULT 'DM',                -- 방 타입 [DM, GROUP, STORE_ALL, BOT]
+                            name             VARCHAR(100),                                       -- 채팅방 이름
+                            created_by       BIGINT,                                             -- 생성자 사용자 PK
+                            last_message_id  BIGINT,                                             -- 마지막 메시지 PK
+                            last_message_at  TIMESTAMPTZ,                                        -- 마지막 메시지 시각
+                            sort_priority    INTEGER      NOT NULL DEFAULT 0,                    -- 정렬 우선순위 (BOT 상단 고정용)
+                            is_archived      BOOLEAN      NOT NULL DEFAULT FALSE,                -- 보관 여부
+                            created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                -- 생성일시
+                            updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                -- 수정일시
+                            CONSTRAINT fk_chat_rooms_store
+                                FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE,
+                            CONSTRAINT fk_chat_rooms_created_by
+                                FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
 COMMENT ON TABLE  chat_rooms IS '채팅방';
 COMMENT ON COLUMN chat_rooms.room_id         IS '채팅방 PK';
@@ -590,26 +621,26 @@ COMMENT ON COLUMN chat_rooms.sort_priority   IS '정렬 우선순위 (BOT 상단
 COMMENT ON COLUMN chat_rooms.is_archived     IS '보관 여부';
 COMMENT ON COLUMN chat_rooms.created_at      IS '생성일시';
 COMMENT ON COLUMN chat_rooms.updated_at      IS '수정일시';
+
+
 -- =========================
 -- 16.1) chat_room_members (채팅방 참여자)
 -- =========================
 CREATE TABLE chat_room_members (
-    room_member_id        BIGSERIAL    PRIMARY KEY,                      -- 참여자 PK
-    room_id               BIGINT       NOT NULL,                         -- 채팅방 PK
-    user_id               BIGINT       NOT NULL,                         -- 사용자 PK
-    member_role           VARCHAR(20)  NOT NULL DEFAULT 'MEMBER',       -- 멤버 역할 [OWNER, MANAGER, MEMBER]
-    joined_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),           -- 참여 일시
-    left_at               TIMESTAMPTZ,                                   -- 퇴장 일시
-    last_read_message_id  BIGINT,                                        -- 마지막 읽은 메시지 PK
-    last_read_at          TIMESTAMPTZ,                                   -- 마지막 읽음 시각
-    mute_until            TIMESTAMPTZ,                                   -- 알림 음소거 종료 시각
-    CONSTRAINT fk_chat_room_members_room
-        FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_room_members_user
-        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT uq_chat_room_members UNIQUE (room_id, user_id),
-    CONSTRAINT chk_chat_room_members_role
-        CHECK (member_role IN ('OWNER', 'MANAGER', 'MEMBER'))
+                                   room_member_id        BIGSERIAL    PRIMARY KEY,                      -- 참여자 PK
+                                   room_id               BIGINT       NOT NULL,                         -- 채팅방 PK
+                                   user_id               BIGINT       NOT NULL,                         -- 사용자 PK
+                                   member_role           VARCHAR(20)  NOT NULL DEFAULT 'MEMBER',       -- 멤버 역할 [OWNER, MANAGER, MEMBER]
+                                   joined_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),           -- 참여 일시
+                                   left_at               TIMESTAMPTZ,                                   -- 퇴장 일시
+                                   last_read_message_id  BIGINT,                                        -- 마지막 읽은 메시지 PK
+                                   last_read_at          TIMESTAMPTZ,                                   -- 마지막 읽음 시각
+                                   mute_until            TIMESTAMPTZ,                                   -- 알림 음소거 종료 시각
+                                   CONSTRAINT fk_chat_room_members_room
+                                       FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
+                                   CONSTRAINT fk_chat_room_members_user
+                                       FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                                   CONSTRAINT uq_chat_room_members UNIQUE (room_id, user_id)
 );
 COMMENT ON TABLE  chat_room_members IS '채팅방 참여자';
 COMMENT ON COLUMN chat_room_members.room_member_id       IS '참여자 PK';
@@ -625,26 +656,26 @@ COMMENT ON COLUMN chat_room_members.mute_until           IS '알림 음소거 �
 -- 16.2) chat_messages (채팅 메시지)
 -- =========================
 CREATE TABLE chat_messages (
-    message_id    BIGSERIAL    PRIMARY KEY,                              -- 채팅 메시지 PK
-    room_id       BIGINT       NOT NULL,                                 -- 채팅방 PK
-    sender_id     BIGINT,                                                -- 송신자 PK (시스템 메시지는 NULL 허용)
-    message_type  VARCHAR(20)  NOT NULL DEFAULT 'TEXT',                  -- 메시지 타입 [TEXT, SYSTEM, IMAGE, FILE]
-    content       TEXT,                                                  -- 본문
-    file_url      VARCHAR(255),                                          -- 파일 경로
-    meta_json     JSONB,                                                 -- 첨부/부가 메타데이터
-    sent_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                   -- 발송 일시
-    read_count    INTEGER      NOT NULL DEFAULT 0 CHECK (read_count >= 0), -- 읽은 사람 수
-    is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,                   -- 삭제 여부
-    deleted_at    TIMESTAMPTZ,                                           -- 삭제 일시
-    CONSTRAINT fk_chat_messages_room
-        FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_messages_sender
-        FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE SET NULL,
-    CONSTRAINT chk_chat_messages_content
-        CHECK (
-            (message_type IN ('TEXT', 'SYSTEM') AND content IS NOT NULL) OR
-            (message_type IN ('IMAGE', 'FILE') AND file_url IS NOT NULL)
-        )
+                               message_id    BIGSERIAL    PRIMARY KEY,                              -- 채팅 메시지 PK
+                               room_id       BIGINT       NOT NULL,                                 -- 채팅방 PK
+                               sender_id     BIGINT,                                                -- 송신자 PK (시스템 메시지는 NULL 허용)
+                               message_type  VARCHAR(20)  NOT NULL DEFAULT 'TEXT',                  -- 메시지 타입 [TEXT, SYSTEM, IMAGE, FILE]
+                               content       TEXT,                                                  -- 본문
+                               file_url      VARCHAR(255),                                          -- 파일 경로
+                               meta_json     JSONB,                                                 -- 첨부/부가 메타데이터
+                               sent_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),                   -- 발송 일시
+                               read_count    INTEGER      NOT NULL DEFAULT 0 CHECK (read_count >= 0), -- 읽은 사람 수
+                               is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,                   -- 삭제 여부
+                               deleted_at    TIMESTAMPTZ,                                           -- 삭제 일시
+                               CONSTRAINT fk_chat_messages_room
+                                   FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
+                               CONSTRAINT fk_chat_messages_sender
+                                   FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE SET NULL,
+                               CONSTRAINT chk_chat_messages_content
+                                   CHECK (
+                                       (message_type IN ('TEXT', 'SYSTEM') AND content IS NOT NULL) OR
+                                       (message_type IN ('IMAGE', 'FILE') AND file_url IS NOT NULL)
+                                       )
 );
 COMMENT ON TABLE  chat_messages IS '채팅 메시지';
 COMMENT ON COLUMN chat_messages.message_id   IS '채팅 메시지 PK';
@@ -662,24 +693,24 @@ COMMENT ON COLUMN chat_messages.deleted_at   IS '삭제 일시';
 -- 16.3) chat_direct_pairs (DM 페어)
 -- =========================
 CREATE TABLE chat_direct_pairs (
-    pair_id     BIGSERIAL    PRIMARY KEY,                                -- DM 페어 PK
-    store_id    BIGINT       NOT NULL,                                   -- 매장 PK
-    user1_id    BIGINT       NOT NULL,                                   -- 사용자1 PK(작은 값)
-    user2_id    BIGINT       NOT NULL,                                   -- 사용자2 PK(큰 값)
-    room_id     BIGINT       NOT NULL UNIQUE,                            -- DM 채팅방 PK
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),                     -- 생성일시
-    CONSTRAINT fk_chat_direct_pairs_store
-        FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_direct_pairs_user1
-        FOREIGN KEY (user1_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_direct_pairs_user2
-        FOREIGN KEY (user2_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_direct_pairs_room
-        FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
-    CONSTRAINT chk_chat_direct_pairs_order
-        CHECK (user1_id < user2_id),
-    CONSTRAINT uq_chat_direct_pairs_store_users
-        UNIQUE (store_id, user1_id, user2_id)
+                                   pair_id     BIGSERIAL    PRIMARY KEY,                                -- DM 페어 PK
+                                   store_id    BIGINT       NOT NULL,                                   -- 매장 PK
+                                   user1_id    BIGINT       NOT NULL,                                   -- 사용자1 PK(작은 값)
+                                   user2_id    BIGINT       NOT NULL,                                   -- 사용자2 PK(큰 값)
+                                   room_id     BIGINT       NOT NULL UNIQUE,                            -- DM 채팅방 PK
+                                   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),                     -- 생성일시
+                                   CONSTRAINT fk_chat_direct_pairs_store
+                                       FOREIGN KEY (store_id) REFERENCES stores(store_id) ON DELETE CASCADE,
+                                   CONSTRAINT fk_chat_direct_pairs_user1
+                                       FOREIGN KEY (user1_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                                   CONSTRAINT fk_chat_direct_pairs_user2
+                                       FOREIGN KEY (user2_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                                   CONSTRAINT fk_chat_direct_pairs_room
+                                       FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE,
+                                   CONSTRAINT chk_chat_direct_pairs_order
+                                       CHECK (user1_id < user2_id),
+                                   CONSTRAINT uq_chat_direct_pairs_store_users
+                                       UNIQUE (store_id, user1_id, user2_id)
 );
 COMMENT ON TABLE  chat_direct_pairs IS 'DM 페어 매핑';
 COMMENT ON COLUMN chat_direct_pairs.pair_id    IS 'DM 페어 PK';
@@ -766,12 +797,12 @@ CREATE INDEX idx_work_schedules_employee_id          ON work_schedules(employee_
 CREATE INDEX idx_attendances_status                  ON attendances(status);
 CREATE INDEX idx_payroll_details_payroll_id          ON payroll_details(payroll_id);
 CREATE INDEX idx_documents_user_id                   ON documents(user_id);
-CREATE INDEX idx_employee_documents_employee_id      ON employee_documents(employee_id);
+CREATE INDEX idx_employee_documents_store_employee   ON employee_documents(store_id, employee_id);
 CREATE INDEX idx_shift_auctions_store_date_status    ON shift_auctions(store_id, target_date, status);
 CREATE INDEX idx_auction_bids_auction_id             ON auction_bids(auction_id);
 CREATE INDEX idx_auction_bids_bidder_id              ON auction_bids(bidder_id);
 CREATE INDEX idx_notifications_receiver_read_created ON notifications(receiver_id, is_read, created_at DESC);
-CREATE INDEX idx_contracts_employee_status ON contracts(employee_id, status);
+CREATE INDEX idx_contracts_employee_status           ON contracts(employee_id, status);
 CREATE INDEX idx_store_tasks_store_status_due        ON store_tasks(store_id, status, due_at);
 CREATE INDEX idx_payout_transactions_employee_status ON payout_transactions(employee_id, status);
 CREATE INDEX idx_tax_file_jobs_store_status_created  ON tax_file_jobs(store_id, job_status, created_at DESC);
