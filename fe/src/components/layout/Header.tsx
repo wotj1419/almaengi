@@ -90,12 +90,7 @@ export default function Header({
                 />
               )}
             </button>
-
-            {/* ─── 오른쪽 액션 영역: 로그아웃 → 알림 순서 렌더링 ─────────────────────
-                 showLogout prop 전달 시에만 로그아웃 아이콘 표시 (기본값: false)
-                 Owner Home 등 다른 페이지는 showLogout 미전달 → 로그아웃 아이콘 미표시 */}
             <div className="flex items-center gap-[var(--space-3)]">
-              {/* 로그아웃 버튼 — showLogout === true 일 때만 렌더링 */}
               {showLogout && (
                 <button onClick={onLogout} className="cursor-pointer">
                   <LogOut
@@ -105,7 +100,6 @@ export default function Header({
                   />
                 </button>
               )}
-              {/* 알림 버튼 */}
               <button
                 onClick={() => navigate(ROUTES.NOTIFICATION)}
                 className="relative cursor-pointer"

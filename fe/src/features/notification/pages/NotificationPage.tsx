@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import Header from '@/components/layout/Header';
+import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import {
   useMarkNotificationAsRead,
@@ -16,7 +16,9 @@ export default function NotificationPage() {
   const markOne = useMarkNotificationAsRead();
   const markMany = useMarkNotificationsAsRead();
   // unread id 목록 (모두 읽음 처리에 사용)
-  const unreadIds = notifications.filter((item) => !item.isRead).map((item) => item.id);
+  const unreadIds = notifications
+    .filter((item) => !item.isRead)
+    .map((item) => item.id);
   // 모두 읽음 처리
   const handleReadAll = () => {
     if (unreadIds.length === 0) return;
@@ -40,8 +42,8 @@ export default function NotificationPage() {
   };
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header title="알림" />
-      <main className="px-[15px] pt-4 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-3">
+      <DetailHeader title="알림" />
+      <main className="px-[var(--space-5)] pt-[var(--space-6)] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[var(--space-4)]">
         <div className="flex items-center justify-between">
           <h1 className="text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)]">
             알림 목록
@@ -68,7 +70,7 @@ export default function NotificationPage() {
             도착한 알림이 없습니다.
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-[var(--space-2)]">
             {notifications.map((item) => (
               <li key={item.id}>
                 <button
@@ -81,13 +83,13 @@ export default function NotificationPage() {
                       item.isRead
                     )
                   }
-                  className={`w-full rounded-xl border p-4 text-left transition ${
+                  className={`w-full rounded-[var(--radius-md)] border p-[var(--space-6)] text-left transition ${
                     item.isRead
                       ? 'bg-[var(--color-bg-white)] border-[var(--color-border-light)]'
-                      : 'bg-[#fffbe8] border-[#f5e7a1]'
+                      : 'bg-[var(--color-notification-unread-bg)] border-[var(--color-notification-unread-border)]'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-[var(--space-2)]">
                     <strong className="text-[length:var(--text-base)] text-[var(--color-text-primary)]">
                       {item.title}
                     </strong>
@@ -97,10 +99,10 @@ export default function NotificationPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-[length:var(--text-sm)] text-[var(--color-text-secondary)]">
+                  <p className="mt-[var(--space-1)] text-[length:var(--text-sm)] text-[var(--color-text-secondary)]">
                     {item.body}
                   </p>
-                  <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
+                  <p className="mt-[var(--space-2)] text-[11px] text-[var(--color-text-muted)]">
                     {new Date(item.createdAt).toLocaleString()}
                   </p>
                 </button>

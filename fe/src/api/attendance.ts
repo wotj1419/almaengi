@@ -15,6 +15,7 @@ export interface AttendanceResult {
   clockOut: string | null;
   status: string; // WORKING | LATE | ABSENT 등
   overtime: boolean;
+  scheduledEndTime?: string | null;
   message: string;
 }
 
