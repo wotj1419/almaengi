@@ -83,3 +83,22 @@ export async function generateInviteCode(storeId: number) {
   );
   return data.data;
 }
+
+export interface Employee {
+  employeeId: number;
+  userId: number;
+  name: string;
+  position: string;
+  hourlyWage: number;
+  taxType: string;
+  includeHolidayPay: boolean;
+  hireDate: string;
+  status: string;
+}
+
+export async function getEmployees(storeId: number) {
+  const { data } = await instance.get<ApiResponse<Employee[]>>(
+    `/api/v1/stores/${storeId}/employees`
+  );
+  return data.data;
+}

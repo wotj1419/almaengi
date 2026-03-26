@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Avatar from 'boring-avatars';
 import { Plus } from 'lucide-react';
@@ -51,26 +51,56 @@ export default function ChatRoomPage() {
   const room = useChatStore((s) => s.rooms.find((r) => r.roomId === roomId));
   const messages = useChatStore((s) => s.messages[roomId]) ?? EMPTY_MESSAGES;
   const fetchMessages = useChatStore((s) => s.fetchMessages);
+  const fetchMoreMessages = useChatStore((s) => s.fetchMoreMessages);
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const markAsRead = useChatStore((s) => s.markAsRead);
+  const hasMore = useChatStore((s) => s.nextCursors[roomId] != null);
 
   const isBot = room?.roomType === 'BOT';
   const roomName = room?.name ?? '채팅';
   const avatarSeed = roomName;
 
   const [input, setInput] = useState('');
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const prevScrollHeightRef = useRef<number>(0);
 
   // WebSocket 연결 및 실시간 메시지 수신
   useChatSocket(roomId);
 
-  // 방 입장 시 메시지 불러오기
+  // 방 입장 시 메시지 불러오기 + 읽음 처리
   useEffect(() => {
-    fetchMessages(roomId);
-  }, [roomId, fetchMessages]);
+    fetchMessages(roomId).then(() => markAsRead(roomId));
+  }, [roomId, fetchMessages, markAsRead]);
 
-  // 메시지 변경 시 스크롤 최하단으로
+  // 새 메시지 수신/전송 시 스크롤 최하단으로 (이전 메시지 로딩 중엔 제외)
   useEffect(() => {
+    if (isFetchingMore) return;
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
-  }, [messages]);
+  }, [messages, isFetchingMore]);
+
+  // 이전 메시지 로딩 후 스크롤 위치 보정
+  useLayoutEffect(() => {
+    if (!isFetchingMore || !scrollRef.current) return;
+    const newScrollHeight = scrollRef.current.scrollHeight;
+    scrollRef.current.scrollTop = newScrollHeight - prevScrollHeightRef.current;
+  }, [messages, isFetchingMore]);
+
+  // 스크롤이 맨 위에 닿으면 이전 메시지 추가 로딩
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = async () => {
+      if (el.scrollTop !== 0 || !hasMore || isFetchingMore) return;
+      prevScrollHeightRef.current = el.scrollHeight;
+      setIsFetchingMore(true);
+      await fetchMoreMessages(roomId);
+      setIsFetchingMore(false);
+    };
+
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [roomId, hasMore, isFetchingMore, fetchMoreMessages]);
 
   const handleSend = async () => {
     const trimmed = input.trim();
