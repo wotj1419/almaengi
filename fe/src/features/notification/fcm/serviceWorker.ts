@@ -15,9 +15,16 @@ export async function registerFcmServiceWorker() {
     const registration = await navigator.serviceWorker.register(FCM_SW_PATH, {
       scope: FCM_SW_SCOPE,
     });
+
+    // 디버깅 시 SW scope 확인용 로그
+    console.info(`[FCM] Service Worker 등록 성공. scope=${registration.scope}`);
     return registration;
   } catch (error) {
-    console.error('[FCM] Service Worker 등록 실패:', error);
+    const normalizedError = error as { name?: string; message?: string };
+    console.error(
+      `[FCM] Service Worker 등록 실패: ${normalizedError?.name ?? 'UnknownError'} - ${normalizedError?.message ?? ''}`,
+      error
+    );
     return null;
   }
 }

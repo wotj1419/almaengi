@@ -7,6 +7,8 @@ import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
+import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
+import com.almaengi.be.domain.store.type.TaxType;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
 import com.almaengi.be.global.error.BusinessException;
@@ -21,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -156,5 +159,127 @@ class StoreEmployeeServiceTest {
         assertThatThrownBy(() -> storeEmployeeService.joinStore(employeeId, request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_INVITE_CODE.getMessage());
+    }
+
+    @Test
+    @DisplayName("직원 목록 조회 성공 - 사장님 요청 시 사장 제외, 직원 전체 반환")
+    void getStoreEmployees_Success_ByOwner() {
+        // given
+        Long ownerId = 1L;
+        Long storeId = 10L;
+
+        User owner = User.builder().name("사장님").build();
+        ReflectionTestUtils.setField(owner, "id", ownerId);
+
+        User employeeUser1 = User.builder().name("직원1").build();
+        ReflectionTestUtils.setField(employeeUser1, "id", 101L);
+        User employeeUser2 = User.builder().name("직원2").build();
+        ReflectionTestUtils.setField(employeeUser2, "id", 102L);
+
+        Store store = Store.builder().owner(owner).build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        StoreEmployee employee1 = createWorkingEmployee(1001L, store, employeeUser1);
+        StoreEmployee employee2 = createWorkingEmployee(1002L, store, employeeUser2);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(List.of(employee1, employee2));
+
+        // when
+        List<StoreEmployeeResponseDto.EmployeeInfo> result = storeEmployeeService.getStoreEmployees(ownerId, storeId);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(StoreEmployeeResponseDto.EmployeeInfo::getUserId)
+                .containsExactlyInAnyOrder(101L, 102L);
+        // 사장 본인은 제외되어야 함
+        assertThat(result).noneMatch(info -> info.getUserId().equals(ownerId));
+    }
+
+    @Test
+    @DisplayName("직원 목록 조회 성공 - 직원 요청 시 사장 포함 + 본인 제외")
+    void getStoreEmployees_Success_ByEmployee() {
+        // given
+        Long ownerId = 1L;
+        Long requesterEmployeeId = 101L;
+        Long anotherEmployeeId = 102L;
+        Long storeId = 10L;
+
+        User owner = User.builder().name("사장님").build();
+        ReflectionTestUtils.setField(owner, "id", ownerId);
+
+        User requesterEmployeeUser = User.builder().name("요청직원").build();
+        ReflectionTestUtils.setField(requesterEmployeeUser, "id", requesterEmployeeId);
+        User anotherEmployeeUser = User.builder().name("다른직원").build();
+        ReflectionTestUtils.setField(anotherEmployeeUser, "id", anotherEmployeeId);
+
+        Store store = Store.builder().owner(owner).build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        StoreEmployee requesterEmployee = createWorkingEmployee(1001L, store, requesterEmployeeUser);
+        StoreEmployee anotherEmployee = createWorkingEmployee(1002L, store, anotherEmployeeUser);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, requesterEmployeeId)).willReturn(true);
+        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(List.of(requesterEmployee, anotherEmployee));
+
+        // when
+        List<StoreEmployeeResponseDto.EmployeeInfo> result = storeEmployeeService.getStoreEmployees(requesterEmployeeId, storeId);
+
+        // then
+        // 사장 + 다른 직원(요청자 본인은 제외)
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(StoreEmployeeResponseDto.EmployeeInfo::getUserId)
+                .containsExactlyInAnyOrder(ownerId, anotherEmployeeId);
+        assertThat(result).noneMatch(info -> info.getUserId().equals(requesterEmployeeId));
+
+        // 사장님 항목은 owner 매핑 규칙(employeeId null, position "사장님")을 따라야 함
+        StoreEmployeeResponseDto.EmployeeInfo ownerInfo = result.stream()
+                .filter(info -> info.getUserId().equals(ownerId))
+                .findFirst()
+                .orElseThrow();
+        assertThat(ownerInfo.getEmployeeId()).isNull();
+        assertThat(ownerInfo.getPosition()).isEqualTo("사장님");
+    }
+
+    @Test
+    @DisplayName("직원 목록 조회 실패 - 매장과 무관한 사용자는 UNAUTHORIZED_USER")
+    void getStoreEmployees_Fail_Unauthorized() {
+        // given
+        Long ownerId = 1L;
+        Long strangerUserId = 999L;
+        Long storeId = 10L;
+
+        User owner = User.builder().name("사장님").build();
+        ReflectionTestUtils.setField(owner, "id", ownerId);
+
+        Store store = Store.builder().owner(owner).build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, strangerUserId)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> storeEmployeeService.getStoreEmployees(strangerUserId, storeId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.UNAUTHORIZED_USER.getMessage());
+    }
+
+    private StoreEmployee createWorkingEmployee(Long employeeId, Store store, User user) {
+        StoreEmployee employee = StoreEmployee.builder()
+                .store(store)
+                .user(user)
+                .status(StoreEmployeeStatus.WORKING)
+                .position("직원")
+                .hourlyWage(10000)
+                .taxType(TaxType.NONE)
+                .workedMinutes(0)
+                .willWorkingMinutes(0)
+                .hireDate(LocalDate.now())
+                .dependentsCount(0)
+                .includeHolidayPay(false)
+                .build();
+        ReflectionTestUtils.setField(employee, "id", employeeId);
+        return employee;
     }
 }

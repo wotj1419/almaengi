@@ -5,6 +5,8 @@ import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
 import com.almaengi.be.domain.store.service.StoreEmployeeService;
 import com.almaengi.be.global.common.ApiResponse;
 import com.almaengi.be.global.config.SecurityConfig;
+import com.almaengi.be.global.error.BusinessException;
+import com.almaengi.be.global.error.ErrorCode;
 import com.almaengi.be.global.security.jwt.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -15,8 +17,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.hamcrest.Matchers;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,8 +26,10 @@ import static org.mockito.BDDMockito.given;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.util.Collections;
+import java.util.List;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -108,5 +112,66 @@ class StoreEmployeeControllerTest {
                                 .andExpect(jsonPath("$.status").value("SUCCESS"))
                                 .andExpect(jsonPath("$.data.employeeId").value(10L))
                                 .andExpect(jsonPath("$.data.name").value("김알바"));
+        }
+
+        @Test
+        @DisplayName("매장 직원 목록 조회 API - 사장 포함 목록 응답 형태 검증")
+        void getStoreEmployees() throws Exception {
+                // given
+                Long storeId = 1L;
+                Long userId = 101L; // 요청자(직원)
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                                userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+
+                StoreEmployeeResponseDto.EmployeeInfo ownerInfo = StoreEmployeeResponseDto.EmployeeInfo.builder()
+                                .employeeId(null)
+                                .userId(1L)
+                                .name("사장님")
+                                .position("사장님")
+                                .build();
+
+                StoreEmployeeResponseDto.EmployeeInfo employeeInfo = StoreEmployeeResponseDto.EmployeeInfo.builder()
+                                .employeeId(10L)
+                                .userId(102L)
+                                .name("김알바")
+                                .position("평일 오전")
+                                .build();
+
+                given(storeEmployeeService.getStoreEmployees(any(), eq(storeId)))
+                                .willReturn(List.of(ownerInfo, employeeInfo));
+
+                // when & then
+                mockMvc.perform(get("/api/v1/stores/{storeId}/employees", storeId)
+                                .with(authentication(auth)))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                                .andExpect(jsonPath("$.data.length()").value(2))
+                                .andExpect(jsonPath("$.data[0].userId").value(1L))
+                                .andExpect(jsonPath("$.data[0].name").value("사장님"))
+                                .andExpect(jsonPath("$.data[0].employeeId").value(Matchers.nullValue()))
+                                .andExpect(jsonPath("$.data[1].employeeId").value(10L))
+                                .andExpect(jsonPath("$.data[1].name").value("김알바"));
+        }
+
+        @Test
+        @DisplayName("매장 직원 목록 조회 API - 권한 없음 예외 응답 검증")
+        void getStoreEmployees_Unauthorized() throws Exception {
+                // given
+                Long storeId = 1L;
+                Long userId = 999L;
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                                userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+
+                given(storeEmployeeService.getStoreEmployees(any(), eq(storeId)))
+                                .willThrow(new BusinessException(ErrorCode.UNAUTHORIZED_USER));
+
+                // when & then
+                mockMvc.perform(get("/api/v1/stores/{storeId}/employees", storeId)
+                                .with(authentication(auth)))
+                                .andDo(print())
+                                .andExpect(status().isForbidden())
+                                .andExpect(jsonPath("$.status").value(ErrorCode.UNAUTHORIZED_USER.getCode()))
+                                .andExpect(jsonPath("$.message").value(ErrorCode.UNAUTHORIZED_USER.getMessage()));
         }
 }
