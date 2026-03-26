@@ -3,6 +3,7 @@ package com.almaengi.be.domain.finance.controller;
 import com.almaengi.be.domain.finance.controller.docs.FinanceControllerDocs;
 import com.almaengi.be.domain.finance.dto.FinanceResponseDto;
 import com.almaengi.be.domain.finance.service.SsafyFinanceService;
+import com.almaengi.be.domain.payroll.scheduler.PayrollGenerationScheduler;
 import com.almaengi.be.domain.payroll.scheduler.PayrollTransferScheduler;
 import com.almaengi.be.global.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class FinanceController implements FinanceControllerDocs {
 
     private final SsafyFinanceService ssafyFinanceService;
+    private final PayrollGenerationScheduler payrollGenerationScheduler;
     private final PayrollTransferScheduler payrollTransferScheduler;
 
     @Override
@@ -36,6 +38,13 @@ public class FinanceController implements FinanceControllerDocs {
                 .toList();
 
         return ApiResponse.success(response);
+    }
+
+    @Override
+    @PostMapping("/trigger-generation")
+    public ApiResponse<Void> triggerGenerationForTest() {
+        payrollGenerationScheduler.generateMonthlyPayrollsAndPayslips();
+        return ApiResponse.success();
     }
 
     @Override

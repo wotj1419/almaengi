@@ -7,16 +7,32 @@ import RevenueCard from '../components/RevenueCard';
 import AlertBanner from '../components/AlertBanner';
 import WorkStatusCard from '../components/WorkStatusCard';
 import ActionGrid from '../components/ActionGrid';
+import useAuthStore from '@/stores/useAuthStore';
+import { useChatStore } from '@/stores/useChatStore';
+import { getMyStores } from '@/api/store';
+import useStoreStore from '@/stores/useStoreStore';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const storeId = useAuthStore((s) => s.activeStoreId);
+  const fetchRooms = useChatStore((s) => s.fetchRooms);
+  const setStores = useStoreStore((s) => s.setStores);
+
+  // 홈 진입 시 채팅방 목록 미리 로딩 (AlertBanner BOT 방 탐색용)
+  useEffect(() => {
+    if (storeId) fetchRooms(storeId);
+  }, [storeId, fetchRooms]);
 
   useEffect(() => {
     const hasToken = Boolean(localStorage.getItem('accessToken'));
     if (!hasToken) {
       navigate(ROUTES.LOGIN, { replace: true });
+      return;
     }
-  }, [navigate]);
+    getMyStores()
+      .then(setStores)
+      .catch(() => {});
+  }, [navigate, setStores]);
 
   // 브라우저 뒤로가기 시 로그인 페이지로 이동 (회원가입 페이지로 돌아가는 것 방지)
   useEffect(() => {

@@ -49,3 +49,30 @@ export async function createStore(body: CreateStoreRequest) {
   );
   return data.data;
 }
+
+export interface UpdateStoreRequest {
+  storeName: string;
+  address: string;
+  phone?: string | null;
+  isOver5Employees?: boolean;
+}
+
+export async function updateStore(storeId: number, body: UpdateStoreRequest) {
+  const { data } = await instance.put<ApiResponse<StoreInfo>>(
+    `/api/v1/stores/${storeId}`,
+    body
+  );
+  return data.data;
+}
+
+export interface InviteCodeInfo {
+  inviteCode: string;
+  expiredAt: string;
+}
+
+export async function generateInviteCode(storeId: number) {
+  const { data } = await instance.post<ApiResponse<InviteCodeInfo>>(
+    `/api/v1/stores/${storeId}/invite-code`
+  );
+  return data.data;
+}

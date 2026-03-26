@@ -1,5 +1,8 @@
 package com.almaengi.be.domain.auction.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 
 import java.time.LocalDate;
@@ -8,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Setter;
 
 /**
  * 대타 스케줄 경매와 통신하기 위한 요청 시 DTO 모음입니다.
@@ -83,5 +87,24 @@ public class AuctionRequestDto {
         private Integer maxWage;
         @Schema(description = "대타 모집 필요 인원 수", example = "1")
         private Integer recruitCount;
+    }
+    @Schema(description = "경매 인사이트 리포트 조회용 Query DTO")
+    @Getter @Setter
+    public static class AuctionInsightsQuery {
+        @Schema(description = "조회 월 (yyyy-MM, 현재 월 이전만 가능)", example = "2026-03")
+        @Pattern(regexp = "^\\d{4}-(0[1-9]|1[0-2])$", message = "yearMonth 형식은 yyyy-MM 이어야 합니다.")
+        private String yearMonth;
+
+        @Schema(description = "페이지 번호 (0부터 시작)", example = "0", defaultValue = "0")
+        @Min(value = 0, message = "page는 0 이상이어야 합니다.")
+        private Integer page = 0;
+
+        @Schema(description = "페이지 크기", example = "10", defaultValue = "10")
+        @Min(value = 1, message = "size는 1 이상이어야 합니다.")
+        @Max(value = 100, message = "size는 100 이하여야 합니다.")
+        private Integer size = 10;
+
+        public int normalizedPage() { return page == null ? 0 : page; }
+        public int normalizedSize() { return size == null ? 10 : size; }
     }
 }

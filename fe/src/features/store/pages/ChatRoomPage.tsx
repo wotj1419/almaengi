@@ -4,10 +4,12 @@ import Avatar from 'boring-avatars';
 import { Plus } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
-import { useChatStore, CURRENT_USER_ID } from '@/stores/useChatStore';
-import type { ChatMessage } from '../types/chat';
+import useAuthStore from '@/stores/useAuthStore';
+import { useChatStore } from '@/stores/useChatStore';
+import type { MessageItem } from '@/api/chat';
+import { useChatSocket } from '@/stores/useChatSocket';
 
-const EMPTY_MESSAGES: ChatMessage[] = [];
+const EMPTY_MESSAGES: MessageItem[] = [];
 
 /** 날짜 포맷: "오늘, 2026년 3월 18일" 또는 "2026년 3월 12일" */
 function formatDateLabel(dateStr: string): string {
@@ -44,45 +46,36 @@ export default function ChatRoomPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const roomId = Number(chatRoomId);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const room = useChatStore((s) => s.rooms.find((r) => r.roomId === roomId));
-  const storeMessages =
-    useChatStore((s) => s.messages[roomId]) ?? EMPTY_MESSAGES;
-  const addMessage = useChatStore((s) => s.addMessage);
+  const messages = useChatStore((s) => s.messages[roomId]) ?? EMPTY_MESSAGES;
+  const fetchMessages = useChatStore((s) => s.fetchMessages);
+  const sendMessage = useChatStore((s) => s.sendMessage);
 
-  // DM이면 상대방 이름, 아니면 채팅방 이름
-  const roomName =
-    room?.roomType === 'DM'
-      ? (room.otherUser?.name ?? '채팅')
-      : (room?.name ?? '채팅');
+  const roomName = room?.name ?? '채팅';
+  const avatarSeed = roomName;
 
-  const avatarSeed = room?.otherUser?.name ?? roomName;
-
-  const [messages, setMessages] = useState<ChatMessage[]>(storeMessages);
   const [input, setInput] = useState('');
 
+  // WebSocket 연결 및 실시간 메시지 수신
+  useChatSocket(roomId);
+
+  // 방 입장 시 메시지 불러오기
+  useEffect(() => {
+    fetchMessages(roomId);
+  }, [roomId, fetchMessages]);
+
+  // 메시지 변경 시 스크롤 최하단으로
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
 
-    const newMsg: ChatMessage = {
-      messageId: Date.now(),
-      roomId,
-      senderId: CURRENT_USER_ID,
-      senderName: '사장님',
-      messageType: 'TEXT',
-      content: trimmed,
-      fileUrl: null,
-      sentAt: new Date().toISOString(),
-      readCount: 0,
-      isMine: true,
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    addMessage(roomId, newMsg);
     setInput('');
+    await sendMessage(roomId, trimmed);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -96,7 +89,7 @@ export default function ChatRoomPage() {
   const groupedMessages: {
     date: string;
     label: string;
-    msgs: ChatMessage[];
+    msgs: MessageItem[];
   }[] = [];
   for (const msg of messages) {
     const dk = dateKey(msg.sentAt);
@@ -139,46 +132,53 @@ export default function ChatRoomPage() {
               </span>
             </div>
 
-            {group.msgs.map((msg) => (
-              <div
-                key={msg.messageId}
-                className={`flex mb-[var(--space-3)] ${msg.isMine ? 'justify-end' : 'justify-start'}`}
-              >
-                {/* 상대방: 아바타 */}
-                {!msg.isMine && (
-                  <div className="shrink-0 w-[36px] h-[36px] rounded-full overflow-hidden mr-[var(--space-2)] mt-[2px]">
-                    <Avatar size={36} name={avatarSeed} variant="beam" />
-                  </div>
-                )}
-
+            {group.msgs.map((msg) => {
+              const isMine = msg.senderId === userId;
+              return (
                 <div
-                  className={`flex flex-col ${msg.isMine ? 'items-end' : 'items-start'} max-w-[70%]`}
+                  key={msg.messageId}
+                  className={`flex mb-[var(--space-3)] ${isMine ? 'justify-end' : 'justify-start'}`}
                 >
-                  {/* 상대방: 이름 */}
-                  {!msg.isMine && (
-                    <span className="text-[length:var(--text-sm)] text-[color:var(--color-text-muted)] mb-[2px]">
-                      {msg.senderName}
-                    </span>
+                  {/* 상대방: 아바타 */}
+                  {!isMine && (
+                    <div className="shrink-0 w-[36px] h-[36px] rounded-full overflow-hidden mr-[var(--space-2)] mt-[2px]">
+                      <Avatar
+                        size={36}
+                        name={msg.senderName ?? avatarSeed}
+                        variant="beam"
+                      />
+                    </div>
                   )}
 
-                  {/* 말풍선 */}
                   <div
-                    className={`px-[var(--space-5)] py-[var(--space-3)] rounded-[var(--radius-lg)] text-[length:var(--text-base)] leading-[1.5] break-words ${
-                      msg.isMine
-                        ? 'bg-[var(--color-primary)] text-[color:var(--color-text-primary)]'
-                        : 'bg-[var(--color-bg-white)] text-[color:var(--color-text-primary)]'
-                    }`}
+                    className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[70%]`}
                   >
-                    {msg.content}
-                  </div>
+                    {/* 상대방: 이름 */}
+                    {!isMine && (
+                      <span className="text-[length:var(--text-sm)] text-[color:var(--color-text-muted)] mb-[2px]">
+                        {msg.senderName}
+                      </span>
+                    )}
 
-                  {/* 시간 */}
-                  <span className="text-[length:11px] text-[color:var(--color-text-light)] mt-[3px]">
-                    {formatTime(msg.sentAt)}
-                  </span>
+                    {/* 말풍선 */}
+                    <div
+                      className={`px-[var(--space-5)] py-[var(--space-3)] rounded-[var(--radius-lg)] text-[length:var(--text-base)] leading-[1.5] break-words ${
+                        isMine
+                          ? 'bg-[var(--color-primary)] text-[color:var(--color-text-primary)]'
+                          : 'bg-[var(--color-bg-white)] text-[color:var(--color-text-primary)]'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+
+                    {/* 시간 */}
+                    <span className="text-[length:11px] text-[color:var(--color-text-light)] mt-[3px]">
+                      {formatTime(msg.sentAt)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>

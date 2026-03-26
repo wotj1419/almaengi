@@ -5,7 +5,7 @@ import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import StoreTabs from '../components/StoreTabs';
 import { useBoardStore } from '@/stores/useBoardStore';
-import { CURRENT_USER_ID } from '@/stores/useChatStore';
+import useAuthStore from '@/stores/useAuthStore';
 
 const MAX_CONTENT_LENGTH = 1000;
 const MAX_FILES = 10;
@@ -13,6 +13,7 @@ const MAX_FILES = 10;
 export default function NewPostPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const userId = useAuthStore((s) => s.user?.id ?? 0);
   const addPost = useBoardStore((s) => s.addPost);
 
   const [title, setTitle] = useState('');
@@ -64,7 +65,7 @@ export default function NewPostPage() {
     const now = new Date().toISOString();
     addPost({
       boardId: isPinned ? 1 : 2,
-      writerId: CURRENT_USER_ID,
+      writerId: userId,
       title: title.trim(),
       content: content.trim(),
       writerName: '사장님',

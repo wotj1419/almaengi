@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI
 
 from app.repository.data_service import DataService, MockDataService
-from app.router import chat_router, health_router
+from app.router import ask_router, chat_router, health_router
 
 app = FastAPI(
     title="알맹이 AI Service",
@@ -11,6 +11,7 @@ app = FastAPI(
 
 app.include_router(health_router.router, tags=["health"])
 app.include_router(chat_router.router)
+app.include_router(ask_router.router)
 
 
 def get_data_service() -> DataService:

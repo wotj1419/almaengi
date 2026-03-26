@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        @font-face {
+            font-family: 'NanumGothic';
+            src: url('fonts/NanumGothic.ttf');
+        }
+        body {
+            font-family: 'NanumGothic', sans-serif;
+            font-size: 11px;
+            margin: 30px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #222;
+        }
+
+        /* 공통 테이블 스타일 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #4a90d9;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* 직원 정보 테이블 */
+        .info-table td {
+            width: 25%;
+        }
+        .info-table td.label {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+            width: 15%;
+        }
+        .info-table td.value {
+            font-weight: bold;
+            width: 35%;
+        }
+
+        /* 세부 내역 */
+        .detail-header {
+            background-color: #4a90d9;
+            color: #fff;
+            text-align: center;
+            font-weight: bold;
+            padding: 8px;
+        }
+        .section-header {
+            background-color: #d6e8fc;
+            text-align: center;
+            font-weight: bold;
+        }
+        .item-name {
+            text-align: left;
+            padding-left: 16px;
+        }
+        .amount {
+            text-align: right;
+            padding-right: 16px;
+        }
+        .total-row td {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .net-pay-row td {
+            background-color: #e8f4e8;
+            font-weight: bold;
+            font-size: 13px;
+            text-align: right;
+            padding-right: 16px;
+        }
+
+        /* 계산 방법 */
+        .calc-table td.formula {
+            font-size: 10px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 제목 -->
+<h1>급여 명세서</h1>
+
+<!-- 직원 정보 -->
+<table class="info-table">
+    <tr>
+        <td class="label">성명</td>
+        <td class="value" th:text="${employeeName}">홍길동</td>
+        <td class="label">매장</td>
+        <td class="value" th:text="${storeName}">알맹이카페</td>
+    </tr>
+    <tr>
+        <td class="label">산정월</td>
+        <td class="value" colspan="3" th:text="${targetMonth}">2026년 02월</td>
+    </tr>
+</table>
+
+<!-- 세부 내역: 지급 / 공제 2컬럼 -->
+<table>
+    <!-- 헤더 -->
+    <tr>
+        <th colspan="4">세부 내역</th>
+    </tr>
+    <tr>
+        <td class="section-header" colspan="2">지급</td>
+        <td class="section-header" colspan="2">공제</td>
+    </tr>
+    <tr>
+        <td class="section-header" style="width:25%">임금 항목</td>
+        <td class="section-header" style="width:25%">지급 금액(원)</td>
+        <td class="section-header" style="width:25%">공제 항목</td>
+        <td class="section-header" style="width:25%">공제 금액(원)</td>
+    </tr>
+
+    <!-- 지급/공제 항목을 나란히 출력 -->
+    <tr th:each="row, stat : ${detailRows}">
+        <!-- 지급 항목 -->
+        <td class="item-name" th:text="${row.payItemName != null ? row.payItemName : ''}"></td>
+        <td class="amount" th:text="${row.payAmount != null ? #numbers.formatInteger(row.payAmount, 1, 'COMMA') : ''}"></td>
+        <!-- 공제 항목 -->
+        <td class="item-name" th:text="${row.deductItemName != null ? row.deductItemName : ''}"></td>
+        <td class="amount" th:text="${row.deductAmount != null ? #numbers.formatInteger(row.deductAmount, 1, 'COMMA') : ''}"></td>
+    </tr>
+
+    <!-- 합계 -->
+    <tr class="total-row">
+        <td style="text-align:center">지급액 계</td>
+        <td class="amount" th:text="${#numbers.formatInteger(totalPay, 1, 'COMMA')}">0</td>
+        <td style="text-align:center">공제액 계</td>
+        <td class="amount" th:text="${#numbers.formatInteger(totalDeduction, 1, 'COMMA')}">0</td>
+    </tr>
+
+    <!-- 실수령액 -->
+    <tr class="net-pay-row">
+        <td colspan="3" style="text-align:right">실 수령액 (원)</td>
+        <td class="amount" th:text="${#numbers.formatInteger(netPay, 1, 'COMMA')}">0</td>
+    </tr>
+</table>
+
+<!-- 계산 방법 -->
+<table class="calc-table">
+    <tr>
+        <th colspan="3">계산 방법</th>
+    </tr>
+    <tr>
+        <td class="section-header" style="width:20%">구분</td>
+        <td class="section-header" style="width:55%">산출식 또는 산출방법</td>
+        <td class="section-header" style="width:25%">지급액 (원)</td>
+    </tr>
+    <tr th:each="calc : ${calculations}">
+        <td th:text="${calc.itemName}">기본급</td>
+        <td class="formula" th:text="${calc.formula}">6000분 × 10,000원 ÷ 60</td>
+        <td class="amount" th:text="${#numbers.formatInteger(calc.amount, 1, 'COMMA')}">1,000,000</td>
+    </tr>
+</table>
+
+</body>
+</html>

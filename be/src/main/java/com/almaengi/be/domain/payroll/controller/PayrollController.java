@@ -6,16 +6,23 @@ import com.almaengi.be.domain.payroll.dto.PayrollResponseDto;
 import com.almaengi.be.domain.payroll.service.PayrollQueryService;
 import com.almaengi.be.domain.payroll.service.PayrollService;
 import com.almaengi.be.domain.payroll.service.PayrollTransferService;
+import com.almaengi.be.domain.payroll.service.PayslipService;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.repository.StoreRepository;
+
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -29,6 +36,7 @@ public class PayrollController implements PayrollControllerDocs {
     private final PayrollQueryService payrollQueryService;
     private final PayrollService payrollService;
     private final PayrollTransferService payrollTransferService;
+    private final PayslipService payslipService;
     private final StoreRepository storeRepository;
 
     @Override
@@ -131,6 +139,29 @@ public class PayrollController implements PayrollControllerDocs {
 
         payrollTransferService.transferStorePayroll(store, month);
         return ApiResponse.success();
+    }
+
+    @Override
+    @GetMapping("/{payrollId}/payslip")
+    public ResponseEntity<byte[]> downloadPayslip(
+            @AuthUser Long userId,
+            @PathVariable Long storeId,
+            @PathVariable Long payrollId,
+            @RequestParam(defaultValue = "false") boolean download) {
+
+        byte[] pdfBytes = payslipService.getPayslipPdf(userId, payrollId);
+        String fileName = payslipService.getPayslipFileName(payrollId);
+        String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        String disposition = download
+                ? "attachment; filename*=UTF-8''" + encodedFileName
+                : "inline; filename*=UTF-8''" + encodedFileName;
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .body(pdfBytes);
     }
 
     // ─── Private Helpers ───

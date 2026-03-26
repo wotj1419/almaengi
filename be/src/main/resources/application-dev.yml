@@ -29,3 +29,8 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+
+kakao:
+  local:
+    base-url: https://dapi.kakao.com

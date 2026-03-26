@@ -27,16 +27,18 @@ import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.time.temporal.ChronoUnit;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.Duration;
 import java.util.stream.Collectors;
 
 /**
@@ -349,6 +351,72 @@ public class AuctionService {
         auction.cancelAuction();
     }
 
+    public AuctionResponseDto.InsightsReport getInsightsReport(Long userId, Long storeId, AuctionRequestDto.AuctionInsightsQuery request) {
+        User user = getUserOrThrow(userId);
+        if(user.getRole() != Role.OWNER) throw new BusinessException(ErrorCode.UNAUTHORIZED_ROLE);
+
+        Store store = getStoreOrThrow(storeId);
+        if(!store.getOwner().getId().equals(userId))
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+
+        YearMonth targetYm;
+        try {
+            targetYm = YearMonth.parse(request.getYearMonth());
+        }  catch (Exception e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // 이번 달 / 미래 달은 조회 불가
+        if(!targetYm.isBefore(YearMonth.now()))
+            throw new BusinessException(ErrorCode.INVALID_REPORT_MONTH);
+
+        LocalDateTime monthStart = targetYm.atDay(1).atStartOfDay();
+        LocalDateTime monthEnd = targetYm.atEndOfMonth().atTime(23, 59, 59);
+
+        long totalAuctionCount = shiftAuctionRepository.countByStoreIdAndCreatedAtBetween(storeId, monthStart, monthEnd);
+        long closedAuctionCount = shiftAuctionRepository.countByStoreIdAndStatusAndCreatedAtBetween(storeId, AuctionStatus.CLOSED, monthStart, monthEnd);
+
+        BigDecimal successRate = BigDecimal.ZERO;
+        if(totalAuctionCount > 0) {
+            successRate = BigDecimal.valueOf(closedAuctionCount)
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(totalAuctionCount), 1, RoundingMode.HALF_UP);
+        }
+
+        Double avgWageRaw = auctionWinnerRepository.findAverageWinningWage(storeId, monthStart, monthEnd);
+        int averageWinningWage = (avgWageRaw == null) ? 0 : (int) Math.round(avgWageRaw);
+
+        Pageable pageable = PageRequest.of(Math.max(request.normalizedPage(), 0), Math.max(request.normalizedSize(), 1));
+        Page<ShiftAuctionRepository.TimelineProjection> timelinePageRaw = shiftAuctionRepository.findTimelineReport(storeId, monthStart, monthEnd, pageable);
+
+        List<AuctionResponseDto.TimelineItem> content = timelinePageRaw.getContent().stream()
+                .map(row -> AuctionResponseDto.TimelineItem.builder()
+                        .dayOfWeek(toDayOfWeekLabel(row.getDayOfWeekValue()))
+                        .startTime(row.getStartTime())
+                        .endTime(row.getEndTime())
+                        .auctionCount(row.getAuctionCount())
+                        .build())
+                .toList();
+
+        AuctionResponseDto.TimelinePage timelinePage = AuctionResponseDto.TimelinePage.builder()
+                .content(content)
+                .page(timelinePageRaw.getNumber())
+                .size(timelinePageRaw.getSize())
+                .totalElements(timelinePageRaw.getTotalElements())
+                .totalPages(timelinePageRaw.getTotalPages())
+                .hasNext(timelinePageRaw.hasNext())
+                .build();
+
+        return AuctionResponseDto.InsightsReport.builder()
+                .yearMonth(targetYm.toString())
+                .totalAuctionCount(totalAuctionCount)
+                .closedAuctionCount(closedAuctionCount)
+                .successRate(successRate)
+                .averageWinningWage(averageWinningWage)
+                .timelinePage(timelinePage)
+                .build();
+    }
+
 
     private Store getStoreOrThrow(Long storeId) {
         return storeRepository.findByIdAndIsClosedFalse(storeId)
@@ -505,5 +573,19 @@ public class AuctionService {
     private String formatTimeRange(LocalTime start, LocalTime end) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
         return start.format(formatter) + " - " + end.format(formatter);
+    }
+
+    private String toDayOfWeekLabel(Integer dayOfWeekValue) {
+        if (dayOfWeekValue == null) return "UNKNOWN";
+        return switch (dayOfWeekValue) {
+            case 0 -> "SUN";
+            case 1 -> "MON";
+            case 2 -> "TUE";
+            case 3 -> "WED";
+            case 4 -> "THU";
+            case 5 -> "FRI";
+            case 6 -> "SAT";
+            default -> "UNKNOWN";
+        };
     }
 }
