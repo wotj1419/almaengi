@@ -1,11 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
 import WorkStatusSheet from './WorkStatusSheet';
+import { getDashboardSummary, type DashboardSummary } from '@/api/attendance';
+import useStoreStore from '@/stores/useStoreStore';
 
 type FilterColor = 'green' | 'orange' | 'purple';
 
+const STATUS_MAP: Record<FilterColor, keyof DashboardSummary> = {
+  green: 'working',
+  orange: 'late',
+  purple: 'absent',
+};
+
 export default function WorkStatusCard() {
   const [sheetFilter, setSheetFilter] = useState<FilterColor | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary>({
+    working: 0,
+    late: 0,
+    absent: 0,
+  });
+  const currentStore = useStoreStore((s) => s.currentStore);
+
+  useEffect(() => {
+    if (!currentStore) return;
+    getDashboardSummary(currentStore.storeId)
+      .then(setSummary)
+      .catch(() => {});
+  }, [currentStore]);
 
   const openSheet = (color: FilterColor) => setSheetFilter(color);
   const closeSheet = () => setSheetFilter(null);
@@ -19,27 +40,24 @@ export default function WorkStatusCard() {
             <span className="text-[length:var(--text-xl)] text-[color:var(--color-text-primary)] font-bold leading-tight">
               매장 근무 현황
             </span>
-            <span className="text-[length:var(--text-xs)] text-[color:var(--color-text-light)] font-bold leading-normal">
-              오전 10:30 기준
-            </span>
           </div>
 
           {/* 상태 뱃지들 */}
           <div className="flex gap-[9px]">
             <StatusBadge
-              count={4}
+              count={summary.working}
               label="근무 중"
               color="green"
               onClick={() => openSheet('green')}
             />
             <StatusBadge
-              count={2}
+              count={summary.late}
               label="지각"
               color="orange"
               onClick={() => openSheet('orange')}
             />
             <StatusBadge
-              count={1}
+              count={summary.absent}
               label="결근"
               color="purple"
               onClick={() => openSheet('purple')}
@@ -52,7 +70,7 @@ export default function WorkStatusCard() {
       <WorkStatusSheet
         isOpen={sheetFilter !== null}
         onClose={closeSheet}
-        filter={sheetFilter}
+        apiStatus={sheetFilter ? STATUS_MAP[sheetFilter] : null}
       />
     </>
   );
