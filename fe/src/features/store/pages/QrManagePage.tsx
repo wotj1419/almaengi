@@ -8,13 +8,13 @@ import BottomNav from '@/components/layout/BottomNav';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
-import useAuthStore from '@/stores/useAuthStore';
+import useStoreStore from '@/stores/useStoreStore';
 import { getStore, type StoreInfo } from '@/api/store';
 import NoStoreCard from '@/components/common/NoStoreCard';
 
 export default function QrManagePage() {
   const navigate = useNavigate();
-  const activeStoreId = useAuthStore((s) => s.activeStoreId);
+  const activeStoreId = useStoreStore((s) => s.currentStore?.storeId ?? null);
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
