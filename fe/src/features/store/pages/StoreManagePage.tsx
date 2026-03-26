@@ -7,7 +7,7 @@ import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import NoStoreCard from '@/components/common/NoStoreCard';
 import useStoreStore from '@/stores/useStoreStore';
-import { generateInviteCode } from '@/api/store';
+import { generateInviteCode, getMyStores } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 
 type MenuItem = {
@@ -46,8 +46,17 @@ export default function StoreManagePage() {
   const currentStore = useStoreStore((s) => s.currentStore);
   const storedInviteCode = useStoreStore((s) => s.inviteCode);
   const storedExpiredAt = useStoreStore((s) => s.inviteCodeExpiredAt);
+  const setStores = useStoreStore((s) => s.setStores);
   const setInviteCodeStore = useStoreStore((s) => s.setInviteCode);
   const [isReissuing, setIsReissuing] = useState(false);
+
+  useEffect(() => {
+    if (!currentStore) {
+      getMyStores()
+        .then(setStores)
+        .catch(() => {});
+    }
+  }, [currentStore, setStores]);
 
   const fetchInviteCode = useCallback(
     async (storeId: number) => {
