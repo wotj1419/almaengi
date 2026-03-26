@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Camera, ChevronRight, LogOut, RefreshCw, Store } from 'lucide-react';
+import { Camera, ChevronRight, RefreshCw, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
@@ -204,27 +204,6 @@ export default function StoreManagePage() {
                 />
               </button>
             ))}
-          </section>
-
-          <section className={LIST_SECTION_CLASS}>
-            <button
-              type="button"
-              onClick={showPreparingToast}
-              className="w-full px-[var(--space-5)] py-5 flex items-center justify-between cursor-pointer"
-            >
-              <div className="inline-flex items-center gap-3 text-[var(--color-danger)]">
-                <LogOut size={18} strokeWidth={2.2} />
-                <span className="text-[length:var(--text-md2)] font-bold">
-                  로그아웃
-                </span>
-              </div>
-              <ChevronRight
-                size={18}
-                color="var(--color-text-placeholder)"
-                strokeWidth={2.2}
-                className="shrink-0"
-              />
-            </button>
           </section>
         </main>
 

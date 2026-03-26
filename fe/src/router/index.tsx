@@ -8,7 +8,7 @@ import SchedulePage from '@/features/schedule/pages/SchedulePage';
 import EmployeePage from '@/features/employee/pages/EmployeePage';
 import EmployeeDetailPage from '@/features/employee/pages/EmployeeDetailPage';
 import EmployeeContractPage from '@/features/employee/pages/EmployeeContractPage';
-import PayrollPage from '@/features/payroll/pages/PayrollPage';
+import { PayrollPage, EmployeePayrollPage } from '@/features/payroll';
 import {
   ContractDetailPage,
   ContractRequestPage,
@@ -75,7 +75,11 @@ export default function AppRouter() {
         path={ROUTES.EMPLOYEE_CONTRACT}
         element={<EmployeeContractPage />}
       />
-      <Route path={ROUTES.PAYROLL} element={<PayrollPage />} />
+      {/* 급여 페이지 — 역할별 분기 */}
+      <Route
+        path={ROUTES.PAYROLL}
+        element={role === 'OWNER' ? <PayrollPage /> : <EmployeePayrollPage />}
+      />
       <Route path={ROUTES.DOCUMENTS} element={<DocumentsHomePage />} />
       <Route path={ROUTES.DOCUMENTS_MY} element={<MyDocumentsPage />} />
       <Route
@@ -131,14 +135,49 @@ export default function AppRouter() {
           path={ROUTES.AUCTION}
           element={role === 'OWNER' ? <AuctionPage /> : <EmployeeAuctionPage />}
         />
-        {/* owner 전용 경매 routes */}
-        {role === 'OWNER' && (
-          <>
-            <Route path="/auction/register" element={<AuctionRegisterPage />} />
-            <Route path="/auction/edit/:id" element={<AuctionEditPage />} />
-            <Route path="/auction/result/:id" element={<AuctionResultPage />} />
-          </>
-        )}
+        {/*
+          ─── owner 전용 경매 라우트 ────────────────────────────────────────
+          [문제] 기존 코드는 role === 'OWNER'일 때만 이 라우트들을 등록했음.
+                 → EMPLOYEE가 /auction/register에 접근하면 이 라우트가 없으므로
+                   React Router가 아래의 /auction/:id로 폴백하여
+                   'register'가 :id 파라미터로 인식됨.
+                   결과: EMPLOYEE도 등록 페이지에 접근 가능한 버그 발생.
+
+          [해결] 세 라우트를 항상 등록해 /auction/:id보다 먼저 선언되도록 유지.
+                 각 라우트에서 역할 확인:
+                 - OWNER  → 해당 페이지 렌더링
+                 - 그 외  → /auction으로 리다이렉트 (접근 차단)
+          ─────────────────────────────────────────────────────────────────── */}
+        <Route
+          path="/auction/register"
+          element={
+            role === 'OWNER' ? (
+              <AuctionRegisterPage />
+            ) : (
+              <Navigate replace to={ROUTES.AUCTION} />
+            )
+          }
+        />
+        <Route
+          path="/auction/edit/:id"
+          element={
+            role === 'OWNER' ? (
+              <AuctionEditPage />
+            ) : (
+              <Navigate replace to={ROUTES.AUCTION} />
+            )
+          }
+        />
+        <Route
+          path="/auction/result/:id"
+          element={
+            role === 'OWNER' ? (
+              <AuctionResultPage />
+            ) : (
+              <Navigate replace to={ROUTES.AUCTION} />
+            )
+          }
+        />
         <Route
           path="/auction/:id"
           element={
