@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Avatar from 'boring-avatars';
 import { Plus } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import useAuthStore from '@/stores/useAuthStore';
@@ -52,6 +53,7 @@ export default function ChatRoomPage() {
   const fetchMessages = useChatStore((s) => s.fetchMessages);
   const sendMessage = useChatStore((s) => s.sendMessage);
 
+  const isBot = room?.roomType === 'BOT';
   const roomName = room?.name ?? '채팅';
   const avatarSeed = roomName;
 
@@ -168,7 +170,37 @@ export default function ChatRoomPage() {
                           : 'bg-[var(--color-bg-white)] text-[color:var(--color-text-primary)]'
                       }`}
                     >
-                      {msg.content}
+                      {isBot && !isMine ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="mb-[var(--space-2)] last:mb-0">
+                                {children}
+                              </p>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-bold">{children}</strong>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="list-disc pl-[var(--space-5)] mb-[var(--space-2)]">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="list-decimal pl-[var(--space-5)] mb-[var(--space-2)]">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="mb-[2px]">{children}</li>
+                            ),
+                          }}
+                        >
+                          {msg.content ?? ''}
+                        </ReactMarkdown>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
 
                     {/* 시간 */}

@@ -72,8 +72,7 @@ public class HttpRagClient implements RagClient {
     private record AiAskRequest(
             String question,
             String role,
-            @JsonProperty("store_id") Long storeId,
-
+            Long storeId,
             List<String> history
     ) {}
     /**
