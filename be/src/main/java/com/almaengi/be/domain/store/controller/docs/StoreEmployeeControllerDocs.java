@@ -2,6 +2,7 @@ package com.almaengi.be.domain.store.controller.docs;
 
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
+import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,11 @@ public interface StoreEmployeeControllerDocs {
     ApiResponse<StoreEmployeeResponseDto.EmployeeInfo> joinStore(
             @Parameter(hidden = true) @AuthUser Long userId,
             @Valid @RequestBody StoreEmployeeRequestDto.Join request
+    );
+
+    @Operation(summary = "내 소속 매장 목록 조회", description = "직원으로 소속된 매장 중 재직 중이며 폐업되지 않은 매장 목록을 조회합니다.")
+    ApiResponse<List<StoreResponseDto.StoreInfo>> getMyStoresEmployee(
+            @Parameter(hidden = true) @AuthUser Long userId
     );
 
     @Operation(summary = "매장 직원 목록 조회", description = "사장님이 자신의 매장에 소속된 모든 직원의 목록을 조회합니다.")

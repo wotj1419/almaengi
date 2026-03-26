@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CircleCheck, Clock, MapPin, Timer, Users } from 'lucide-react';
-import Header from '@/components/layout/Header';
+import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import { useAuctionDetail } from '../hooks/useAuctionQueries';
 import type { AuctionDto } from '@/api/auction.types';
@@ -88,10 +88,9 @@ export default function AuctionResultPage() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header
+      <DetailHeader
         title="경매 결과"
         onBack={() => navigate('/auction', { state: { tab: 'completed' } })}
-        auctionStyle
       />
 
       <div className="px-3.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-5">

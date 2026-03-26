@@ -3,13 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
-import Header from '@/components/layout/Header';
+import DetailHeader from '@/components/common/DetailHeader';
 import { getApiErrorMessage } from '@/api/error';
 import useAuthStore from '@/stores/useAuthStore';
 import NoStoreCard from '@/components/common/NoStoreCard';
 import AuctionListCard from '../components/AuctionListCard';
 import AuctionSummaryCard from '../components/AuctionSummaryCard';
-import { mockAuctionDtos } from '../data/mockAuctions';
 import { useAuctions, useDeleteAuction } from '../hooks/useAuctionQueries';
 import { toAuctionItem } from '../utils/auctionMapper';
 
@@ -63,9 +62,11 @@ export default function AuctionPage() {
   >(() => readHiddenCompletedAuctionIds());
   const [countdownTick, setCountdownTick] = useState(() => Date.now());
 
+  // ─── 경매 데이터 조회 ──────────────────────────────────────────────────────
+  // [변경 사항] Mock 폴백 제거: API가 빈 배열을 반환하면 정상적으로 빈 상태 UI 표시
+  // - 이전: auctionDtos.length === 0일 때 mockAuctionDtos로 폴백 → 실제 API 동작 숨김
+  // - 현재: auctionDtos를 그대로 사용 → 로딩/에러/빈 상태를 명확히 구분
   const { data: auctionDtos = [] } = useAuctions(activeStoreId);
-  const isUsingMockAuctions = auctionDtos.length === 0;
-  const auctionSourceDtos = isUsingMockAuctions ? mockAuctionDtos : auctionDtos;
   const deleteMutation = useDeleteAuction();
 
   useEffect(() => {
@@ -76,11 +77,13 @@ export default function AuctionPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // ─── 경매 항목 변환 (카운트다운 재계산용) ─────────────────────────────────
+  // countdownTick이 변할 때마다 남은 시간 표시 업데이트
   const auctions = useMemo(() => {
     // countdownTick drives re-computation every second for live countdown labels.
     void countdownTick;
-    return auctionSourceDtos.map(toAuctionItem);
-  }, [auctionSourceDtos, countdownTick]);
+    return auctionDtos.map(toAuctionItem);
+  }, [auctionDtos, countdownTick]);
   const hiddenCompletedAuctionIdSet = useMemo(
     () => new Set(hiddenCompletedAuctionIds),
     [hiddenCompletedAuctionIds]
@@ -154,10 +157,17 @@ export default function AuctionPage() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header storeName="부산갈매기 수완점" hasNotification auctionStyle />
+      <DetailHeader title="근무 경매" />
 
       <main className="px-[15px] pt-2.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-3.5">
-        {activeStoreId === null && !isUsingMockAuctions ? (
+        {/* ─── 매장 미선택 상태 ─────────────────────────────────────────────
+            [변경 사항] Mock 폴백 제거 후 조건 단순화
+            - 이전: activeStoreId === null && !isUsingMockAuctions
+              (매장 없거나 && 실제 데이터를 사용 중일 때만 NoStoreCard 표시)
+            - 현재: activeStoreId === null
+              (매장이 없으면 항상 NoStoreCard 표시)
+            ──────────────────────────────────────────────────────────────── */}
+        {activeStoreId === null ? (
           <div className="-mx-[15px]">
             <NoStoreCard
               description={

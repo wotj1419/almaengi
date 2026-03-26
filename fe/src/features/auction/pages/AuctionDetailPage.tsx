@@ -4,7 +4,7 @@ import { Clock, MapPin, Timer, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
-import Header from '@/components/layout/Header';
+import DetailHeader from '@/components/common/DetailHeader';
 import { getApiErrorMessage } from '@/api/error';
 import useAuthStore from '@/stores/useAuthStore';
 import { useAuctionDetail, useCloseAuction } from '../hooks/useAuctionQueries';
@@ -33,7 +33,7 @@ export default function AuctionDetailPage() {
   const bidders = detail?.bidders;
   const hasBidders = Boolean(
     bidders &&
-      bidders.group1.length + bidders.group2.length + bidders.group3.length > 0
+    bidders.group1.length + bidders.group2.length + bidders.group3.length > 0
   );
 
   const toggleBidder = (bidId: number) => {
@@ -127,7 +127,7 @@ export default function AuctionDetailPage() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header title="경매 현황" onBack={() => navigate(-1)} auctionStyle />
+      <DetailHeader title="경매 현황" onBack={() => navigate(-1)} />
 
       <div className="px-3.5 pt-3.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-3.5">
         <div className="w-full bg-[var(--color-bg-white)] rounded-2xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] outline-[var(--color-border-light)] overflow-hidden">

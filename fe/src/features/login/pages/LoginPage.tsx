@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { login } from '@/api/auth';
 import { validateSessionByReissue } from '@/api/session';
@@ -85,7 +85,43 @@ export default function LoginPage() {
       const authStatus = await validateSessionByReissue();
       if (!isMounted) return;
 
-      if (authStatus === 'authenticated') {
+      // ─── 세션 복원 성공 시 Zustand store 업데이트 ──────────────────────────
+      // [문제] 이전 코드: authStatus === 'authenticated' 이면 바로 navigate
+      //        → validateSessionByReissue가 userId/role을 반환하지 않아
+      //          authLogin()이 호출되지 않음
+      //        → Zustand user/role이 null인 채로 HOME에 도달
+      //        → 라우터: role === 'OWNER' false → 항상 EmployeeHomePage 렌더링
+      //
+      // [해결] 현재 코드: authStatus에 userId/role이 포함됨
+      //        → authLogin() 호출로 Zustand를 올바른 role로 업데이트
+      //        → navigate 후 라우터가 role에 맞는 홈을 렌더링
+      //
+      // name: persist에 저장된 값 재사용 (없으면 빈 문자열 — 다음 credentials 로그인 시 갱신됨)
+      if (authStatus !== 'unauthenticated') {
+        const currentState = useAuthStore.getState();
+
+        // ─── 세션 복원 시 activeStoreId 재결정 ────────────────────────────────────
+        // [문제] 이전 코드: currentState.activeStoreId를 그대로 재사용
+        //        → 최초 로그인이 아닌 새로고침/재접속 시 null이 고정된 채 유지됨
+        //        → employee는 최초 로그인 직후에만 activeStoreId가 설정되고,
+        //          이후 새로고침 시 null로 고정되어 경매 목록이 표시되지 않는 문제 발생
+        //
+        // [해결] resolveActiveStoreId(accessToken)을 호출해 항상 최신 소속 매장 ID 결정
+        //        → /api/v1/stores 응답이 비어 있으면 null 반환 (소속 없는 직원 정상 처리)
+        //        → OWNER/EMPLOYEE 모두 이 경로를 통해 올바른 activeStoreId가 설정됨
+        const activeStoreId = await resolveActiveStoreId(
+          authStatus.accessToken
+        );
+
+        authLogin(
+          {
+            id: authStatus.userId,
+            name: currentState.user?.name ?? '',
+            role: authStatus.role,
+          },
+          authStatus.accessToken,
+          activeStoreId
+        );
         navigate(ROUTES.HOME, { replace: true });
       }
     })();
@@ -93,7 +129,7 @@ export default function LoginPage() {
     return () => {
       isMounted = false;
     };
-  }, [navigate]);
+  }, [navigate, authLogin]);
 
   const resolveActiveStoreId = async (accessToken: string) => {
     try {
@@ -155,22 +191,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-dvh px-[var(--space-6)] py-14 bg-[var(--color-bg-base)] flex justify-center items-center">
       <div className="w-full max-w-96 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] shadow-xl border border-[var(--color-border-light)] flex flex-col overflow-hidden">
-        <div className="grid grid-cols-[20px_1fr_20px] items-center p-3.5">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="flex h-5 w-5 items-center justify-center cursor-pointer"
-          >
-            <ChevronLeft
-              size={20}
-              color="var(--color-text-primary)"
-              strokeWidth={2}
-            />
-          </button>
+        <div className="flex justify-center p-3.5">
           <span className="text-center text-[length:var(--text-xl)] font-bold text-black leading-6">
             알맹이
           </span>
-          <div aria-hidden="true" className="h-5 w-5" />
         </div>
 
         <div className="px-6 pt-8 pb-4 flex flex-col gap-2">

@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
+import { logout } from '@/api/auth';
+import useAuthStore from '@/stores/useAuthStore';
 import Header from '@/components/layout/Header';
 import BottomNav from '@/components/layout/BottomNav';
 import RevenueCard from '../components/RevenueCard';
 import AlertBanner from '../components/AlertBanner';
 import WorkStatusCard from '../components/WorkStatusCard';
 import ActionGrid from '../components/ActionGrid';
-import useAuthStore from '@/stores/useAuthStore';
 import { useChatStore } from '@/stores/useChatStore';
 import { getMyStores } from '@/api/store';
 import useStoreStore from '@/stores/useStoreStore';
@@ -17,11 +19,22 @@ export default function HomePage() {
   const storeId = useAuthStore((s) => s.activeStoreId);
   const fetchRooms = useChatStore((s) => s.fetchRooms);
   const setStores = useStoreStore((s) => s.setStores);
+  const authLogout = useAuthStore((state) => state.logout);
 
   // 홈 진입 시 채팅방 목록 미리 로딩 (AlertBanner BOT 방 탐색용)
   useEffect(() => {
     if (storeId) fetchRooms(storeId);
   }, [storeId, fetchRooms]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      authLogout();
+      navigate(ROUTES.LOGIN, { replace: true });
+    } catch {
+      toast.error('로그아웃에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
 
   useEffect(() => {
     const hasToken = Boolean(localStorage.getItem('accessToken'));
@@ -56,7 +69,12 @@ export default function HomePage() {
           </div>
 
           {/* 헤더 */}
-          <Header />
+          <Header
+            showLogout
+            onLogout={() => {
+              void handleLogout();
+            }}
+          />
 
           {/* 메인 콘텐츠 */}
           <div className="flex flex-col gap-[var(--space-5)] items-center pt-[var(--space-3)] pb-[var(--space-9)] px-[var(--space-5)] relative w-full">

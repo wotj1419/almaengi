@@ -1,4 +1,4 @@
-﻿import { ChevronDown } from 'lucide-react';
+﻿import { ArrowLeft, ChevronDown } from 'lucide-react';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   useEffect,
@@ -44,6 +44,7 @@ interface ScheduleTopBarProps {
   onHandlePointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
   onHandlePointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
   onHandleKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
+  onBack?: () => void;
 }
 
 interface MonthYearPickerModalProps {
@@ -245,6 +246,7 @@ export default function ScheduleTopBar({
   onHandlePointerUp,
   onHandlePointerCancel,
   onHandleKeyDown,
+  onBack,
 }: ScheduleTopBarProps) {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
@@ -276,9 +278,23 @@ export default function ScheduleTopBar({
     <>
       <section className="relative overflow-hidden rounded-b-[32px] bg-[var(--color-bg-white)] shadow-[0px_4px_24px_0px_rgba(0,0,0,0.04)]">
         <div
-          className="flex items-center justify-start pb-[var(--space-7)] px-[var(--space-5)]"
+          className="flex items-center justify-between pb-[var(--space-7)] px-[var(--space-5)]"
           style={{ paddingTop: 'calc(40px + env(safe-area-inset-top, 0px))' }}
         >
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex h-9 w-9 items-center justify-center cursor-pointer"
+              aria-label="Go back"
+            >
+              <ArrowLeft
+                size={20}
+                color="var(--color-text-primary)"
+                strokeWidth={2}
+              />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsMonthPickerOpen(true)}

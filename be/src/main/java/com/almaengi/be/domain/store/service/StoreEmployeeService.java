@@ -3,6 +3,7 @@ package com.almaengi.be.domain.store.service;
 import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreEmployeeRequestDto;
 import com.almaengi.be.domain.store.dto.StoreEmployeeResponseDto;
+import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
@@ -110,6 +111,17 @@ public class StoreEmployeeService {
         }
 
         return StoreEmployeeResponseDto.EmployeeInfo.from(savedEmployee);
+    }
+
+    public List<StoreResponseDto.StoreInfo> getMyStores(Long userId) {
+        List<StoreEmployee> employees = storeEmployeeRepository.findByUserId(userId);
+
+        return employees.stream()
+                .filter(se -> se.getStatus() != StoreEmployeeStatus.RESIGNED)
+                .map(StoreEmployee::getStore)
+                .filter(store -> !store.getIsClosed())
+                .map(StoreResponseDto.StoreInfo::from)
+                .toList();
     }
 
     private String createRandomCode() {
