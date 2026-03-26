@@ -1,6 +1,7 @@
 package com.almaengi.be.domain.auction.controller.docs;
 import com.almaengi.be.domain.auction.dto.AuctionRequestDto;
 import com.almaengi.be.domain.auction.dto.AuctionResponseDto;
+import com.almaengi.be.domain.store.dto.StoreRequestDto;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,8 +10,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import java.util.List;
 @Tag(name = "대타 경매 API", description = "대타 구인(경매) 관련 등록, 조회, 입찰, 마감 API")
 public interface AuctionControllerDocs {
@@ -102,4 +107,16 @@ public interface AuctionControllerDocs {
         ApiResponse<Void> deleteAuction(
                 @AuthUser Long userId,
                 @Parameter(description = "중단할 경매 ID") @PathVariable Long auctionId);
+
+        @Operation(summary = "경매 인사이트 리포트 조회", description = "해당 월(현재 월 이전) / 해당 매장의 경매 인사이트 리포트를 조회합니다. OWNER만 접근 가능합니다.")
+        @ApiResponses(value = {
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A013: 이번 달 이후 리포트는 조회할 수 없습니다.<br>G002: 잘못된 입력값입니다."),
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "U003: 접근 권한이 없는 역할입니다.<br>U004: 접근 권한이 없는 유저입니다."),
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "U001: 해당 사용자를 찾을 수 없습니다.<br>S001: 해당 매장을 찾을 수 없습니다.")
+        })
+        ApiResponse<AuctionResponseDto.InsightsReport> getInsightsReport(
+                @AuthUser Long userId,
+                @Parameter(description = "조회할 매장 ID") @PathVariable Long storeId,
+                @Valid @ModelAttribute AuctionRequestDto.AuctionInsightsQuery query);
 }

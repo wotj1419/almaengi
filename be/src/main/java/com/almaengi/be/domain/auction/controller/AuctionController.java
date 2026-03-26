@@ -4,8 +4,10 @@ import com.almaengi.be.domain.auction.controller.docs.AuctionControllerDocs;
 import com.almaengi.be.domain.auction.dto.AuctionRequestDto;
 import com.almaengi.be.domain.auction.dto.AuctionResponseDto;
 import com.almaengi.be.domain.auction.service.AuctionService;
+import com.almaengi.be.domain.store.dto.StoreRequestDto;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -104,4 +106,11 @@ public class AuctionController implements AuctionControllerDocs {
         return ApiResponse.success();
     }
 
+    @GetMapping("/store/{storeId}/insights-report")
+    public ApiResponse<AuctionResponseDto.InsightsReport> getInsightsReport(@AuthUser Long userId, @PathVariable Long storeId,
+                                                                            @Valid @ModelAttribute AuctionRequestDto.AuctionInsightsQuery request) {
+
+        AuctionResponseDto.InsightsReport response = auctionService.getInsightsReport(userId, storeId, request);
+        return ApiResponse.success(response);
+    }
 }

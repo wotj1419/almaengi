@@ -5,6 +5,7 @@ import com.almaengi.be.domain.auction.type.AuctionStatus;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -134,5 +135,49 @@ public class AuctionResponseDto {
         private String employeeName;
         @Schema(description = "낙찰 시급", example = "12500")
         private Integer bidWage;
+    }
+
+    @Schema(description = "경매 인사이트 리포트 단일 응답 DTO")
+    @Getter
+    @Builder
+    public static class InsightsReport {
+        @Schema(description = "조회 월 (yyyy-MM)", example = "2026-03")
+        private String yearMonth;
+        @Schema(description = "해당 월 경매 생성 건수", example = "16")
+        private long totalAuctionCount;
+        @Schema(description = "해당 월 낙찰된 경매 건수", example = "12")
+        private long closedAuctionCount;
+        @Schema(description = "낙찰률 (%)", example = "75.0")
+        private BigDecimal successRate;
+        @Schema(description = "평균 낙찰 시급", example = "12450")
+        private Integer averageWinningWage;
+        @Schema(description = "요일/시간대 집계 페이지")
+        private TimelinePage timelinePage;
+    }
+
+    @Schema(description = "요일/시간대 집계 페이지 DTO")
+    @Getter
+    @Builder
+    public static class TimelinePage {
+        private List<TimelineItem> content;
+        private int page;
+        private int size;
+        private long totalElements;
+        private int totalPages;
+        private boolean hasNext;
+    }
+
+    @Schema(description = "요일 + 시간대 집계 아이템")
+    @Getter
+    @Builder
+    public static class TimelineItem {
+        @Schema(description = "요일", example = "MON")
+        private String dayOfWeek;
+        @Schema(description = "근무 시작 시간", type = "string", example = "18:00:00")
+        private LocalTime startTime;
+        @Schema(description = "근무 종료 시간", type = "string", example = "22:00:00")
+        private LocalTime endTime;
+        @Schema(description = "해당 요일/시간대 경매 건수", example = "3")
+        private long auctionCount;
     }
 }

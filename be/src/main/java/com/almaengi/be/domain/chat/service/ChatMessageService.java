@@ -74,8 +74,12 @@ public class ChatMessageService {
         });
 
         // BOT 방이면 챗봇 응답 생성.
-        if(room.getRoomType() == ChatRoomType.BOT && !userId.equals(chatBotProperties.getBotUserId()))
-            chatBotAsyncService.generateAndSaveBotReply(room.getStore().getId(), room.getId(), userId, saved.getId(), request.getContent());
+        // - sender.role 기반으로 OWNER/EMPLOYEE 전달
+        // - role이 비어있으면 안전하게 OWNER 기본값 사용
+        if(room.getRoomType() == ChatRoomType.BOT && !userId.equals(chatBotProperties.getBotUserId())) {
+            String requesterRole = (sender.getRole() != null) ? sender.getRole().name() : "OWNER";
+            chatBotAsyncService.generateAndSaveBotReply(room.getStore().getId(), room.getId(), userId, saved.getId(), request.getContent(), requesterRole);
+        }
 
         return ChatMessageResponseDto.MessageItem.from(saved);
     }

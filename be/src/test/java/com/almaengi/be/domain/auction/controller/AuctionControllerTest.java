@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -256,6 +257,61 @@ class AuctionControllerTest {
 
                         Mockito.verify(auctionService, Mockito.times(1))
                                         .deleteAuction(eq(auctionId), any());
+                }
+        }
+
+        @Nested
+        @DisplayName("경매 인사이트 리포트 API 테스트")
+        class InsightsReportTest {
+                @Test
+                @DisplayName("성공: 유효한 쿼리로 인사이트 리포트를 조회한다")
+                void getInsightsReportSuccess() throws Exception {
+                        // given
+                        Long storeId = 1L;
+
+                        AuctionResponseDto.TimelineItem timelineItem = AuctionResponseDto.TimelineItem.builder()
+                                        .dayOfWeek("MON")
+                                        .startTime(LocalTime.of(18, 0))
+                                        .endTime(LocalTime.of(22, 0))
+                                        .auctionCount(3L)
+                                        .build();
+
+                        AuctionResponseDto.TimelinePage timelinePage = AuctionResponseDto.TimelinePage.builder()
+                                        .content(List.of(timelineItem))
+                                        .page(0)
+                                        .size(10)
+                                        .totalElements(1)
+                                        .totalPages(1)
+                                        .hasNext(false)
+                                        .build();
+
+                        AuctionResponseDto.InsightsReport report = AuctionResponseDto.InsightsReport.builder()
+                                        .yearMonth("2026-03")
+                                        .totalAuctionCount(10)
+                                        .closedAuctionCount(7)
+                                        .successRate(BigDecimal.valueOf(70.0))
+                                        .averageWinningWage(12450)
+                                        .timelinePage(timelinePage)
+                                        .build();
+
+                        Mockito.when(auctionService.getInsightsReport(any(), eq(storeId), any(AuctionRequestDto.AuctionInsightsQuery.class)))
+                                        .thenReturn(report);
+
+                        // when & then
+                        mockMvc.perform(get("/api/v1/auctions/store/{storeId}/insights-report", storeId)
+                                        .param("yearMonth", "2026-03")
+                                        .param("page", "0")
+                                        .param("size", "10"))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.status").value("SUCCESS"))
+                                        .andExpect(jsonPath("$.data.yearMonth").value("2026-03"))
+                                        .andExpect(jsonPath("$.data.totalAuctionCount").value(10))
+                                        .andExpect(jsonPath("$.data.closedAuctionCount").value(7))
+                                        .andExpect(jsonPath("$.data.averageWinningWage").value(12450))
+                                        .andExpect(jsonPath("$.data.timelinePage.content[0].dayOfWeek").value("MON"));
+
+                        Mockito.verify(auctionService, Mockito.times(1))
+                                        .getInsightsReport(any(), eq(storeId), any(AuctionRequestDto.AuctionInsightsQuery.class));
                 }
         }
 }

@@ -13,6 +13,7 @@ import com.almaengi.be.domain.chat.type.ChatMessageType;
 import com.almaengi.be.domain.chat.type.ChatRoomType;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.user.entity.User;
+import com.almaengi.be.domain.user.type.Role;
 import com.almaengi.be.domain.user.repository.UserRepository;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
@@ -26,6 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -75,12 +78,25 @@ class ChatMessageServiceTest {
             given(chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId)).willReturn(true);
             given(userRepository.findById(userId)).willReturn(Optional.of(sender));
             given(chatMessageRepository.save(any(ChatMessage.class))).willReturn(saved);
-            ChatMessageResponseDto.MessageItem result = chatMessageService.sendMessage(userId, roomId, request);
+
+            TransactionSynchronizationManager.initSynchronization();
+            ChatMessageResponseDto.MessageItem result;
+            try {
+                result = chatMessageService.sendMessage(userId, roomId, request);
+            } finally {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+
             assertThat(result.getMessageId()).isEqualTo(500L);
+            assertThat(result.getContent()).isEqualTo("전달사항입니다.");
+            // 일반 채팅은 AI 메타가 비어있어야 함
+            assertThat(result.getAnswer()).isNull();
+            assertThat(result.getSources()).isEmpty();
+            assertThat(result.getIntent()).isNull();
             assertThat(room.getLastMessageId()).isEqualTo(500L);
             assertThat(room.getLastMessageAt()).isEqualTo(LocalDateTime.of(2026, 3, 22, 11, 0));
             verify(chatMessageRepository, times(1)).save(any(ChatMessage.class));
-            verify(chatBotAsyncService, never()).generateAndSaveBotReply(anyLong(), anyLong(), anyLong(), anyLong(), anyString());
+            verify(chatBotAsyncService, never()).generateAndSaveBotReply(anyLong(), anyLong(), anyLong(), anyLong(), anyString(), anyString());
         }
         @Test
         @DisplayName("실패: TEXT 외 타입은 CHAT_INVALID_REFERENCE")
@@ -95,8 +111,16 @@ class ChatMessageServiceTest {
             ReflectionTestUtils.setField(request, "content", "file");
             given(chatRoomRepository.findById(roomId)).willReturn(Optional.of(room));
             given(chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId)).willReturn(true);
-            BusinessException e = assertThrows(BusinessException.class,
-                    () -> chatMessageService.sendMessage(userId, roomId, request));
+
+            TransactionSynchronizationManager.initSynchronization();
+            BusinessException e;
+            try {
+                e = assertThrows(BusinessException.class,
+                        () -> chatMessageService.sendMessage(userId, roomId, request));
+            } finally {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.CHAT_INVALID_REFERENCE);
         }
         @Test
@@ -120,9 +144,57 @@ class ChatMessageServiceTest {
             given(userRepository.findById(userId)).willReturn(Optional.of(sender));
             given(chatMessageRepository.save(any(ChatMessage.class))).willReturn(saved);
             given(chatBotProperties.getBotUserId()).willReturn(botUserId);
-            chatMessageService.sendMessage(userId, roomId, request);
+
+            // 역할 전달 검증을 위해 sender role 세팅
+            ReflectionTestUtils.setField(sender, "role", Role.EMPLOYEE);
+
+            TransactionSynchronizationManager.initSynchronization();
+            try {
+                chatMessageService.sendMessage(userId, roomId, request);
+            } finally {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+
             verify(chatBotAsyncService, times(1))
-                    .generateAndSaveBotReply(store.getId(), roomId, userId, 701L, "재고 질문");
+                    .generateAndSaveBotReply(store.getId(), roomId, userId, 701L, "재고 질문", "EMPLOYEE");
+        }
+
+        @Test
+        @DisplayName("성공: BOT 방에서 sender.role이 null이면 OWNER 기본값으로 비동기 호출")
+        void sendMessage_botRoomTriggersAsyncWithDefaultOwnerRole() {
+            Long roomId = 201L;
+            Long userId = 10L;
+            Long botUserId = 999L;
+
+            User sender = user(userId, "직원");
+            User owner = user(1L, "사장");
+            Store store = store(1L, owner);
+            ChatRoom botRoom = room(roomId, store, owner, ChatRoomType.BOT);
+
+            ChatMessageRequestDto.SendMessage request = new ChatMessageRequestDto.SendMessage();
+            ReflectionTestUtils.setField(request, "messageType", ChatMessageType.TEXT);
+            ReflectionTestUtils.setField(request, "content", "질문합니다");
+
+            ChatMessage saved = ChatMessage.createText(botRoom, sender, "질문합니다");
+            ReflectionTestUtils.setField(saved, "id", 702L);
+            ReflectionTestUtils.setField(saved, "sentAt", LocalDateTime.of(2026, 3, 22, 11, 31));
+
+            // sender.role은 null 상태를 유지
+            given(chatRoomRepository.findById(roomId)).willReturn(Optional.of(botRoom));
+            given(chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId)).willReturn(true);
+            given(userRepository.findById(userId)).willReturn(Optional.of(sender));
+            given(chatMessageRepository.save(any(ChatMessage.class))).willReturn(saved);
+            given(chatBotProperties.getBotUserId()).willReturn(botUserId);
+
+            TransactionSynchronizationManager.initSynchronization();
+            try {
+                chatMessageService.sendMessage(userId, roomId, request);
+            } finally {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+
+            verify(chatBotAsyncService, times(1))
+                    .generateAndSaveBotReply(store.getId(), roomId, userId, 702L, "질문합니다", "OWNER");
         }
     }
     @Nested
@@ -148,6 +220,42 @@ class ChatMessageServiceTest {
             assertThat(result.getMessages()).hasSize(2);
             assertThat(result.getNextCursor()).isEqualTo(1199L);
             assertThat(result.getSize()).isEqualTo(2);
+
+            // 일반 메시지는 AI 응답 필드가 비어야 함
+            assertThat(result.getMessages().get(0).getAnswer()).isNull();
+            assertThat(result.getMessages().get(0).getSources()).isEmpty();
+            assertThat(result.getMessages().get(0).getIntent()).isNull();
+        }
+
+        @Test
+        @DisplayName("성공: BOT 메시지 조회 시 meta_json의 answer/sources/intent가 노출된다")
+        void getMessages_botMessageIncludesAiFields() {
+            Long roomId = 300L;
+            Long userId = 10L;
+
+            User owner = user(userId, "사장");
+            User botUser = user(999L, "알맹이봇");
+            Store store = store(1L, owner);
+            ChatRoom botRoom = room(roomId, store, owner, ChatRoomType.BOT);
+
+            String metaJson = "{\"answer\":\"주휴수당은 ...\",\"sources\":[\"근로기준법 제55조\",\"근로기준법 제18조\"],\"intent\":\"LEGAL_QUERY\"}";
+
+            ChatMessage botMessage = ChatMessage.createBotText(botRoom, botUser, "주휴수당은 ...", metaJson);
+            ReflectionTestUtils.setField(botMessage, "id", 1300L);
+
+            given(chatRoomRepository.findById(roomId)).willReturn(Optional.of(botRoom));
+            given(chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId)).willReturn(true);
+            given(chatMessageRepository.findPageByRoomIdWithCursor(eq(roomId), eq(null), any(Pageable.class)))
+                    .willReturn(List.of(botMessage));
+
+            ChatMessageResponseDto.MessagePage result = chatMessageService.getMessages(userId, roomId, null, 30);
+
+            assertThat(result.getMessages()).hasSize(1);
+            ChatMessageResponseDto.MessageItem item = result.getMessages().get(0);
+            assertThat(item.getContent()).isEqualTo("주휴수당은 ...");
+            assertThat(item.getAnswer()).isEqualTo("주휴수당은 ...");
+            assertThat(item.getSources()).containsExactly("근로기준법 제55조", "근로기준법 제18조");
+            assertThat(item.getIntent()).isEqualTo("LEGAL_QUERY");
         }
         @Test
         @DisplayName("실패: cursor가 0 이하이면 CHAT_INVALID_CURSOR")

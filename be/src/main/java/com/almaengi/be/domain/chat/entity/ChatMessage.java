@@ -83,12 +83,28 @@ public class ChatMessage {
     // 봇 답변도 현재 정책상 일반 텍스트와 동일하게 저장
     // sender는 botUserId에 해당하는 User를 사용
     public static ChatMessage createBotText(ChatRoom room, User botUser, String content) {
-        return createText(room, botUser, content);
+        return createBotText(room, botUser, content, null);
+    }
+    public static ChatMessage createBotText(ChatRoom room, User botUser, String content, String metaJson) {
+        return ChatMessage.builder()
+                .room(room)
+                .sender(botUser)
+                .messageType(ChatMessageType.TEXT)
+                .content(content)
+                .fileUrl(null)
+                .metaJson(metaJson)
+                .sentAt(LocalDateTime.now())
+                .readCount(0)
+                .isDeleted(false)
+                .deletedAt(null)
+                .build();
     }
 
-    // 비동기 실패 fallback은 사용자에게 안내성 문구를 빠르게 남기는 목적입니다.
-    // - 정책상 TEXT + bot sender로 저장합니다.
+    // fallback 메시지도 메타 저장 가능하도록 오버로드 제공
     public static ChatMessage createFallbackText(ChatRoom room, User botUser, String fallbackText) {
-        return createText(room, botUser, fallbackText);
+        return createFallbackText(room, botUser, fallbackText, null);
+    }
+    public static ChatMessage createFallbackText(ChatRoom room, User botUser, String fallbackText, String metaJson) {
+        return createBotText(room, botUser, fallbackText, metaJson);
     }
 }

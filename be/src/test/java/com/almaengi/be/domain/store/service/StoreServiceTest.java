@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Optional;
 
 import com.almaengi.be.domain.chat.service.ChatRoomService;
+import com.almaengi.be.global.util.KakaoGeocodingClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,6 +47,9 @@ class StoreServiceTest {
     @Mock
     private ChatRoomService chatRoomService;
 
+    @Mock
+    private KakaoGeocodingClient kakaoGeocodingClient;
+
     private User owner;
     private User otherUser;
     private Store store;
@@ -70,18 +75,26 @@ class StoreServiceTest {
     @Nested
     @DisplayName("매장 생성 (createStore) 테스트")
     class CreateStoreTest {
+
+        private StoreRequestDto.Create createRequest(String storeName, String address, String phone, boolean isOver5Employees) {
+            StoreRequestDto.Create req = new StoreRequestDto.Create();
+            ReflectionTestUtils.setField(req, "storeName", storeName);
+            ReflectionTestUtils.setField(req, "address", address);
+            ReflectionTestUtils.setField(req, "phone", phone);
+            ReflectionTestUtils.setField(req, "isOver5Employees", isOver5Employees);
+            return req;
+        }
+
         @Test
-        @DisplayName("성공: 올바른 데이터로 매장을 생성한다")
-        void success() {
+        @DisplayName("성공: 주소 지오코딩 후 위경도를 저장하고 매장을 생성한다")
+        void successWithGeocoding() {
             // given
             when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
             when(storeRepository.save(any(Store.class))).thenReturn(store);
+            when(kakaoGeocodingClient.geocode("강남구"))
+                    .thenReturn(new KakaoGeocodingClient.GeocodedPoint(37.4979, 127.0276));
 
-            StoreRequestDto.Create req = new StoreRequestDto.Create();
-            ReflectionTestUtils.setField(req, "storeName", "알맹이 카페");
-            ReflectionTestUtils.setField(req, "address", "강남구");
-            ReflectionTestUtils.setField(req, "phone", "010-1234");
-            ReflectionTestUtils.setField(req, "isOver5Employees", true);
+            StoreRequestDto.Create req = createRequest("알맹이 카페", "강남구", "010-1234", true);
 
             // when
             StoreResponseDto.StoreInfo response = storeService.createStore(OWNER_ID, req);
@@ -89,7 +102,17 @@ class StoreServiceTest {
             // then
             assertThat(response).isNotNull();
             assertThat(response.getStoreName()).isEqualTo("알맹이 카페");
-            verify(storeRepository, times(1)).save(any(Store.class));
+
+            // 저장 직전 엔티티에 지오코딩 좌표가 제대로 들어갔는지 검증
+            ArgumentCaptor<Store> storeCaptor = ArgumentCaptor.forClass(Store.class);
+            verify(storeRepository, times(1)).save(storeCaptor.capture());
+            Store savedArg = storeCaptor.getValue();
+
+            assertThat(savedArg.getLatitude()).isEqualTo(37.4979);
+            assertThat(savedArg.getLongitude()).isEqualTo(127.0276);
+            assertThat(savedArg.getAddress()).isEqualTo("강남구");
+
+            verify(kakaoGeocodingClient, times(1)).geocode("강남구");
             verify(chatRoomService, times(1)).ensurePersonalBotRoomWithWelcome(OWNER_ID, STORE_ID);
         }
 
@@ -103,6 +126,74 @@ class StoreServiceTest {
             BusinessException e = assertThrows(BusinessException.class,
                     () -> storeService.createStore(OWNER_ID, new StoreRequestDto.Create()));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND);
+
+            // 유저 조회에서 실패하면 지오코딩/저장 로직은 실행되면 안 됨
+            verify(kakaoGeocodingClient, never()).geocode(any());
+            verify(storeRepository, never()).save(any(Store.class));
+            verify(chatRoomService, never()).ensurePersonalBotRoomWithWelcome(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패: 지오코딩 결과가 없으면 STORE_GEOCODING_NOT_FOUND 예외가 발생하고 저장되지 않는다")
+        void failWhenGeocodingNotFound() {
+            // given
+            when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
+            when(kakaoGeocodingClient.geocode("없는 주소"))
+                    .thenThrow(new BusinessException(ErrorCode.STORE_GEOCODING_NOT_FOUND));
+
+            StoreRequestDto.Create req = createRequest("알맹이 카페", "없는 주소", "010-1234", true);
+
+            // when
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> storeService.createStore(OWNER_ID, req));
+
+            // then
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_GEOCODING_NOT_FOUND);
+            verify(storeRepository, never()).save(any(Store.class));
+            verify(chatRoomService, never()).ensurePersonalBotRoomWithWelcome(any(), any());
+        }
+
+        @Test
+        @DisplayName("실패: 외부 API 장애면 STORE_GEOCODING_UPSTREAM_FAILED 예외가 발생하고 저장되지 않는다")
+        void failWhenGeocodingUpstreamFailed() {
+            // given
+            when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
+            when(kakaoGeocodingClient.geocode("강남구"))
+                    .thenThrow(new BusinessException(ErrorCode.STORE_GEOCODING_UPSTREAM_FAILED));
+
+            StoreRequestDto.Create req = createRequest("알맹이 카페", "강남구", "010-1234", true);
+
+            // when
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> storeService.createStore(OWNER_ID, req));
+
+            // then
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_GEOCODING_UPSTREAM_FAILED);
+            verify(storeRepository, never()).save(any(Store.class));
+            verify(chatRoomService, never()).ensurePersonalBotRoomWithWelcome(any(), any());
+        }
+
+        @Test
+        @DisplayName("성공: 채팅방 생성 실패는 무시되고 매장 생성은 성공한다(best-effort)")
+        void successEvenWhenChatBotInitFails() {
+            // given
+            when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
+            when(storeRepository.save(any(Store.class))).thenReturn(store);
+            when(kakaoGeocodingClient.geocode("강남구"))
+                    .thenReturn(new KakaoGeocodingClient.GeocodedPoint(37.4979, 127.0276));
+            doThrow(new RuntimeException("chat init failed"))
+                    .when(chatRoomService).ensurePersonalBotRoomWithWelcome(OWNER_ID, STORE_ID);
+
+            StoreRequestDto.Create req = createRequest("알맹이 카페", "강남구", "010-1234", true);
+
+            // when
+            StoreResponseDto.StoreInfo response = storeService.createStore(OWNER_ID, req);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStoreId()).isEqualTo(STORE_ID);
+            verify(storeRepository, times(1)).save(any(Store.class));
+            verify(chatRoomService, times(1)).ensurePersonalBotRoomWithWelcome(OWNER_ID, STORE_ID);
         }
     }
 
