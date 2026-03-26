@@ -9,6 +9,7 @@ import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
+import com.almaengi.be.global.util.KakaoGeocodingClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final ChatRoomService chatRoomService;
+    private final KakaoGeocodingClient kakaoGeocodingClient;
 
     // 매장 정보 등록(create)
     @Transactional
@@ -32,6 +34,7 @@ public class StoreService {
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        KakaoGeocodingClient.GeocodedPoint point = kakaoGeocodingClient.geocode(request.getAddress());
         Store store = Store.builder()
                 .owner(owner)
                 .name(request.getStoreName())
@@ -39,6 +42,8 @@ public class StoreService {
                 .phone(request.getPhone())
                 .isOver5Employees(request.getIsOver5Employees())
                 .qrCode(UUID.randomUUID().toString())
+                .latitude(point.latitude())
+                .longitude(point.longitude())
                 .build();
         Store savedStore = storeRepository.save(store);
 

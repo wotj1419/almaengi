@@ -7,8 +7,11 @@ import static org.mockito.Mockito.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.util.List;
 import java.util.Optional;
 
+import com.almaengi.be.domain.auction.dto.AuctionResponseDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
@@ -387,6 +392,81 @@ class AuctionServiceTest {
                     .save(any(com.almaengi.be.domain.auction.entity.AuctionWinner.class));
             verify(attendanceRepository, times(1)).save(any(com.almaengi.be.domain.attendance.entity.Attendance.class));
             assertThat(bidder.getWillWorkingMinutes()).isEqualTo(240); // 4시간 합산
+        }
+    }
+
+    @Nested
+    @DisplayName("경매 인사이트 리포트(getInsightsReport) 테스트")
+    class InsightsReportTest {
+        @Test
+        @DisplayName("성공: OWNER가 과거 월 리포트를 조회하면 요약/타임라인을 반환한다")
+        void successGetInsightsReport() {
+            // given
+            when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+            when(storeRepository.findByIdAndIsClosedFalse(store.getId())).thenReturn(Optional.of(store));
+
+            AuctionRequestDto.AuctionInsightsQuery req = new AuctionRequestDto.AuctionInsightsQuery();
+            ReflectionTestUtils.setField(req, "yearMonth", YearMonth.now().minusMonths(1).toString());
+            ReflectionTestUtils.setField(req, "page", 0);
+            ReflectionTestUtils.setField(req, "size", 10);
+
+            when(shiftAuctionRepository.countByStoreIdAndCreatedAtBetween(eq(store.getId()), any(), any())).thenReturn(10L);
+            when(shiftAuctionRepository.countByStoreIdAndStatusAndCreatedAtBetween(eq(store.getId()), eq(AuctionStatus.CLOSED), any(), any()))
+                    .thenReturn(7L);
+            when(auctionWinnerRepository.findAverageWinningWage(eq(store.getId()), any(), any()))
+                    .thenReturn(12450.4);
+
+            ShiftAuctionRepository.TimelineProjection row = mock(ShiftAuctionRepository.TimelineProjection.class);
+            when(row.getDayOfWeekValue()).thenReturn(1); // MON (PostgreSQL DOW)
+            when(row.getStartTime()).thenReturn(LocalTime.of(18, 0));
+            when(row.getEndTime()).thenReturn(LocalTime.of(22, 0));
+            when(row.getAuctionCount()).thenReturn(3L);
+
+            when(shiftAuctionRepository.findTimelineReport(eq(store.getId()), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(row), PageRequest.of(0, 10), 1));
+
+            // when
+            AuctionResponseDto.InsightsReport result = auctionService.getInsightsReport(owner.getId(), store.getId(), req);
+
+            // then
+            assertThat(result.getYearMonth()).isEqualTo(req.getYearMonth());
+            assertThat(result.getTotalAuctionCount()).isEqualTo(10L);
+            assertThat(result.getClosedAuctionCount()).isEqualTo(7L);
+            assertThat(result.getSuccessRate()).isEqualByComparingTo("70.0");
+            assertThat(result.getAverageWinningWage()).isEqualTo(12450);
+            assertThat(result.getTimelinePage().getContent()).hasSize(1);
+            assertThat(result.getTimelinePage().getContent().get(0).getDayOfWeek()).isEqualTo("MON");
+            assertThat(result.getTimelinePage().getTotalPages()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("실패: OWNER가 아니면 UNAUTHORIZED_ROLE 예외가 발생한다")
+        void failWhenNotOwner() {
+            // given
+            when(userRepository.findById(alba.getId())).thenReturn(Optional.of(alba));
+            AuctionRequestDto.AuctionInsightsQuery req = new AuctionRequestDto.AuctionInsightsQuery();
+            ReflectionTestUtils.setField(req, "yearMonth", YearMonth.now().minusMonths(1).toString());
+
+            // when & then
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> auctionService.getInsightsReport(alba.getId(), store.getId(), req));
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHORIZED_ROLE);
+        }
+
+        @Test
+        @DisplayName("실패: 이번 달 조회 요청이면 INVALID_REPORT_MONTH 예외가 발생한다")
+        void failWhenCurrentMonthRequested() {
+            // given
+            when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+            when(storeRepository.findByIdAndIsClosedFalse(store.getId())).thenReturn(Optional.of(store));
+
+            AuctionRequestDto.AuctionInsightsQuery req = new AuctionRequestDto.AuctionInsightsQuery();
+            ReflectionTestUtils.setField(req, "yearMonth", YearMonth.now().toString());
+
+            // when & then
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> auctionService.getInsightsReport(owner.getId(), store.getId(), req));
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_REPORT_MONTH);
         }
     }
 }
