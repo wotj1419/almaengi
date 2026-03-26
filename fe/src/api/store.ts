@@ -23,6 +23,13 @@ export async function getMyStores() {
   return data.data;
 }
 
+export async function getMyEmployeeStores() {
+  const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
+    '/api/v1/stores/employees/my'
+  );
+  return data.data;
+}
+
 export async function getMyStoresWithToken(accessToken: string) {
   const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
     '/api/v1/stores',

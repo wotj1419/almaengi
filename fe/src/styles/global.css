@@ -94,6 +94,10 @@
   --color-warning: #f6723f;
   --color-badge-new: #f54c4c;
 
+  /* ── 색상: 알림 (미읽음) ── */
+  --color-notification-unread-bg: #fffbe8;
+  --color-notification-unread-border: #f5e7a1;
+
   /* ── 색상: 승인 가능 배지 ── */
   --color-badge-approvable-bg: #dde8f5;
   --color-badge-approvable-border: #93b8d8;
@@ -156,6 +160,7 @@
   --space-7: 20px;
   --space-8: 24px;
   --space-9: 30px;
+  --space-10: 32px;
   --bottom-safe: 160px;
 
   /* 🎨 테두리 반경 */

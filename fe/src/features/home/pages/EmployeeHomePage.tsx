@@ -9,10 +9,17 @@ import BottomNav from '@/components/layout/BottomNav';
 import EmployeeRevenueCard from '../components/EmployeeRevenueCard';
 import EmployeeWorkStatusCard from '../components/EmployeeWorkStatusCard';
 import ActionGrid from '../components/ActionGrid';
+import AlertBanner from '../components/AlertBanner';
+import useStoreStore from '@/stores/useStoreStore';
+import { getMyEmployeeStores } from '@/api/store';
+import { useChatStore } from '@/stores/useChatStore';
 
 export default function EmployeeHomePage() {
   const navigate = useNavigate();
   const authLogout = useAuthStore((state) => state.logout);
+  const setStores = useStoreStore((s) => s.setStores);
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const fetchRooms = useChatStore((s) => s.fetchRooms);
 
   useEffect(() => {
     const hasToken = Boolean(localStorage.getItem('accessToken'));
@@ -20,6 +27,26 @@ export default function EmployeeHomePage() {
       navigate(ROUTES.LOGIN, { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    getMyEmployeeStores()
+      .then(setStores)
+      .catch(() => {});
+  }, [setStores]);
+
+  useEffect(() => {
+    if (currentStore) fetchRooms(currentStore.storeId);
+  }, [currentStore, fetchRooms]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      authLogout();
+      navigate(ROUTES.LOGIN, { replace: true });
+    } catch {
+      toast.error('로그아웃에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
 
   // 브라우저 뒤로가기 시 로그인 페이지로 이동 (회원가입 페이지로 돌아가는 것 방지)
   useEffect(() => {
@@ -70,14 +97,13 @@ export default function EmployeeHomePage() {
           {/* 헤더 — 직원 홈에서만 로그아웃 아이콘 표시 */}
           <Header
             showLogout
-            onLogout={() => {
-              void handleLogout();
-            }}
+            onLogout={() => { void handleLogout(); }}
           />
 
           {/* 메인 콘텐츠 */}
           <div className="flex flex-col gap-[var(--space-5)] items-center pt-[var(--space-3)] pb-[var(--space-9)] px-[var(--space-5)] relative w-full">
             <EmployeeRevenueCard />
+            <AlertBanner />
             <EmployeeWorkStatusCard />
             <ActionGrid />
           </div>

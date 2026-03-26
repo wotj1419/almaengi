@@ -5,13 +5,14 @@ import DetailHeader from '@/components/layout/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import { recordAttendance } from '@/api/attendance';
 import { ROUTES } from '@/constants/routes';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 type GpsState = 'loading' | 'ready' | 'denied';
 type ScanState = 'idle' | 'processing' | 'success' | 'error';
 
 const QR_ELEMENT_ID = 'qr-reader';
+export const ATTENDANCE_STORAGE_KEY = 'almaengi_attendance';
 
-// 백엔드 ErrorCode와 동일
 const ERROR_MESSAGES: Record<string, string> = {
   A201: '유효하지 않은 QR 코드입니다.',
   A202: '매장 반경 100m 이내에서만 인증 가능합니다.',
@@ -19,23 +20,43 @@ const ERROR_MESSAGES: Record<string, string> = {
   S002: '해당 매장의 직원 정보를 찾을 수 없습니다.',
 };
 
+function getStoredAttendanceStatus(): string {
+  try {
+    const stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+    if (!stored) return 'WAITING';
+    const { status, date } = JSON.parse(stored);
+    if (date !== new Date().toDateString()) return 'WAITING';
+    return status ?? 'WAITING';
+  } catch {
+    return 'WAITING';
+  }
+}
+
 export default function AttendanceCheckPage() {
   const navigate = useNavigate();
+
+  const [headerTitle] = useState(() => {
+    const status = getStoredAttendanceStatus();
+    return ['WORKING', 'LATE'].includes(status) ? '퇴근하기' : '출근하기';
+  });
+  const scanPrompt =
+    headerTitle === '퇴근하기'
+      ? '퇴근 인증 QR을 스캔해주세요.'
+      : '출근 인증 QR을 스캔해주세요.';
 
   const [gpsState, setGpsState] = useState<GpsState>(() =>
     navigator.geolocation ? 'loading' : 'denied'
   );
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [resultMessage, setResultMessage] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
+  const [showOvertimeModal, setShowOvertimeModal] = useState(false);
 
-  // GPS 좌표를 ref로 관리 — QR 스캔 콜백에서 최신값 참조
   const coordsRef = useRef<{ lat: number; lon: number } | null>(null);
   const isProcessingRef = useRef(false);
-
-  // StrictMode 이중 실행 방지 — 컴포넌트 인스턴스 내에서만 유지됨
   const scannerStartedRef = useRef(false);
+  const pendingQrTokenRef = useRef<string | null>(null);
 
-  // GPS 취득
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -50,9 +71,45 @@ export default function AttendanceCheckPage() {
     );
   }, []);
 
-  // QR 스캐너 시작 (마운트 시 1회)
+  const handleClockOutSuccess = (
+    data: { status?: string; clockIn?: string | null } | null
+  ) => {
+    const today = new Date().toDateString();
+    localStorage.setItem(
+      ATTENDANCE_STORAGE_KEY,
+      JSON.stringify({ status: 'DONE', date: today, clockInTime: null })
+    );
+    setResultMessage(
+      data?.status ? '퇴근이 기록되었습니다.' : '인증이 완료되었습니다.'
+    );
+    setScanState('success');
+  };
+
+  const handleOvertimeConfirm = async (confirm: boolean) => {
+    const qrToken = pendingQrTokenRef.current;
+    if (!qrToken) return;
+
+    setShowOvertimeModal(false);
+    setScanState('processing');
+    try {
+      const res = await recordAttendance({
+        qrToken,
+        latitude: coordsRef.current?.lat ?? 0,
+        longitude: coordsRef.current?.lon ?? 0,
+        overtimeConfirm: confirm,
+      });
+      handleClockOutSuccess(res.data);
+    } catch (err: unknown) {
+      const code = (err as { response?: { data?: { status?: string } } })
+        ?.response?.data?.status;
+      setResultMessage(
+        ERROR_MESSAGES[code ?? ''] ?? '인증에 실패했습니다. 다시 시도해주세요.'
+      );
+      setScanState('error');
+    }
+  };
+
   useEffect(() => {
-    // React StrictMode의 두 번째 실행 차단
     if (scannerStartedRef.current) return;
     scannerStartedRef.current = true;
 
@@ -82,8 +139,30 @@ export default function AttendanceCheckPage() {
               latitude: coordsRef.current?.lat ?? 0,
               longitude: coordsRef.current?.lon ?? 0,
             });
-            setResultMessage(res.data?.message ?? '인증이 완료되었습니다.');
-            setScanState('success');
+
+            if (res.data?.overtime && !res.data?.clockOut) {
+              pendingQrTokenRef.current = qrToken;
+              setShowOvertimeModal(true);
+              setScanState('idle');
+              return;
+            }
+
+            const today = new Date().toDateString();
+            if (res.data?.type === 'CLOCK_OUT') {
+              handleClockOutSuccess(res.data);
+            } else {
+              localStorage.setItem(
+                ATTENDANCE_STORAGE_KEY,
+                JSON.stringify({
+                  status: res.data?.status ?? 'WORKING',
+                  date: today,
+                  clockInTime: res.data?.clockIn ?? null,
+                  scheduledEndTime: res.data?.scheduledEndTime ?? null,
+                })
+              );
+              setResultMessage(res.data?.message ?? '인증이 완료되었습니다.');
+              setScanState('success');
+            }
           } catch (err: unknown) {
             const code = (err as { response?: { data?: { status?: string } } })
               ?.response?.data?.status;
@@ -112,27 +191,29 @@ export default function AttendanceCheckPage() {
         /* ignore */
       }
     };
-  }, []);
+  }, [retryKey]);
 
   const handleRetry = () => {
-    navigate(ROUTES.ATTENDANCE_CHECK, { replace: true });
+    isProcessingRef.current = false;
+    scannerStartedRef.current = false;
+    pendingQrTokenRef.current = null;
+    setScanState('idle');
+    setResultMessage('');
+    setRetryKey((k) => k + 1);
   };
 
   return (
     <>
       <div className="flex flex-col min-h-screen bg-[var(--color-bg-base)]">
-        <DetailHeader title="출근하기" />
+        <DetailHeader title={headerTitle} />
 
         <main className="flex-1 flex flex-col items-center justify-center gap-[var(--space-3)] px-[var(--space-5)] pb-[var(--pb-content)]">
           {/* QR 스캐너 + 문구 */}
           {scanState !== 'success' && (
             <>
-              {/* GPS 상태 — QR 바로 위 */}
               <p className="text-[length:var(--text-md)] font-semibold text-[color:var(--color-text-sub)] text-center">
                 {gpsState === 'loading' && 'GPS 위치 가져오는 중...'}
-                {gpsState === 'ready' &&
-                  scanState === 'idle' &&
-                  '출근 인증 QR을 스캔해주세요.'}
+                {gpsState === 'ready' && scanState === 'idle' && scanPrompt}
                 {gpsState === 'denied' && (
                   <span className="text-[color:var(--color-danger)]">
                     위치 접근 권한이 필요합니다. 설정에서 허용해주세요.
@@ -160,7 +241,7 @@ export default function AttendanceCheckPage() {
                 {resultMessage}
               </p>
               <button
-                className="px-8 py-3 bg-[var(--color-primary)] rounded-full font-bold text-[length:var(--text-md)]"
+                className="px-[var(--space-10)] py-[var(--space-4)] bg-[var(--color-primary)] rounded-[var(--radius-lg)] font-bold text-[length:var(--text-md)]"
                 onClick={() => navigate(ROUTES.HOME, { replace: true })}
               >
                 홈으로 돌아가기
@@ -175,7 +256,7 @@ export default function AttendanceCheckPage() {
                 {resultMessage}
               </p>
               <button
-                className="px-8 py-3 bg-[var(--color-primary)] rounded-full font-bold text-[length:var(--text-md)]"
+                className="px-[var(--space-10)] py-[var(--space-4)] bg-[var(--color-primary)] rounded-[var(--radius-lg)] font-bold text-[length:var(--text-md)]"
                 onClick={handleRetry}
               >
                 다시 시도하기
@@ -184,6 +265,17 @@ export default function AttendanceCheckPage() {
           )}
         </main>
       </div>
+
+      <ConfirmModal
+        isOpen={showOvertimeModal}
+        title="예정된 퇴근 시각을 초과했습니다."
+        description="연장근무로 처리할까요?"
+        confirmText="연장근무 확인"
+        cancelText="아니오"
+        onConfirm={() => handleOvertimeConfirm(true)}
+        onClose={() => handleOvertimeConfirm(false)}
+      />
+
       <BottomNav />
     </>
   );

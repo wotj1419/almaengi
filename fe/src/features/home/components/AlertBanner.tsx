@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import useAuthStore from '@/stores/useAuthStore';
 import { useChatStore } from '@/stores/useChatStore';
+import useStoreStore from '@/stores/useStoreStore';
 
 export default function AlertBanner() {
   const navigate = useNavigate();
-  const storeId = useAuthStore((s) => s.activeStoreId);
+  const activeStoreId = useAuthStore((s) => s.activeStoreId);
+  const currentStoreId = useStoreStore((s) => s.currentStore?.storeId ?? null);
+  const storeId = activeStoreId ?? currentStoreId;
   const rooms = useChatStore((s) => s.rooms);
   const createBotRoom = useChatStore((s) => s.createBotRoom);
 
@@ -30,7 +33,7 @@ export default function AlertBanner() {
 
   return (
     <div
-      className="relative z-[var(--z-content)] flex items-center gap-[var(--space-5)] bg-white h-[70px] pl-[var(--space-6)] pr-[var(--space-7)] rounded-[var(--radius-sm)] w-full border border-[var(--color-primary)] shadow-[var(--shadow-alert)] cursor-pointer"
+      className="relative z-[var(--z-content)] flex items-center gap-[var(--space-5)] bg-[var(--color-bg-white)] h-[70px] pl-[var(--space-6)] pr-[var(--space-7)] rounded-[var(--radius-sm)] w-full border border-[var(--color-primary)] shadow-[var(--shadow-alert)] cursor-pointer"
       onClick={() => void handleClick()}
     >
       <Egg
@@ -40,8 +43,8 @@ export default function AlertBanner() {
         strokeWidth={1.5}
         className="shrink-0"
       />
-      <span className="text-[length:var(--text-md)] font-medium text-black">
-        직원 급여 문제, 혼자 고민하지 마세요 ~~ <br />
+      <span className="text-[length:var(--text-md)] font-medium text-[color:var(--color-text-black)]">
+        급여 문제, 혼자 고민하지 마세요 ~~ <br />
         알맹이가 도와드릴게요.
       </span>
     </div>
