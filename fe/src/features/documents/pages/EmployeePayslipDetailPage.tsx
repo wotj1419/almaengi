@@ -6,8 +6,8 @@ import { findEmployeePayslipById } from '@/features/documents/data/mockEmployeeD
 
 const PAGE_TEXT = {
   title: '급여명세서',
-  notFoundTitle: '급여명세서를 찾을 수 없습니다.',
-  notFoundDescription: '문서함 목록에서 다시 선택해주세요.',
+  notFoundTitle: '아직 급여명세서가 나오지 않았습니다.',
+  notFoundDescription: '이번 달 근무를 완료 후 확인 가능합니다.',
   openInNewTab: '새 창으로 열기',
   download: '다운로드',
   preview: 'PDF 미리보기',

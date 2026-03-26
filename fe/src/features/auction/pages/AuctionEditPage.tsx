@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import DatePickerModal from '@/components/common/DateSheet';
 import TimePickerModal from '@/components/common/TimeSheet';
 import BottomNav from '@/components/layout/BottomNav';
-import Header from '@/components/layout/Header';
+import DetailHeader from '@/components/common/DetailHeader';
 import { getApiErrorMessage } from '@/api/error';
 import type { AuctionDto } from '@/api/auction.types';
 import AuctionSettingsCard from '../components/AuctionSettingsCard';
@@ -135,7 +135,9 @@ function AuctionEditForm({
     }
 
     if (!deadline.isBefore(targetStart)) {
-      setFormErrors({ deadline: '경매 마감 시간은 근무 시작 전이어야 합니다.' });
+      setFormErrors({
+        deadline: '경매 마감 시간은 근무 시작 전이어야 합니다.',
+      });
       return;
     }
 
@@ -166,7 +168,7 @@ function AuctionEditForm({
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
-      <Header title="경매 수정" onBack={() => navigate(-1)} auctionStyle />
+      <DetailHeader title="경매 수정" onBack={() => navigate(-1)} />
 
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">
         <WorkInfoCard

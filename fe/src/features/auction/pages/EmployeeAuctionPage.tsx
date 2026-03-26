@@ -5,7 +5,6 @@ import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/layout/DetailHeader';
 import useAuthStore from '@/stores/useAuthStore';
 import AuctionSummaryCard from '../components/AuctionSummaryCard';
-import { mockAuctionDtos } from '../data/mockAuctions';
 import EmployeeAuctionItemCard from '../components/EmployeeAuctionItemCard';
 import { useAuctions } from '../hooks/useAuctionQueries';
 import { toAuctionItem } from '../utils/auctionMapper';
@@ -26,9 +25,12 @@ export default function EmployeeAuctionPage() {
   );
   const [countdownTick, setCountdownTick] = useState(() => Date.now());
 
+  // ─── 경매 데이터 조회 ──────────────────────────────────────────────────────
+  // [변경 사항] Mock 폴백 제거: API 응답을 그대로 사용
+  // - 이전: auctionDtos.length > 0일 때만 사용, 아니면 mockAuctionDtos로 폴백
+  //        → 빈 배열과 mock 데이터 구분 불가, 실제 API 동작 숨김
+  // - 현재: auctionDtos를 직접 사용 → 로딩/에러/빈 상태 명확히 처리
   const { data: auctionDtos = [] } = useAuctions(activeStoreId);
-  const auctionSourceDtos =
-    auctionDtos.length > 0 ? auctionDtos : mockAuctionDtos;
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -37,11 +39,14 @@ export default function EmployeeAuctionPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // ─── 경매 항목 변환 ────────────────────────────────────────────────────────
+  // countdownTick이 1초마다 변해 남은 시간 표시 업데이트
   const auctions = useMemo(() => {
     void countdownTick;
-    return auctionSourceDtos.map(toAuctionItem);
-  }, [auctionSourceDtos, countdownTick]);
+    return auctionDtos.map(toAuctionItem);
+  }, [auctionDtos, countdownTick]);
 
+  // ─── 상태별 필터링 ────────────────────────────────────────────────────────
   const inProgressAuctions = useMemo(
     () => auctions.filter((a) => a.status === 'inProgress'),
     [auctions]
@@ -54,13 +59,15 @@ export default function EmployeeAuctionPage() {
   const filteredAuctions =
     activeTab === 'inProgress' ? inProgressAuctions : completedAuctions;
 
+  // ─── 경매별 낙찰자 맵핑 ────────────────────────────────────────────────────
+  // 알바생이 각 경매의 낙찰자인지 확인하기 위한 맵
   const winnerIdsMap = useMemo(() => {
     const map: Record<number, number[]> = {};
-    auctionSourceDtos.forEach((dto) => {
+    auctionDtos.forEach((dto) => {
       map[dto.auctionId] = dto.winnerIds ?? [];
     });
     return map;
-  }, [auctionSourceDtos]);
+  }, [auctionDtos]);
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">

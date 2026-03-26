@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, ChevronDown, ChevronLeft, Store } from 'lucide-react';
+import { Bell, ChevronDown, ChevronLeft, LogOut, Store } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { useUnreadNotificationCount } from '@/features/notification/hooks/useNotificationQueries';
@@ -12,6 +12,8 @@ interface HeaderProps {
   title?: string;
   onBack?: () => void;
   auctionStyle?: boolean;
+  showLogout?: boolean;
+  onLogout?: () => void;
 }
 
 export default function Header({
@@ -20,6 +22,8 @@ export default function Header({
   title,
   onBack,
   auctionStyle = false,
+  showLogout = false,
+  onLogout,
 }: HeaderProps) {
   const navigate = useNavigate();
   const [isStoreSheetOpen, setIsStoreSheetOpen] = useState(false);
@@ -86,21 +90,38 @@ export default function Header({
                 />
               )}
             </button>
-            <button
-              onClick={() => navigate(ROUTES.NOTIFICATION)}
-              className="relative cursor-pointer"
-            >
-              <Bell
-                size={25}
-                color={auctionStyle ? 'black' : 'white'}
-                strokeWidth={1.95}
-              />
-              {shouldShowNotificationBadge && (
-                <div className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-danger)] text-white text-[10px] font-bold leading-[18px] text-center border border-[var(--color-bg-dark)]">
-                  {unreadLabel}
-                </div>
+
+            {/* ─── 오른쪽 액션 영역: 로그아웃 → 알림 순서 렌더링 ─────────────────────
+                 showLogout prop 전달 시에만 로그아웃 아이콘 표시 (기본값: false)
+                 Owner Home 등 다른 페이지는 showLogout 미전달 → 로그아웃 아이콘 미표시 */}
+            <div className="flex items-center gap-[var(--space-3)]">
+              {/* 로그아웃 버튼 — showLogout === true 일 때만 렌더링 */}
+              {showLogout && (
+                <button onClick={onLogout} className="cursor-pointer">
+                  <LogOut
+                    size={22}
+                    color={auctionStyle ? 'black' : 'white'}
+                    strokeWidth={1.95}
+                  />
+                </button>
               )}
-            </button>
+              {/* 알림 버튼 */}
+              <button
+                onClick={() => navigate(ROUTES.NOTIFICATION)}
+                className="relative cursor-pointer"
+              >
+                <Bell
+                  size={25}
+                  color={auctionStyle ? 'black' : 'white'}
+                  strokeWidth={1.95}
+                />
+                {shouldShowNotificationBadge && (
+                  <div className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-danger)] text-white text-[10px] font-bold leading-[18px] text-center border border-[var(--color-bg-dark)]">
+                    {unreadLabel}
+                  </div>
+                )}
+              </button>
+            </div>
           </>
         )}
       </div>

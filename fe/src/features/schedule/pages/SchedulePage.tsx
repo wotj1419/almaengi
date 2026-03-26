@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlarmClock,
   ChevronRight,
@@ -247,6 +248,7 @@ function ScheduleEmployeeList({
 // 스케줄 관리 메인 페이지
 // 흐름: 달력에서 날짜 선택 → 직원 목록 → 직원 클릭 → 액션시트 → 모달(시간변경/직원변경/삭제) → state 갱신
 export default function SchedulePage() {
+  const navigate = useNavigate();
   // --- 날짜·달력 상태 ---
   const [selectedDate, setSelectedDate] = useState(DEFAULT_SELECTED_DATE);
   const [isMonthExpanded, setIsMonthExpanded] = useState(false); // 달력이 월간으로 확장되어 있는지
@@ -556,6 +558,7 @@ export default function SchedulePage() {
           onHandlePointerUp={handlePointerUp}
           onHandlePointerCancel={handlePointerCancel}
           onHandleKeyDown={handleHandleKeyDown}
+          onBack={() => navigate(-1)}
         />
 
         <main

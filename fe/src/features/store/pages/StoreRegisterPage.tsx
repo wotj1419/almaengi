@@ -70,8 +70,6 @@ export default function StoreRegisterPage() {
   const [isOver5Employees, setIsOver5Employees] = useState(
     currentStore?.isOver5Employees ?? false
   );
-  const [storeNameError, setStoreNameError] = useState('');
-  const [addressError, setAddressError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const midRef = useRef<HTMLInputElement>(null);
@@ -85,7 +83,6 @@ export default function StoreRegisterPage() {
         oncomplete: (data: any) => {
           const fullAddress = data.roadAddress || data.jibunAddress;
           setAddress(fullAddress);
-          if (addressError) setAddressError('');
         },
       }).open();
     };
@@ -115,46 +112,52 @@ export default function StoreRegisterPage() {
     if (digits.length === 4) lastRef.current?.focus();
   };
 
+  // ─── 매장 등록/수정 핸들러 ────────────────────────────────────────────────────
+  // [변경 사항]
+  // 1. required 검증 추가 - storeName, address 빈 값 차단
+  // 2. 토스트 기반 에러 처리 - 상태 기반 에러 UI 제거
+  // 3. API 응답값 우선 사용 - 로컬 폼값 대신 서버 응답값(storeName, address) 사용
   const handleRegister = async () => {
     if (isSubmitting) return;
 
-    const trimmedName = storeName.trim();
-    const trimmedAddress = address.trim();
-    let hasError = false;
-
-    if (!trimmedName) {
-      setStoreNameError('매장명을 입력해 주세요.');
-      hasError = true;
-    } else {
-      setStoreNameError('');
+    // ───────────────────────────────────────────────────────────────────
+    // Required 검증 (빈 입력 차단)
+    // ───────────────────────────────────────────────────────────────────
+    // [변경 이유] 기존: 빈 값이면 자동 채우기로 API 호출
+    //                 → 아무것도 입력 안 하면 가짜 매장 데이터가 API에 등록됨
+    //            변경: 빈 값 제출 차단 → 토스트 안내 → API 미호출
+    if (!storeName.trim()) {
+      toast.error('매장명을 입력해 주세요.');
+      return;
     }
-
-    if (!trimmedAddress) {
-      setAddressError('매장 주소를 입력해 주세요.');
-      hasError = true;
-    } else {
-      setAddressError('');
+    if (!address.trim()) {
+      toast.error('매장 주소를 입력해 주세요.');
+      return;
     }
-
-    if (hasError) return;
 
     setIsSubmitting(true);
+
+    // ───────────────────────────────────────────────────────────────────
+    // API 호출 및 상태 업데이트
+    // ───────────────────────────────────────────────────────────────────
+    // [변경] API 응답값을 source of truth로 사용
+    //        로컬 폼값이 아닌 서버 응답값(storeName, address)을 저장
     const resolvedPhone =
       phoneMid && phoneLast ? `${phonePrefix}-${phoneMid}-${phoneLast}` : null;
 
     try {
       if (isEditMode && currentStore) {
         const updatedStore = await updateStore(currentStore.storeId, {
-          storeName: trimmedName,
-          address: trimmedAddress,
+          storeName: storeName.trim(),
+          address: address.trim(),
           phone: resolvedPhone,
           isOver5Employees,
         });
         setStores([updatedStore]);
       } else {
         const createdStore = await createStore({
-          storeName: trimmedName,
-          address: trimmedAddress,
+          storeName: storeName.trim(),
+          address: address.trim(),
           phone: resolvedPhone,
           isOver5Employees,
         });
@@ -191,18 +194,10 @@ export default function StoreRegisterPage() {
               <input
                 type="text"
                 value={storeName}
-                onChange={(e) => {
-                  setStoreName(e.target.value);
-                  if (storeNameError) setStoreNameError('');
-                }}
+                onChange={(e) => setStoreName(e.target.value)}
                 placeholder="예: 알바천국 카페 강남점"
-                className={`${INPUT_BASE_CLASS} ${storeNameError ? 'border-red-400' : ''}`}
+                className={INPUT_BASE_CLASS}
               />
-              {storeNameError && (
-                <span className="mt-1 text-[length:var(--text-sm)] text-red-500">
-                  {storeNameError}
-                </span>
-              )}
             </div>
 
             <div className="flex flex-col">
@@ -220,7 +215,7 @@ export default function StoreRegisterPage() {
                   readOnly
                   onClick={openAddressSearch}
                   placeholder="주소 검색"
-                  className={`${INPUT_BASE_CLASS} pl-12 cursor-pointer ${addressError ? 'border-red-400' : ''}`}
+                  className={`${INPUT_BASE_CLASS} pl-12 cursor-pointer`}
                 />
               </div>
 
@@ -232,11 +227,6 @@ export default function StoreRegisterPage() {
                   </span>
                 </div>
               </div>
-              {addressError && (
-                <span className="mt-1 text-[length:var(--text-sm)] text-red-500">
-                  {addressError}
-                </span>
-              )}
             </div>
 
             <div className="flex flex-col mt-[var(--space-4)]">
