@@ -145,6 +145,7 @@ public class AttendanceService {
                 .clockOut(null)
                 .status(attendance.getStatus())
                 .overtime(attendance.getOvertime())
+                .scheduledEndTime(attendance.getScheduledEndTime())
                 .message("출근이 기록되었습니다.")
                 .build();
     }
@@ -279,6 +280,7 @@ public class AttendanceService {
                     .clockOut(null)
                     .status(attendance.getStatus())
                     .overtime(true)
+                    .scheduledEndTime(attendance.getScheduledEndTime())
                     .message("연장근무 확인이 필요합니다.")
                     .build();
         }
@@ -303,6 +305,7 @@ public class AttendanceService {
                 .clockOut(attendance.getClockOut())
                 .status(attendance.getStatus())
                 .overtime(attendance.getOvertime())
+                .scheduledEndTime(attendance.getScheduledEndTime())
                 .message("퇴근이 기록되었습니다.")
                 .build();
     }

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -114,5 +115,19 @@ public interface PayrollControllerDocs {
             @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
             @Parameter(description = "대상 월 (yyyy-MM)", example = "2026-03")
             @RequestParam String targetMonth
+    );
+
+    @Operation(summary = "급여명세서 PDF 미리보기/다운로드", description = "특정 급여의 명세서 PDF를 조회합니다. 기본은 미리보기(inline), download=true 시 다운로드(attachment). 매장 사장님 또는 해당 알바생 본인만 가능합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "PDF 파일 반환"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "P002: 해당 급여 정산 내역을 찾을 수 없습니다.<br>PS001: 급여명세서 파일이 존재하지 않습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "P006: 해당 급여를 조회할 권한이 없습니다.")
+    })
+    ResponseEntity<byte[]> downloadPayslip(
+            @Parameter(hidden = true) @AuthUser Long userId,
+            @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
+            @Parameter(description = "급여 ID", example = "1") @PathVariable Long payrollId,
+            @Parameter(description = "true: 다운로드, false: 미리보기 (기본값)", example = "false")
+            @RequestParam(defaultValue = "false") boolean download
     );
 }

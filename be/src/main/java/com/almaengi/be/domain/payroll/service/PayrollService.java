@@ -28,7 +28,6 @@ import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 급여 생성 및 일괄 오케스트레이션을 담당하는 서비스입니다.
@@ -70,19 +69,10 @@ public class PayrollService {
         List<StoreEmployee> employees = storeEmployeeRepository
                 .findAllByStoreIdAndStatus(storeId, StoreEmployeeStatus.WORKING);
 
-        // 한 번의 배치 쿼리로 이미 생성된 직원 ID 조회 (N개 exists 쿼리 방지)
-        Set<Long> existingIds = payrollRepository
-                .findEmployeeIdsByStoreIdAndTargetMonth(storeId, normalizedMonth);
-
         List<Payroll> successList = new ArrayList<>();
         List<FailedEmployee> failedList = new ArrayList<>();
 
         for (StoreEmployee employee : employees) {
-            if (existingIds.contains(employee.getId())) {
-                log.info("급여 이미 존재 - skip. employeeId: {}", employee.getId());
-                continue;
-            }
-
             try {
                 // 프록시를 통해 호출해야 REQUIRES_NEW 트랜잭션이 적용됨
                 Payroll payroll = selfProvider.getObject().generatePayroll(employee.getId(), targetMonth);
@@ -115,10 +105,16 @@ public class PayrollService {
         // 1. 월 1일로 정규화
         LocalDate normalizedMonth = targetMonth.withDayOfMonth(1);
 
-        // 2. 데이터 정합성 보장: 단독 호출 시에도 중복 생성을 방지하는 안전장치
-        if (payrollRepository.existsByEmployeeIdAndTargetMonth(employeeId, normalizedMonth)) {
-            throw new BusinessException(ErrorCode.PAYROLL_ALREADY_EXISTS);
-        }
+        // 2. 기존 급여가 있으면 재생성 (이체 완료 건은 제외)
+        payrollRepository.findByEmployeeIdAndTargetMonth(employeeId, normalizedMonth)
+                .ifPresent(existing -> {
+                    if (existing.getIsTransferred()) {
+                        throw new BusinessException(ErrorCode.PAYROLL_ALREADY_TRANSFERRED);
+                    }
+                    payrollDetailRepository.deleteAllByPayrollId(existing.getId());
+                    payrollRepository.delete(existing);
+                    payrollRepository.flush();
+                });
 
         // 3. 직원 & 매장 정보 조회
         StoreEmployee employee = storeEmployeeRepository.findById(employeeId)

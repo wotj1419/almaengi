@@ -1,6 +1,8 @@
 package com.almaengi.be.domain.payroll.service;
 
 import com.almaengi.be.domain.finance.service.SsafyFinanceService;
+import com.almaengi.be.domain.notification.service.NotificationService;
+import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.payroll.entity.Payroll;
 import com.almaengi.be.domain.payroll.repository.PayrollRepository;
 import com.almaengi.be.domain.store.entity.Store;
@@ -11,17 +13,19 @@ import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.auth.type.LoginType;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,18 +36,29 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PayrollTransferServiceTest {
 
-    @InjectMocks
     private PayrollTransferService payrollTransferService;
 
     @Mock
     private PayrollRepository payrollRepository;
     @Mock
     private SsafyFinanceService ssafyFinanceService;
+    @Mock
+    private NotificationService notificationService;
+    @Mock
+    private ObjectProvider<PayrollTransferService> selfProvider;
 
     private static final LocalDate TARGET_MONTH = LocalDate.of(2026, 2, 1);
     private static final String OWNER_USER_KEY = "owner-user-key-123";
     private static final String OWNER_ACCOUNT = "0011234567890";
     private static final String EMPLOYEE_ACCOUNT = "0019876543210";
+
+    @BeforeEach
+    void setUp() {
+        payrollTransferService = new PayrollTransferService(
+                payrollRepository, ssafyFinanceService, notificationService, selfProvider);
+        // selfProvider.getObject() → 자기 자신 반환 (단위 테스트에서는 프록시 없이 직접 호출)
+        lenient().when(selfProvider.getObject()).thenReturn(payrollTransferService);
+    }
 
     private User createOwner() {
         User owner = User.builder()
@@ -105,6 +120,7 @@ class PayrollTransferServiceTest {
                 .totalDeduction(0L)
                 .netPay(netPay)
                 .build();
+        ReflectionTestUtils.setField(payroll, "id", 100L);
         payroll.approve();
         return payroll;
     }
@@ -129,6 +145,7 @@ class PayrollTransferServiceTest {
                     .willReturn(OWNER_USER_KEY);
             given(ssafyFinanceService.inquireBalance(OWNER_USER_KEY, OWNER_ACCOUNT))
                     .willReturn(1000000L);
+            given(payrollRepository.findById(100L)).willReturn(Optional.of(payroll));
 
             // when
             payrollTransferService.transferStorePayroll(store, TARGET_MONTH);
@@ -137,13 +154,12 @@ class PayrollTransferServiceTest {
             assertThat(payroll.getIsTransferred()).isTrue();
             assertThat(payroll.getTransferredAt()).isNotNull();
             verify(ssafyFinanceService).transferDemandDeposit(
-                    eq(OWNER_USER_KEY),
-                    eq(OWNER_ACCOUNT),
-                    eq(EMPLOYEE_ACCOUNT),
-                    eq(500000L),
-                    eq("알바생 2월 급여"),
-                    eq("알맹이카페 2월 급여")
-            );
+                    eq(OWNER_USER_KEY), eq(OWNER_ACCOUNT), eq(EMPLOYEE_ACCOUNT),
+                    eq(500000L), eq("알바생 2월 급여"), eq("알맹이카페 2월 급여"));
+
+            // 알바생 이체 알림 + 사장님 완료 알림
+            verify(notificationService, times(2)).sendNotification(
+                    any(User.class), eq(NotificationType.SALARY), anyString(), anyString(), any());
         }
 
         @Test
@@ -161,7 +177,7 @@ class PayrollTransferServiceTest {
 
             // then
             verify(ssafyFinanceService, never()).searchMemberKey(any());
-            verify(ssafyFinanceService, never()).transferDemandDeposit(any(), any(), any(), anyLong(), any(), any());
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -183,7 +199,7 @@ class PayrollTransferServiceTest {
 
             // then
             verify(ssafyFinanceService, never()).searchMemberKey(any());
-            verify(ssafyFinanceService, never()).transferDemandDeposit(any(), any(), any(), anyLong(), any(), any());
+            verify(notificationService, never()).sendNotification(any(), any(), any(), any(), any());
         }
 
         @Test
@@ -201,7 +217,7 @@ class PayrollTransferServiceTest {
             given(ssafyFinanceService.searchMemberKey("owner@test.com"))
                     .willReturn(OWNER_USER_KEY);
             given(ssafyFinanceService.inquireBalance(OWNER_USER_KEY, OWNER_ACCOUNT))
-                    .willReturn(100000L); // 잔액 부족
+                    .willReturn(100000L);
 
             // when & then
             assertThatThrownBy(() -> payrollTransferService.transferStorePayroll(store, TARGET_MONTH))
@@ -214,7 +230,7 @@ class PayrollTransferServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 금융망 이체 API 오류 → TRANSFER_FAILED")
+        @DisplayName("실패: 금융망 이체 API 오류 → TRANSFER_FAILED + 사장님 실패 알림")
         void fail_transferApiError() {
             // given
             User owner = createOwner();
@@ -239,10 +255,15 @@ class PayrollTransferServiceTest {
                     .isEqualTo(ErrorCode.TRANSFER_FAILED);
 
             assertThat(payroll.getIsTransferred()).isFalse();
+
+            // 사장님에게 실패 알림 발송됨
+            verify(notificationService).sendNotification(
+                    eq(owner), eq(NotificationType.SALARY),
+                    eq("급여 이체 일부 실패"), anyString(), eq(1L));
         }
 
         @Test
-        @DisplayName("성공: 여러 직원 급여 일괄 이체")
+        @DisplayName("성공: 여러 직원 급여 일괄 이체 + 알림")
         void success_multipleEmployees() {
             // given
             User owner = createOwner();
@@ -252,6 +273,7 @@ class PayrollTransferServiceTest {
             ReflectionTestUtils.setField(empUser1, "name", "알바생A");
             StoreEmployee emp1 = createStoreEmployee(store, empUser1);
             Payroll payroll1 = createApprovedPayroll(emp1, 300000L);
+            ReflectionTestUtils.setField(payroll1, "id", 101L);
 
             User empUser2 = User.builder()
                     .loginType(LoginType.LOCAL)
@@ -263,13 +285,16 @@ class PayrollTransferServiceTest {
             StoreEmployee emp2 = createStoreEmployee(store, empUser2);
             ReflectionTestUtils.setField(emp2, "id", 11L);
             Payroll payroll2 = createApprovedPayroll(emp2, 200000L);
+            ReflectionTestUtils.setField(payroll2, "id", 102L);
 
             given(payrollRepository.findApprovedByStoreIdAndTargetMonth(1L, TARGET_MONTH))
                     .willReturn(List.of(payroll1, payroll2));
             given(ssafyFinanceService.searchMemberKey("owner@test.com"))
                     .willReturn(OWNER_USER_KEY);
             given(ssafyFinanceService.inquireBalance(OWNER_USER_KEY, OWNER_ACCOUNT))
-                    .willReturn(1000000L); // 잔액 충분 (300000 + 200000 = 500000)
+                    .willReturn(1000000L);
+            given(payrollRepository.findById(101L)).willReturn(Optional.of(payroll1));
+            given(payrollRepository.findById(102L)).willReturn(Optional.of(payroll2));
 
             // when
             payrollTransferService.transferStorePayroll(store, TARGET_MONTH);
@@ -279,6 +304,10 @@ class PayrollTransferServiceTest {
             assertThat(payroll2.getIsTransferred()).isTrue();
             verify(ssafyFinanceService, times(2))
                     .transferDemandDeposit(any(), any(), any(), anyLong(), any(), any());
+
+            // 알바생 2건 + 사장님 완료 1건 = 총 3건
+            verify(notificationService, times(3)).sendNotification(
+                    any(User.class), eq(NotificationType.SALARY), anyString(), anyString(), any());
         }
     }
 }

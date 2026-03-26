@@ -64,6 +64,8 @@ app:
     national-pension-max: 6170000
     health-insurance-min: 279300
     health-insurance-max: 119625000
+  payslip:
+    storage-path: /home/ubuntu/documents
   chat:
     bot-user-id: 999
     rag-api-base-url: http://localhost:8000

@@ -27,4 +27,10 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
      * 특정 매장의 특정 상태 직원 목록 조회 (급여 일괄 생성용)
      */
     List<StoreEmployee> findAllByStoreIdAndStatus(Long storeId, StoreEmployeeStatus status);
+
+    /**
+     * 특정 매장의 특정 상태 직원 목록을 User와 함께 조회합니다 (알림 발송용).
+     */
+    @Query("SELECT se FROM StoreEmployee se JOIN FETCH se.user WHERE se.store.id = :storeId AND se.status = :status")
+    List<StoreEmployee> findAllByStoreIdAndStatusWithUser(@Param("storeId") Long storeId, @Param("status") StoreEmployeeStatus status);
 }

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * 출퇴근 API 응답 DTO입니다.
@@ -22,5 +23,6 @@ public class AttendanceResponseDto {
     private LocalDateTime clockOut;
     private AttendanceStatus status; // WORKING, LATE 등
     private Boolean overtime;        // 연장근무 여부
+    private LocalTime scheduledEndTime; // 예정 퇴근 시각
     private String message;
 }
