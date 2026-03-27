@@ -1,11 +1,16 @@
-import type { ContractStatus } from '@/features/documents/data/mockContracts';
-import { getContractStatusLabel } from '@/features/documents/data/mockContracts';
+import type { UIContractStatus } from '@/api/contract';
 
 interface ContractStatusBadgeProps {
-  status: ContractStatus;
+  status: UIContractStatus;
 }
 
-const STATUS_CLASS: Record<ContractStatus, string> = {
+const STATUS_LABEL: Record<UIContractStatus, string> = {
+  REQUESTING: '요청중',
+  PENDING_APPROVAL: '승인 대기',
+  APPROVED: '승인 완료',
+};
+
+const STATUS_CLASS: Record<UIContractStatus, string> = {
   REQUESTING:
     'bg-[var(--color-status-orange-bg)] text-[var(--color-status-orange-dot)] border-[var(--color-status-orange-border)]',
   PENDING_APPROVAL:
@@ -21,7 +26,7 @@ export default function ContractStatusBadge({
     <span
       className={`inline-flex h-7 items-center rounded-full border px-[var(--space-3)] text-[length:var(--text-xs)] font-bold ${STATUS_CLASS[status]}`.trim()}
     >
-      {getContractStatusLabel(status)}
+      {STATUS_LABEL[status]}
     </span>
   );
 }

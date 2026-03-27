@@ -1,6 +1,13 @@
 ﻿import { CalendarDays, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  getContracts,
+  mapContractStatus,
+  type UIContractStatus,
+} from '@/api/contract';
+import { getApiErrorMessage } from '@/api/error';
 import { ROUTES } from '@/constants/routes';
 import ContractStatusBadge from '@/features/documents/components/ContractStatusBadge';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
@@ -13,11 +20,6 @@ import {
   type EtcDocumentRequestRecord,
 } from '@/features/documents/data/mockDocumentRequests';
 import {
-  listContractRecords,
-  subscribeContractRecords,
-  type ContractRecord,
-} from '@/features/documents/data/mockContracts';
-import {
   DOCUMENT_TAB_OPTIONS,
   OTHER_DOCUMENTS,
   PAYSLIP_DOCUMENTS,
@@ -25,6 +27,15 @@ import {
   groupPayslipsByMonth,
   type DocumentCategory,
 } from '@/features/documents/data/mockDocuments';
+import useStoreStore from '@/stores/useStoreStore';
+
+// API 기반 ContractRecord 타입
+export interface ContractRecord {
+  id: number;
+  title: string;
+  status: UIContractStatus;
+  createdAt: string;
+}
 
 const PAGE_TEXT = {
   title: '내 문서',
@@ -133,15 +144,14 @@ function EtcDocumentCard({
 export default function MyDocumentsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const currentStore = useStoreStore((s) => s.currentStore);
 
   const [selectedTab, setSelectedTab] = useState<DocumentCategory>(() =>
     getInitialTab(searchParams.get('tab'))
   );
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
 
-  const [contractRecords, setContractRecords] = useState<ContractRecord[]>(() =>
-    listContractRecords()
-  );
+  const [contractRecords, setContractRecords] = useState<ContractRecord[]>([]);
   const [etcRequestRecords, setEtcRequestRecords] = useState<
     EtcDocumentRequestRecord[]
   >(() => listEtcDocumentRequests());
@@ -159,11 +169,28 @@ export default function MyDocumentsPage() {
     setSelectedTab(getInitialTab(searchParams.get('tab')));
   }, [searchParams]);
 
+  // API에서 근로계약서 목록 조회
   useEffect(() => {
-    return subscribeContractRecords(() => {
-      setContractRecords(listContractRecords());
-    });
-  }, []);
+    const fetchContracts = async () => {
+      if (!currentStore) return;
+      try {
+        const contracts = await getContracts(currentStore.storeId);
+        const records = contracts.map((contract) => ({
+          id: contract.contractId,
+          title: `${contract.employeeName} 근로계약서`,
+          status: mapContractStatus(contract.status),
+          createdAt: contract.createdAt,
+        }));
+        setContractRecords(records);
+      } catch (error) {
+        toast.error(
+          getApiErrorMessage(error, '근로계약서 목록 조회에 실패했습니다.')
+        );
+      }
+    };
+
+    void fetchContracts();
+  }, [currentStore]);
 
   useEffect(() => {
     return subscribeEtcDocumentRequests(() => {

@@ -22,6 +22,8 @@
   STORE: '/store',
   // 매장 등록 진입 경로를 별도로 분리해 여러 화면에서 공통 사용한다.
   STORE_REGISTER: '/store/register',
+  // 직원 매장 합류 페이지 - 초대 코드를 입력해 새 매장에 합류
+  STORE_JOIN: '/store/join',
   STORE_QR: '/store/qr',
   STORE_COMMUNITY: '/store/community',
   STORE_CHAT_NEW: '/store/community/chat/new',
