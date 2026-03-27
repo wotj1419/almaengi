@@ -92,15 +92,24 @@ export default function AuctionPage() {
     () => auctions.filter((auction) => auction.status === 'inProgress'),
     [auctions]
   );
-  const completedAuctions = useMemo(
-    () =>
-      auctions.filter(
-        (auction) =>
-          auction.status === 'completed' &&
-          !hiddenCompletedAuctionIdSet.has(auction.id)
-      ),
-    [auctions, hiddenCompletedAuctionIdSet]
-  );
+  const completedAuctions = useMemo(() => {
+    const filtered = auctions.filter(
+      (auction) =>
+        auction.status === 'completed' &&
+        !hiddenCompletedAuctionIdSet.has(auction.id)
+    );
+
+    // Split into expired (unawarded) and normal groups
+    const expired = filtered.filter(
+      (auction) => auction.displayStatus === 'expired'
+    );
+    const normal = filtered.filter(
+      (auction) => auction.displayStatus !== 'expired'
+    );
+
+    // Return expired first, then normal
+    return [...expired, ...normal];
+  }, [auctions, hiddenCompletedAuctionIdSet]);
 
   const filteredAuctions =
     activeTab === 'inProgress' ? inProgressAuctions : completedAuctions;
@@ -117,15 +126,6 @@ export default function AuctionPage() {
 
   const handleDeleteCompleted = (auctionId: number) => {
     hideCompletedAuction(auctionId);
-
-    deleteMutation.mutate(auctionId, {
-      onSuccess: () => {
-        toast.success('경매가 삭제되었습니다.');
-      },
-      onError: () => {
-        // 종료 경매는 백엔드에서 삭제가 막혀도 UI에서는 숨김을 유지합니다.
-      },
-    });
   };
 
   const handleConfirmStop = () => {

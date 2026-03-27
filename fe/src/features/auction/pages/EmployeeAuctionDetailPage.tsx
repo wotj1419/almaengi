@@ -70,7 +70,7 @@ export default function EmployeeAuctionDetailPage() {
   };
 
   const handleInputChange = (value: string) => {
-    const numericValue = value.replace(/[^0-9]/g, '');
+    const numericValue = value.replace(/[^0-9]/g, '').slice(0, 5);
     setBidWageInput(numericValue);
     setError(
       getValidationError(numericValue, {
@@ -209,8 +209,9 @@ export default function EmployeeAuctionDetailPage() {
             </label>
             <div className="flex items-center gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-3)] bg-[var(--color-input-bg)] border border-[var(--color-input-border)] rounded-[var(--radius-md)] focus-within:border-[var(--color-primary)] focus-within:ring-1 focus-within:ring-[var(--color-primary)] transition-all">
               <input
-                type="number"
+                type="text"
                 inputMode="numeric"
+                maxLength={5}
                 value={bidWageInput}
                 onChange={(e) => handleInputChange(e.target.value)}
                 placeholder="시급 입력"

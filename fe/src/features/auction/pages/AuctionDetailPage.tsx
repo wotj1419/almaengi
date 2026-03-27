@@ -190,8 +190,8 @@ export default function AuctionDetailPage() {
         {hasBidders && bidders && (
           <>
             <BidderGroup
-              title="우선 배정 유지"
-              description="이번 낙찰 후 우선 배정에 영향이 적은 직원"
+              title="기존에도 주휴수당 발생"
+              description="이미 주휴수당 조건을 만족한 직원"
               bidders={bidders.group1}
               borderColor="border-[var(--color-status-orange-dot)]"
               rankColor="text-[var(--color-status-orange-dot)]"
@@ -199,8 +199,8 @@ export default function AuctionDetailPage() {
               onToggle={toggleBidder}
             />
             <BidderGroup
-              title="우선 배정 변동 가능"
-              description="이번 낙찰 시 우선 배정이 바뀔 수 있는 직원"
+              title="주휴수당 발생 가능"
+              description="이번 낙찰 시 주휴수당 발생 직원"
               bidders={bidders.group2}
               borderColor="border-[var(--color-action-schedule)]"
               rankColor="text-[var(--color-action-schedule)]"
@@ -208,8 +208,8 @@ export default function AuctionDetailPage() {
               onToggle={toggleBidder}
             />
             <BidderGroup
-              title="우선 배정 제외 가능"
-              description="이번 낙찰 시 우선 배정 대상에서 제외될 수 있는 직원"
+              title="주휴수당 미발생"
+              description="이번 낙찰 시 주휴수당 미발생 직원"
               bidders={bidders.group3}
               borderColor="border-[var(--color-primary)]"
               rankColor="text-[var(--color-primary)]"

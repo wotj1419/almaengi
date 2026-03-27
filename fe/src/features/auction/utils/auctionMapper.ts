@@ -14,7 +14,6 @@ export function toAuctionItem(dto: AuctionDto): AuctionItem {
 
   const deadline = dayjs(dto.deadline);
   const now = dayjs();
-  const isExpired = dto.status === 'IN_PROGRESS' && !deadline.isAfter(now);
 
   if (dto.status === 'CLOSED') {
     return {
@@ -55,6 +54,8 @@ export function toAuctionItem(dto: AuctionDto): AuctionItem {
       primaryActionLabel: '경매 상세 보기',
     };
   }
+
+  const isExpired = dto.status === 'IN_PROGRESS' && !deadline.isAfter(now);
 
   if (isExpired) {
     return {
