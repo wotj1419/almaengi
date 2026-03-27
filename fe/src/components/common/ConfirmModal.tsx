@@ -42,7 +42,7 @@ export default function ConfirmModal({
           </button>
         )}
         <div className="flex flex-col items-center gap-[var(--space-1)] pt-[var(--space-8)] pb-[var(--space-6)]">
-          <span className="text-[length:var(--text-lg)] font-bold text-[color:var(--color-text-primary)]">
+          <span className="whitespace-pre-line text-center text-[length:var(--text-lg)] font-bold text-[color:var(--color-text-primary)]">
             {primaryText}
           </span>
           {secondaryText && (
