@@ -68,7 +68,7 @@ app:
     storage-path: /home/ubuntu/documents
   chat:
     bot-user-id: 999
-    rag-api-base-url: http://localhost:8000
+    rag-api-base-url: http://172.26.15.78:8000
 
 jwt:
   access-token-expiry: 1800000      # 30분

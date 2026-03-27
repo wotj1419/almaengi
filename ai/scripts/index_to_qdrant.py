@@ -7,6 +7,8 @@
 import json
 import time
 from pathlib import Path
+from app.config import get_settings
+import os
 
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
@@ -20,7 +22,8 @@ from qdrant_client.models import (
 )
 
 CHUNKS_FILE = Path(__file__).parent.parent / "data" / "chunks" / "law_chunks.json"
-QDRANT_URL = "http://localhost:6333"
+settings = get_settings()
+QDRANT_URL = settings.qdrant_url
 COLLECTION_NAME = "labor_law"
 VECTOR_SIZE = 1024  # BGE-m3 Dense 벡터 차원
 EMBED_BATCH_SIZE = 32
