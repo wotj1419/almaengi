@@ -19,6 +19,7 @@ import {
   createEtcDocumentRequest,
   type EtcDocumentRequestRecord,
 } from '@/features/documents/data/mockDocumentRequests';
+import useStoreStore from '@/stores/useStoreStore';
 
 type EtcRequestForm = {
   employeeName: string;
@@ -76,12 +77,19 @@ function hasRequiredValues(form: EtcRequestForm) {
 
 export default function EtcDocumentRequestPage() {
   const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
   const [form, setForm] = useState<EtcRequestForm>(INITIAL_FORM);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
+    null
+  );
 
-  const canSubmit = useMemo(() => hasRequiredValues(form), [form]);
+  const canSubmit = useMemo(
+    () => hasRequiredValues(form) && selectedEmployeeId !== null,
+    [form, selectedEmployeeId]
+  );
 
   const patchForm = <K extends keyof EtcRequestForm>(
     key: K,
@@ -97,7 +105,7 @@ export default function EtcDocumentRequestPage() {
   };
 
   const handleSubmit = () => {
-    if (!canSubmit) {
+    if (!canSubmit || !currentStore) {
       toast.error(PAGE_TEXT.requiredError);
       return;
     }
@@ -197,9 +205,14 @@ export default function EtcDocumentRequestPage() {
 
         <DocumentEmployeeSearchModal
           isOpen={isEmployeeModalOpen}
+          storeId={currentStore?.storeId || 0}
+          selectedEmployeeId={selectedEmployeeId}
           selectedEmployeeName={form.employeeName}
           onClose={() => setIsEmployeeModalOpen(false)}
-          onApply={(name) => patchForm('employeeName', name)}
+          onApply={({ employeeId, employeeName }) => {
+            setSelectedEmployeeId(employeeId);
+            patchForm('employeeName', employeeName);
+          }}
         />
       </div>
     </DocumentsPageLayout>

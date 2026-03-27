@@ -1,36 +1,98 @@
-import { TrendingDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import imgCharacter from '@/assets/images/character.png';
+import useStoreStore from '@/stores/useStoreStore';
+import { fetchMyPayroll } from '@/api/payroll';
+import type { MyPayrollData } from '@/features/payroll/types';
 
 export default function EmployeeRevenueCard() {
+  const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const [payroll, setPayroll] = useState<MyPayrollData | null>(null);
+
+  useEffect(() => {
+    if (!currentStore) return;
+    fetchMyPayroll(currentStore.storeId)
+      .then(setPayroll)
+      .catch(() => {});
+  }, [currentStore]);
+
+  const targetMonth = payroll
+    ? (() => {
+        const [year, month] = payroll.targetMonth.split('-');
+        return `${String(year).slice(2)}년 ${String(Number(month))}월 예상 급여`;
+      })()
+    : '';
+
+  const totalAmount = payroll ? payroll.netPay.toLocaleString() : '-';
+
+  // D-Day 계산 (하드코딩: 급여일 25일)
+  const PAY_DAY = 25;
+  const today = new Date();
+  const thisMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    PAY_DAY
+  );
+  const nextMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    PAY_DAY
+  );
+  const payDate =
+    today <= thisMonthPayDate ? thisMonthPayDate : nextMonthPayDate;
+  const dDay = Math.ceil(
+    (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const dDayLabel = dDay === 0 ? '오늘 월급날!' : `월급날까지 D-${dDay}`;
+
   return (
     <div className="relative w-full h-[190px] rounded-[var(--radius-lg)] bg-[var(--color-bg-dark)] shadow-[var(--shadow-card)]">
       {/* 콘텐츠 영역만 overflow-hidden - 캐릭터는 카드 밖으로 튀어나옴 */}
       <div className="flex flex-col px-[var(--space-3)] h-full overflow-hidden rounded-[inherit]">
-        {/* 섹션 1: 날짜 + 금액 */}
-        {/* 백엔드 연동 시 교체:
-            날짜: dayjs(backendDate).format('YY년 M월')
-            금액: netPay.toLocaleString() */}
-        <div className="flex flex-col gap-[var(--space-1)]">
+        {/* 섹션 1: 날짜 + 금액 (클릭 시 급여 탭 이동) */}
+        <div
+          className="flex flex-col gap-[var(--space-1)] cursor-pointer"
+          onClick={() => navigate(ROUTES.PAYROLL)}
+        >
           <p className="text-[color:var(--color-text-placeholder)] text-base font-medium">
-            26년 3월 내 급여
+            {targetMonth}
           </p>
           <div className="flex items-baseline gap-[var(--space-1-5)] text-white text-[length:var(--text-3xl)] font-bold">
-            <span>1,850,000</span>
+            <span>{totalAmount}</span>
             <span>원</span>
           </div>
         </div>
 
-        {/* 섹션 2: 지난달 대비 배지 */}
+        {/* 섹션 2: D-Day 배지 */}
         <div className="flex-1 flex items-start mt-[var(--space-2)]">
-          <div className="flex items-center gap-[var(--space-3)] py-[var(--space-1)] px-[var(--space-4)] rounded-[var(--radius-xs)] bg-[var(--color-primary)]">
-            <TrendingDown
+          <div
+            className="flex items-center gap-[var(--space-3)] py-[var(--space-1)] px-[var(--space-4)] rounded-[var(--radius-xs)] bg-[var(--color-primary)] cursor-pointer"
+            onClick={() => navigate(ROUTES.PAYROLL)}
+          >
+            <Calendar
               size={16}
               color="var(--color-text-black)"
               strokeWidth={2.0}
             />
             <span className="text-[length:var(--text-md)] text-[color:var(--color-text-black)] font-bold whitespace-nowrap">
-              지난달 대비 5%
+              {dDayLabel}
             </span>
+          </div>
+        </div>
+
+        {/* 섹션 3: 리포트 보러가기 */}
+        <div className="flex-1 flex items-center">
+          <div
+            className="flex items-center gap-[var(--space-1-5)] px-[var(--space-1)] pb-[var(--space-5)] cursor-pointer"
+            onClick={() => navigate(ROUTES.REPORT)}
+          >
+            <span className="text-[length:var(--text-md)] text-white font-bold whitespace-nowrap">
+              리포트 보러가기
+            </span>
+            <ChevronRight size={20} color="white" strokeWidth={2} />
           </div>
         </div>
       </div>
