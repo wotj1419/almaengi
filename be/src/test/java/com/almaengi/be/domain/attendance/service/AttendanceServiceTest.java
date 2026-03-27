@@ -34,6 +34,7 @@ import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
+import com.almaengi.be.domain.attendance.type.AttendanceResultType;
 import com.almaengi.be.domain.attendance.type.AttendanceStatus;
 import com.almaengi.be.domain.auth.type.LoginType;
 import com.almaengi.be.domain.store.entity.WorkSchedule;
@@ -67,6 +68,7 @@ class AttendanceServiceTest {
     private SetOperations<String, String> setOperations;
 
     private Store store;
+    private User owner;
     private User user;
     private StoreEmployee employee;
 
@@ -79,7 +81,15 @@ class AttendanceServiceTest {
 
     @BeforeEach
     void setUp() {
+        owner = User.builder()
+                .loginType(LoginType.LOCAL)
+                .name("김사장")
+                .email("owner@test.com")
+                .build();
+        ReflectionTestUtils.setField(owner, "id", 1L);
+
         store = Store.builder()
+                .owner(owner)
                 .name("알맹이 편의점")
                 .address("서울시 강남구")
                 .qrCode("almaengi_store_test123")
@@ -140,7 +150,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_IN");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_IN);
             assertThat(res.getStatus()).isEqualTo(AttendanceStatus.WORKING);
             assertThat(res.getMessage()).isEqualTo("출근이 기록되었습니다.");
             verify(attendanceRepository, times(1)).save(any(Attendance.class));
@@ -178,7 +188,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then: 스케줄 시간이 반영되었는지 엔티티 캡처로 확인
-            assertThat(res.getType()).isEqualTo("CLOCK_IN");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_IN);
             assertThat(res.getStatus()).isEqualTo(AttendanceStatus.WORKING);
             verify(attendanceRepository).save(argThat(a ->
                     a.getScheduledStartTime() != null
@@ -244,7 +254,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_IN");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_IN);
             assertThat(res.getStatus()).isEqualTo(AttendanceStatus.WORKING);
             assertThat(waiting.getClockIn()).isNotNull();
         }
@@ -275,7 +285,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_IN");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_IN);
             assertThat(res.getStatus()).isEqualTo(AttendanceStatus.LATE);
             verify(setOperations, times(1)).add(eq("store:1:working"), eq("10"));
             verify(setOperations, times(1)).remove(eq("store:1:late"), eq("10"));
@@ -313,7 +323,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_OUT");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_OUT);
             assertThat(res.getOvertime()).isFalse();
             assertThat(res.getMessage()).isEqualTo("퇴근이 기록되었습니다.");
             verify(setOperations, times(1)).remove(eq("store:1:working"), eq("10"));
@@ -346,7 +356,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_OUT");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_OUT);
             assertThat(res.getOvertime()).isTrue();
         }
 
@@ -377,7 +387,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("CLOCK_OUT");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_OUT);
             assertThat(res.getOvertime()).isFalse();
             assertThat(working.getOvertime()).isFalse();
             assertThat(working.getClockOut()).isNotNull();
@@ -410,7 +420,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then: OVERTIME_CHECK가 아닌 바로 CLOCK_OUT
-            assertThat(res.getType()).isEqualTo("CLOCK_OUT");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.CLOCK_OUT);
             assertThat(res.getOvertime()).isFalse();
             assertThat(working.getClockOut()).isNotNull();
         }
@@ -440,7 +450,7 @@ class AttendanceServiceTest {
             AttendanceResponseDto res = attendanceService.recordAttendance(100L, req);
 
             // then
-            assertThat(res.getType()).isEqualTo("OVERTIME_CHECK");
+            assertThat(res.getType()).isEqualTo(AttendanceResultType.OVERTIME_CHECK);
             assertThat(res.getOvertime()).isTrue();
             assertThat(res.getClockOut()).isNull();
             assertThat(res.getMessage()).isEqualTo("연장근무 확인이 필요합니다.");
@@ -530,13 +540,14 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis SCARD로 working/late/absent 카운트 반환")
         void summaryReturnsCorrectCounts() {
             // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
             stubRedis();
             when(setOperations.size("store:1:working")).thenReturn(3L);
             when(setOperations.size("store:1:late")).thenReturn(1L);
             when(setOperations.size("store:1:absent")).thenReturn(0L);
 
             // when
-            DashboardSummaryResponseDto res = attendanceService.getDashboardSummary(1L);
+            DashboardSummaryResponseDto res = attendanceService.getDashboardSummary(1L, 1L);
 
             // then
             assertThat(res.getWorking()).isEqualTo(3L);
@@ -548,13 +559,21 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis 키가 없으면 (null) 0 반환")
         void summaryReturnsZeroWhenKeysNotExist() {
             // given
+            Store store99 = Store.builder()
+                    .owner(owner)
+                    .name("다른매장")
+                    .address("서울시 서초구")
+                    .qrCode("qr_99")
+                    .build();
+            ReflectionTestUtils.setField(store99, "id", 99L);
+            when(storeRepository.findById(99L)).thenReturn(Optional.of(store99));
             stubRedis();
             when(setOperations.size("store:99:working")).thenReturn(null);
             when(setOperations.size("store:99:late")).thenReturn(null);
             when(setOperations.size("store:99:absent")).thenReturn(null);
 
             // when
-            DashboardSummaryResponseDto res = attendanceService.getDashboardSummary(99L);
+            DashboardSummaryResponseDto res = attendanceService.getDashboardSummary(1L, 99L);
 
             // then
             assertThat(res.getWorking()).isEqualTo(0L);
@@ -571,6 +590,7 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis SMEMBERS + DB JOIN FETCH로 직원 정보 반환")
         void detailReturnsEmployeeInfo() {
             // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
             stubRedis();
             when(setOperations.members("store:1:working")).thenReturn(Set.of("10"));
 
@@ -588,7 +608,7 @@ class AttendanceServiceTest {
                     .thenReturn(List.of(attendance));
 
             // when
-            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, "working");
+            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, 1L, "working");
 
             // then
             assertThat(res.getStatus()).isEqualTo("WORKING");
@@ -606,11 +626,12 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis SET이 비어있으면 빈 리스트 반환")
         void detailReturnsEmptyWhenNoMembers() {
             // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
             stubRedis();
             when(setOperations.members("store:1:late")).thenReturn(Set.of());
 
             // when
-            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, "late");
+            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, 1L, "late");
 
             // then
             assertThat(res.getStatus()).isEqualTo("LATE");
@@ -622,11 +643,12 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis SET이 null이면 빈 리스트 반환")
         void detailReturnsEmptyWhenNull() {
             // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
             stubRedis();
             when(setOperations.members("store:1:absent")).thenReturn(null);
 
             // when
-            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, "absent");
+            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, 1L, "absent");
 
             // then
             assertThat(res.getStatus()).isEqualTo("ABSENT");
@@ -637,6 +659,7 @@ class AttendanceServiceTest {
         @DisplayName("성공: Redis에 ID가 있지만 DB 조회 결과가 비어있으면 빈 리스트 반환")
         void detailReturnsEmptyWhenDbMismatch() {
             // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
             stubRedis();
             when(setOperations.members("store:1:working")).thenReturn(Set.of("999"));
             when(attendanceRepository.findByEmployeeIdInAndTargetDateWithUser(
@@ -644,7 +667,7 @@ class AttendanceServiceTest {
                     .thenReturn(List.of());
 
             // when
-            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, "working");
+            DashboardDetailResponseDto res = attendanceService.getDashboardDetail(1L, 1L, "working");
 
             // then
             assertThat(res.getStatus()).isEqualTo("WORKING");
@@ -654,15 +677,18 @@ class AttendanceServiceTest {
         @Test
         @DisplayName("실패: 유효하지 않은 status이면 INVALID_DASHBOARD_STATUS")
         void failInvalidStatus() {
+            // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+
             // when & then
             BusinessException e = assertThrows(BusinessException.class,
-                    () -> attendanceService.getDashboardDetail(1L, "invalid"));
+                    () -> attendanceService.getDashboardDetail(1L, 1L, "invalid"));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_DASHBOARD_STATUS);
         }
     }
 
     @Nested
-    @DisplayName("근태 로그 조회 (getAttendanceLog) 테스트")
+    @DisplayName("일별 근태 로그 조회 (getAttendanceLog) 테스트")
     class AttendanceLogTest {
 
         @Test
@@ -688,7 +714,7 @@ class AttendanceServiceTest {
                     .thenReturn(List.of(attendance));
 
             // when
-            AttendanceLogResponseDto res = attendanceService.getAttendanceLog(1L, yesterday);
+            AttendanceLogResponseDto res = attendanceService.getAttendanceLog(1L, 1L, yesterday);
 
             // then
             assertThat(res.getStoreId()).isEqualTo(1L);
@@ -716,7 +742,7 @@ class AttendanceServiceTest {
                     .thenReturn(List.of());
 
             // when
-            AttendanceLogResponseDto res = attendanceService.getAttendanceLog(1L, yesterday);
+            AttendanceLogResponseDto res = attendanceService.getAttendanceLog(1L, 1L, yesterday);
 
             // then
             assertThat(res.getStoreId()).isEqualTo(1L);
@@ -732,7 +758,7 @@ class AttendanceServiceTest {
 
             // when & then
             BusinessException e = assertThrows(BusinessException.class,
-                    () -> attendanceService.getAttendanceLog(1L, LocalDate.now()));
+                    () -> attendanceService.getAttendanceLog(1L, 1L, LocalDate.now()));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_ATTENDANCE_LOG_DATE);
         }
 
@@ -744,7 +770,7 @@ class AttendanceServiceTest {
 
             // when & then
             BusinessException e = assertThrows(BusinessException.class,
-                    () -> attendanceService.getAttendanceLog(1L, LocalDate.now().plusDays(1)));
+                    () -> attendanceService.getAttendanceLog(1L, 1L, LocalDate.now().plusDays(1)));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_ATTENDANCE_LOG_DATE);
         }
 
@@ -756,7 +782,7 @@ class AttendanceServiceTest {
 
             // when & then
             BusinessException e = assertThrows(BusinessException.class,
-                    () -> attendanceService.getAttendanceLog(999L, LocalDate.now().minusDays(1)));
+                    () -> attendanceService.getAttendanceLog(1L, 999L, LocalDate.now().minusDays(1)));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_NOT_FOUND);
         }
     }

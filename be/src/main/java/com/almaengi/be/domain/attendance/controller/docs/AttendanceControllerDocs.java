@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,35 +27,44 @@ public interface AttendanceControllerDocs {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A201: 유효하지 않은 QR 코드입니다.<br>A202: 매장 반경을 벗어난 위치입니다."),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A203: 이미 퇴근 처리가 완료되었습니다.")
     })
-    ResponseEntity<ApiResponse<AttendanceResponseDto>> recordAttendance(
+    ApiResponse<AttendanceResponseDto> recordAttendance(
             @Parameter(hidden = true) @AuthUser Long userId,
             @RequestBody AttendanceRequestDto request
     );
 
     @Operation(summary = "대시보드 요약", description = "매장의 근무중/지각/결근 직원 수를 Redis에서 조회합니다.")
     @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "A206: 해당 매장의 근태를 조회할 권한이 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S001: 해당 매장을 찾을 수 없습니다.")
     })
-    ResponseEntity<ApiResponse<DashboardSummaryResponseDto>> getDashboardSummary(
+    ApiResponse<DashboardSummaryResponseDto> getDashboardSummary(
+            @Parameter(hidden = true) @AuthUser Long userId,
             @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId
     );
 
     @Operation(summary = "상태별 직원 목록", description = "특정 상태(working/late/absent)의 직원 목록을 조회합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A204: 유효하지 않은 대시보드 상태입니다.")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A204: 유효하지 않은 대시보드 상태입니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "A206: 해당 매장의 근태를 조회할 권한이 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S001: 해당 매장을 찾을 수 없습니다.")
     })
-    ResponseEntity<ApiResponse<DashboardDetailResponseDto>> getDashboardDetail(
+    ApiResponse<DashboardDetailResponseDto> getDashboardDetail(
+            @Parameter(hidden = true) @AuthUser Long userId,
             @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
             @Parameter(description = "상태 (working/late/absent)", example = "working") @PathVariable String status
     );
 
-    @Operation(summary = "근태 로그 조회", description = "특정 매장의 특정 날짜 근태 기록을 조회합니다. 당일은 조회 불가합니다.")
+    @Operation(summary = "일별 근태 로그 조회", description = "특정 매장의 특정 날짜 근태 기록을 조회합니다. 당일은 조회 불가합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A205: 근태 로그는 전일까지만 조회할 수 있습니다.")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A205: 근태 로그는 전일까지만 조회할 수 있습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "A206: 해당 매장의 근태를 조회할 권한이 없습니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S001: 해당 매장을 찾을 수 없습니다.")
     })
-    ResponseEntity<ApiResponse<AttendanceLogResponseDto>> getAttendanceLog(
+    ApiResponse<AttendanceLogResponseDto> getAttendanceLog(
+            @Parameter(hidden = true) @AuthUser Long userId,
             @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
             @Parameter(description = "조회 날짜 (yyyy-MM-dd)", example = "2026-03-23")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

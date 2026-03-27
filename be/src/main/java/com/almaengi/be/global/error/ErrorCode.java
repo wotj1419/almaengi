@@ -86,6 +86,7 @@ public enum ErrorCode {
     ALREADY_CLOCKED_OUT(HttpStatus.CONFLICT, "A203", "이미 퇴근 처리가 완료되었습니다."),
     INVALID_DASHBOARD_STATUS(HttpStatus.BAD_REQUEST, "A204", "유효하지 않은 대시보드 상태입니다."),
     INVALID_ATTENDANCE_LOG_DATE(HttpStatus.BAD_REQUEST, "A205", "근태 로그는 전일까지만 조회할 수 있습니다."),
+    ATTENDANCE_STORE_NOT_OWNED(HttpStatus.FORBIDDEN, "A206", "해당 매장의 근태를 조회할 권한이 없습니다."),
 
     // Finance
     FINANCE_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "금융망 API 호출에 실패했습니다."),

@@ -7,6 +7,7 @@ import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.scheduler.AttendanceScheduler;
 import com.almaengi.be.domain.attendance.service.AttendanceService;
+import com.almaengi.be.domain.attendance.type.AttendanceResultType;
 import com.almaengi.be.domain.attendance.type.AttendanceStatus;
 import com.almaengi.be.global.security.jwt.JwtProvider;
 import com.almaengi.be.global.security.redis.RedisTokenRepository;
@@ -83,7 +84,7 @@ class AttendanceControllerTest {
             ReflectionTestUtils.setField(req, "longitude", 126.9780);
 
             AttendanceResponseDto mockResponse = AttendanceResponseDto.builder()
-                    .type("CLOCK_IN")
+                    .type(AttendanceResultType.CLOCK_IN)
                     .attendanceId(1L)
                     .clockIn(LocalDateTime.of(2026, 3, 16, 9, 0, 0))
                     .clockOut(null)
@@ -121,7 +122,7 @@ class AttendanceControllerTest {
             ReflectionTestUtils.setField(req, "overtimeConfirm", false);
 
             AttendanceResponseDto mockResponse = AttendanceResponseDto.builder()
-                    .type("CLOCK_OUT")
+                    .type(AttendanceResultType.CLOCK_OUT)
                     .attendanceId(1L)
                     .clockIn(LocalDateTime.of(2026, 3, 16, 9, 0, 0))
                     .clockOut(LocalDateTime.of(2026, 3, 16, 18, 0, 0))
@@ -174,7 +175,7 @@ class AttendanceControllerTest {
                     .absent(1L)
                     .build();
 
-            Mockito.when(attendanceService.getDashboardSummary(1L)).thenReturn(mockResponse);
+            Mockito.when(attendanceService.getDashboardSummary(any(), eq(1L))).thenReturn(mockResponse);
 
             // when & then
             mockMvc.perform(get("/api/v1/attendances/dashboard/1"))
@@ -184,7 +185,7 @@ class AttendanceControllerTest {
                     .andExpect(jsonPath("$.data.late").value(2))
                     .andExpect(jsonPath("$.data.absent").value(1));
 
-            Mockito.verify(attendanceService, Mockito.times(1)).getDashboardSummary(1L);
+            Mockito.verify(attendanceService, Mockito.times(1)).getDashboardSummary(any(), eq(1L));
         }
     }
 
@@ -209,7 +210,7 @@ class AttendanceControllerTest {
                     .employees(List.of(emp))
                     .build();
 
-            Mockito.when(attendanceService.getDashboardDetail(1L, "working")).thenReturn(mockResponse);
+            Mockito.when(attendanceService.getDashboardDetail(any(), eq(1L), eq("working"))).thenReturn(mockResponse);
 
             // when & then
             mockMvc.perform(get("/api/v1/attendances/dashboard/1/working"))
@@ -221,7 +222,7 @@ class AttendanceControllerTest {
                     .andExpect(jsonPath("$.data.employees[0].userName").value("김알바"))
                     .andExpect(jsonPath("$.data.employees[0].phone").value("010-1234-5678"));
 
-            Mockito.verify(attendanceService, Mockito.times(1)).getDashboardDetail(1L, "working");
+            Mockito.verify(attendanceService, Mockito.times(1)).getDashboardDetail(any(), eq(1L), eq("working"));
         }
 
         @Test
@@ -233,7 +234,7 @@ class AttendanceControllerTest {
                     .employees(List.of())
                     .build();
 
-            Mockito.when(attendanceService.getDashboardDetail(1L, "absent")).thenReturn(mockResponse);
+            Mockito.when(attendanceService.getDashboardDetail(any(), eq(1L), eq("absent"))).thenReturn(mockResponse);
 
             // when & then
             mockMvc.perform(get("/api/v1/attendances/dashboard/1/absent"))
@@ -271,7 +272,7 @@ class AttendanceControllerTest {
                     .attendances(List.of(log))
                     .build();
 
-            Mockito.when(attendanceService.getAttendanceLog(1L, yesterday)).thenReturn(mockResponse);
+            Mockito.when(attendanceService.getAttendanceLog(any(), eq(1L), eq(yesterday))).thenReturn(mockResponse);
 
             // when & then
             mockMvc.perform(get("/api/v1/attendances/log/1")
@@ -286,7 +287,7 @@ class AttendanceControllerTest {
                     .andExpect(jsonPath("$.data.attendances[0].status").value("WORKING"))
                     .andExpect(jsonPath("$.data.attendances[0].overtime").value(false));
 
-            Mockito.verify(attendanceService, Mockito.times(1)).getAttendanceLog(1L, yesterday);
+            Mockito.verify(attendanceService, Mockito.times(1)).getAttendanceLog(any(), eq(1L), eq(yesterday));
         }
 
         @Test
@@ -301,7 +302,7 @@ class AttendanceControllerTest {
                     .attendances(List.of())
                     .build();
 
-            Mockito.when(attendanceService.getAttendanceLog(1L, yesterday)).thenReturn(mockResponse);
+            Mockito.when(attendanceService.getAttendanceLog(any(), eq(1L), eq(yesterday))).thenReturn(mockResponse);
 
             // when & then
             mockMvc.perform(get("/api/v1/attendances/log/1")

@@ -7,8 +7,10 @@ import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
+import com.almaengi.be.domain.attendance.type.AttendanceResultType;
 import com.almaengi.be.domain.attendance.type.AttendanceStatus;
 import com.almaengi.be.domain.attendance.util.GpsUtil;
+import com.almaengi.be.domain.attendance.util.RedisKeyUtil;
 import com.almaengi.be.domain.store.entity.WorkSchedule;
 import com.almaengi.be.domain.store.repository.WorkScheduleRepository;
 import com.almaengi.be.domain.store.type.DayOfWeek;
@@ -135,11 +137,11 @@ public class AttendanceService {
 
         Long storeId = employee.getStore().getId();
         String employeeIdStr = employee.getId().toString();
-        redisTemplate.opsForSet().add("store:" + storeId + ":working", employeeIdStr);
-        redisTemplate.opsForSet().remove("store:" + storeId + ":late", employeeIdStr);
+        redisTemplate.opsForSet().add(RedisKeyUtil.workingKey(storeId), employeeIdStr);
+        redisTemplate.opsForSet().remove(RedisKeyUtil.lateKey(storeId), employeeIdStr);
 
         return AttendanceResponseDto.builder()
-                .type("CLOCK_IN")
+                .type(AttendanceResultType.CLOCK_IN)
                 .attendanceId(attendance.getId())
                 .clockIn(attendance.getClockIn())
                 .clockOut(null)
@@ -156,11 +158,16 @@ public class AttendanceService {
      * 대시보드 요약 조회.
      * Redis SCARD × 3으로 매장의 근무중/지각/결근 직원 수를 반환합니다.
      * DB 접근 없이 Redis만 사용합니다.
+     *
+     * @param userId  인증된 사용자 ID
+     * @param storeId 매장 ID
      */
-    public DashboardSummaryResponseDto getDashboardSummary(Long storeId) {
-        Long working = redisTemplate.opsForSet().size("store:" + storeId + ":working");
-        Long late = redisTemplate.opsForSet().size("store:" + storeId + ":late");
-        Long absent = redisTemplate.opsForSet().size("store:" + storeId + ":absent");
+    public DashboardSummaryResponseDto getDashboardSummary(Long userId, Long storeId) {
+        validateStoreOwner(userId, storeId);
+
+        Long working = redisTemplate.opsForSet().size(RedisKeyUtil.workingKey(storeId));
+        Long late = redisTemplate.opsForSet().size(RedisKeyUtil.lateKey(storeId));
+        Long absent = redisTemplate.opsForSet().size(RedisKeyUtil.absentKey(storeId));
 
         return DashboardSummaryResponseDto.builder()
                 .working(working != null ? working : 0L)
@@ -174,17 +181,19 @@ public class AttendanceService {
      * Redis SMEMBERS로 employee ID 목록을 가져온 뒤,
      * DB에서 Attendance + StoreEmployee + User를 JOIN FETCH하여 직원 정보를 반환합니다.
      *
+     * @param userId  인증된 사용자 ID
      * @param storeId 매장 ID
      * @param status  조회할 상태 (working, late, absent)
      */
-    public DashboardDetailResponseDto getDashboardDetail(Long storeId, String status) {
+    public DashboardDetailResponseDto getDashboardDetail(Long userId, Long storeId, String status) {
+        validateStoreOwner(userId, storeId);
         // status 검증 (working/late/absent 외 → 예외)
         if (!Set.of("working", "late", "absent").contains(status)) {
             throw new BusinessException(ErrorCode.INVALID_DASHBOARD_STATUS);
         }
 
         // Redis SMEMBERS: 해당 상태의 employee ID 목록 조회
-        Set<String> memberIds = redisTemplate.opsForSet().members("store:" + storeId + ":" + status);
+        Set<String> memberIds = redisTemplate.opsForSet().members(RedisKeyUtil.storeKey(storeId, status));
 
         if (memberIds == null || memberIds.isEmpty()) {
             return DashboardDetailResponseDto.builder()
@@ -227,12 +236,12 @@ public class AttendanceService {
      * 특정 매장의 특정 날짜 근태 기록을 반환합니다.
      * 당일은 조회 불가 — 전일까지만 허용합니다.
      *
+     * @param userId  인증된 사용자 ID
      * @param storeId 매장 ID
      * @param date    조회 날짜 (오늘 미만만 허용)
      */
-    public AttendanceLogResponseDto getAttendanceLog(Long storeId, LocalDate date) {
-        storeRepository.findById(storeId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+    public AttendanceLogResponseDto getAttendanceLog(Long userId, Long storeId, LocalDate date) {
+        validateStoreOwner(userId, storeId);
 
         if (!date.isBefore(LocalDate.now())) {
             throw new BusinessException(ErrorCode.INVALID_ATTENDANCE_LOG_DATE);
@@ -261,6 +270,23 @@ public class AttendanceService {
                 .build();
     }
 
+    // ========== Private Helpers ==========
+
+    /**
+     * 매장 존재 여부 및 사장님 권한을 검증합니다.
+     *
+     * @param userId  인증된 사용자 ID
+     * @param storeId 매장 ID
+     */
+    private void validateStoreOwner(Long userId, Long storeId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.ATTENDANCE_STORE_NOT_OWNED);
+        }
+    }
+
     /**
      * 퇴근 처리.
      * 퇴근시각 경과 + overtimeConfirm 미전달 시, clockOut을 저장하지 않고 OVERTIME_CHECK 응답을 반환합니다.
@@ -274,7 +300,7 @@ public class AttendanceService {
         // 연장근무 확인 필요: clockOut 저장 없이 확인 요청 응답
         if (isOvertime && overtimeConfirm == null) {
             return AttendanceResponseDto.builder()
-                    .type("OVERTIME_CHECK")
+                    .type(AttendanceResultType.OVERTIME_CHECK)
                     .attendanceId(attendance.getId())
                     .clockIn(attendance.getClockIn())
                     .clockOut(null)
@@ -296,10 +322,10 @@ public class AttendanceService {
 
         Long storeId = attendance.getEmployee().getStore().getId();
         String employeeIdStr = attendance.getEmployee().getId().toString();
-        redisTemplate.opsForSet().remove("store:" + storeId + ":working", employeeIdStr);
+        redisTemplate.opsForSet().remove(RedisKeyUtil.workingKey(storeId), employeeIdStr);
 
         return AttendanceResponseDto.builder()
-                .type("CLOCK_OUT")
+                .type(AttendanceResultType.CLOCK_OUT)
                 .attendanceId(attendance.getId())
                 .clockIn(attendance.getClockIn())
                 .clockOut(attendance.getClockOut())
