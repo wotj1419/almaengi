@@ -3,6 +3,7 @@ package com.almaengi.be.domain.attendance.scheduler;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
 import com.almaengi.be.domain.attendance.type.AttendanceStatus;
+import com.almaengi.be.domain.attendance.util.RedisKeyUtil;
 import com.almaengi.be.domain.store.entity.WorkSchedule;
 import com.almaengi.be.domain.store.repository.WorkScheduleRepository;
 import com.almaengi.be.domain.store.type.DayOfWeek;
@@ -41,8 +42,6 @@ public class AttendanceScheduler {
     private final StoreRepository storeRepository;
     private final StringRedisTemplate redisTemplate;
 
-    /** Redis 복구 완료를 나타내는 sentinel key. Redis 장애 시 자동 소멸되어 복구 트리거로 사용. */
-    private static final String REDIS_READY_KEY = "attendance:redis:ready";
 
     // ========== 1. 일일 배치 ==========
 
@@ -84,7 +83,7 @@ public class AttendanceScheduler {
         }
 
         // 5. sentinel key 재설정
-        redisTemplate.opsForValue().set(REDIS_READY_KEY, "true");
+        redisTemplate.opsForValue().set(RedisKeyUtil.REDIS_READY_KEY, "true");
 
         log.info("[AttendanceScheduler] 일일 배치 완료 - {}건 생성", created);
     }
@@ -112,15 +111,15 @@ public class AttendanceScheduler {
                 .collect(Collectors.groupingBy(a -> a.getEmployee().getStore().getId()));
 
         // 매장 단위로 삭제 → 즉시 추가 (빈 구간 최소화)
-        Set<Long> allStoreIds = storeRepository.findAll().stream()
+        Set<Long> allStoreIds = storeRepository.findByIsClosedFalse().stream()
                 .map(Store::getId)
                 .collect(Collectors.toSet());
 
         for (Long storeId : allStoreIds) {
             // 기존 키 삭제
-            redisTemplate.delete("store:" + storeId + ":working");
-            redisTemplate.delete("store:" + storeId + ":late");
-            redisTemplate.delete("store:" + storeId + ":absent");
+            redisTemplate.delete(RedisKeyUtil.workingKey(storeId));
+            redisTemplate.delete(RedisKeyUtil.lateKey(storeId));
+            redisTemplate.delete(RedisKeyUtil.absentKey(storeId));
 
             // 해당 매장의 Attendance로 즉시 복구 (clockIn 유무 기반 분기)
             List<Attendance> storeAttendances = byStore.getOrDefault(storeId, List.of());
@@ -128,18 +127,18 @@ public class AttendanceScheduler {
                 String employeeIdStr = attendance.getEmployee().getId().toString();
                 if (attendance.getClockIn() != null) {
                     // 출근한 상태 → 무조건 working (DB가 LATE여도 현재 근무 중)
-                    redisTemplate.opsForSet().add("store:" + storeId + ":working", employeeIdStr);
+                    redisTemplate.opsForSet().add(RedisKeyUtil.workingKey(storeId), employeeIdStr);
                 } else if (attendance.getStatus() == AttendanceStatus.LATE) {
                     // 미출근 + LATE → 지각 미출근 상태
-                    redisTemplate.opsForSet().add("store:" + storeId + ":late", employeeIdStr);
+                    redisTemplate.opsForSet().add(RedisKeyUtil.lateKey(storeId), employeeIdStr);
                 } else if (attendance.getStatus() == AttendanceStatus.ABSENT) {
-                    redisTemplate.opsForSet().add("store:" + storeId + ":absent", employeeIdStr);
+                    redisTemplate.opsForSet().add(RedisKeyUtil.absentKey(storeId), employeeIdStr);
                 }
             }
         }
 
         // sentinel key 설정
-        redisTemplate.opsForValue().set(REDIS_READY_KEY, "true");
+        redisTemplate.opsForValue().set(RedisKeyUtil.REDIS_READY_KEY, "true");
 
         log.info("[AttendanceScheduler] Redis 복구 완료");
     }
@@ -151,7 +150,7 @@ public class AttendanceScheduler {
     @Transactional
     public void statusCheck() {
         // Redis 장애 감지: sentinel key가 없으면 복구
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(REDIS_READY_KEY))) {
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(RedisKeyUtil.REDIS_READY_KEY))) {
             log.warn("[AttendanceScheduler] Redis sentinel 없음 - 자동 복구 시작");
             rebuildRedisFromDb();
         }
@@ -172,7 +171,7 @@ public class AttendanceScheduler {
         for (Attendance attendance : lateTargets) {
             attendance.updateStatus(AttendanceStatus.LATE);
             Long storeId = attendance.getEmployee().getStore().getId();
-            redisTemplate.opsForSet().add("store:" + storeId + ":late",
+            redisTemplate.opsForSet().add(RedisKeyUtil.lateKey(storeId),
                     attendance.getEmployee().getId().toString());
         }
 
@@ -196,8 +195,8 @@ public class AttendanceScheduler {
 
             if (attendance.getClockIn() == null) {
                 attendance.updateStatus(AttendanceStatus.ABSENT);
-                redisTemplate.opsForSet().add("store:" + storeId + ":absent", employeeIdStr);
-                redisTemplate.opsForSet().remove("store:" + storeId + ":late", employeeIdStr);
+                redisTemplate.opsForSet().add(RedisKeyUtil.absentKey(storeId), employeeIdStr);
+                redisTemplate.opsForSet().remove(RedisKeyUtil.lateKey(storeId), employeeIdStr);
             } else {
                 attendance.updateOvertime(true);
             }
@@ -212,9 +211,9 @@ public class AttendanceScheduler {
 
     /** 전일 absent 키만 초기화 (working/late는 야간근무자 고려하여 유지) */
     private void clearAbsentKeys() {
-        List<Store> stores = storeRepository.findAll();
+        List<Store> stores = storeRepository.findByIsClosedFalse();
         for (Store store : stores) {
-            redisTemplate.delete("store:" + store.getId() + ":absent");
+            redisTemplate.delete(RedisKeyUtil.absentKey(store.getId()));
         }
         log.info("[AttendanceScheduler] Redis absent 초기화 완료");
     }

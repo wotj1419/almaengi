@@ -12,7 +12,6 @@ import com.almaengi.be.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -32,40 +31,43 @@ public class AttendanceController implements AttendanceControllerDocs {
 
     @Override
     @PostMapping
-    public ResponseEntity<ApiResponse<AttendanceResponseDto>> recordAttendance(
+    public ApiResponse<AttendanceResponseDto> recordAttendance(
             @AuthUser Long userId,
             @Valid @RequestBody AttendanceRequestDto request) {
         AttendanceResponseDto response = attendanceService.recordAttendance(userId, request);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.success(response);
     }
 
     // ===== 대시보드 API =====
 
     @Override
     @GetMapping("/dashboard/{storeId}")
-    public ResponseEntity<ApiResponse<DashboardSummaryResponseDto>> getDashboardSummary(
+    public ApiResponse<DashboardSummaryResponseDto> getDashboardSummary(
+            @AuthUser Long userId,
             @PathVariable Long storeId) {
-        DashboardSummaryResponseDto response = attendanceService.getDashboardSummary(storeId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        DashboardSummaryResponseDto response = attendanceService.getDashboardSummary(userId, storeId);
+        return ApiResponse.success(response);
     }
 
     @Override
     @GetMapping("/dashboard/{storeId}/{status}")
-    public ResponseEntity<ApiResponse<DashboardDetailResponseDto>> getDashboardDetail(
+    public ApiResponse<DashboardDetailResponseDto> getDashboardDetail(
+            @AuthUser Long userId,
             @PathVariable Long storeId, @PathVariable String status) {
-        DashboardDetailResponseDto response = attendanceService.getDashboardDetail(storeId, status);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        DashboardDetailResponseDto response = attendanceService.getDashboardDetail(userId, storeId, status);
+        return ApiResponse.success(response);
     }
 
     // ===== 근태 로그 API =====
 
     @Override
     @GetMapping("/log/{storeId}")
-    public ResponseEntity<ApiResponse<AttendanceLogResponseDto>> getAttendanceLog(
+    public ApiResponse<AttendanceLogResponseDto> getAttendanceLog(
+            @AuthUser Long userId,
             @PathVariable Long storeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        AttendanceLogResponseDto response = attendanceService.getAttendanceLog(storeId, date);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        AttendanceLogResponseDto response = attendanceService.getAttendanceLog(userId, storeId, date);
+        return ApiResponse.success(response);
     }
 
 }
