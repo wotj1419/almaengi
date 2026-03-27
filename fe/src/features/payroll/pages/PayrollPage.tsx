@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DetailHeader from '@/components/layout/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
-import ConfirmModal from '@/components/common/ConfirmModal';
+import TransferAgreementModal from '../components/TransferAgreementModal';
 import MonthNavigator from '../components/MonthNavigator';
 import PayrollSummaryCard from '../components/PayrollSummaryCard';
 import PayrollEmployeeCard from '../components/PayrollEmployeeCard';
@@ -21,7 +21,9 @@ export default function PayrollPage() {
   const [month, setMonth] = useState(
     locationState?.month ?? today.getMonth() + 1
   );
-  const [bulkSendModalOpen, setBulkSendModalOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [isAutoTransferOn, setIsAutoTransferOn] = useState(false);
+  const [autoTransferModalOpen, setAutoTransferModalOpen] = useState(false);
 
   const handlePrev = () => {
     if (month === 1) {
@@ -53,13 +55,31 @@ export default function PayrollPage() {
     [monthlyPayrolls]
   );
 
+  const totalWorkMinutes = useMemo(
+    () => monthlyPayrolls.reduce((sum, p) => sum + p.total_work_minutes, 0),
+    [monthlyPayrolls]
+  );
+
+  const nightWorkMinutes = useMemo(
+    () => monthlyPayrolls.reduce((sum, p) => sum + p.night_work_minutes, 0),
+    [monthlyPayrolls]
+  );
+
+  // 지급 상태 판별 (하드코딩: 급여일 21일)
+  const PAY_DAY = 21;
+  const isPaid = (() => {
+    const payDate = new Date(year, month, PAY_DAY); // 다음달 21일
+    return today >= payDate;
+  })();
+
   return (
     <>
       <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
         <div className="flex flex-col items-center w-full md:max-w-[var(--max-w-app)] relative overflow-x-hidden">
           <DetailHeader title="급여" onBack={() => navigate(ROUTES.HOME)} />
-          <div className="w-full px-[var(--space-5)] pt-[var(--space-4)] pb-[var(--pb-content)] flex flex-col gap-[var(--space-7)]">
+          <div className="w-full px-[var(--space-5)] pt-[var(--space-4)] pb-[var(--pb-content)] flex flex-col gap-[var(--space-5)]">
             <div className="w-full bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] overflow-hidden">
+              {/* MonthNavigator + 지급 상태 텍스트 */}
               <MonthNavigator
                 year={year}
                 month={month}
@@ -70,9 +90,26 @@ export default function PayrollPage() {
                   setMonth(m);
                 }}
               />
+
+              {/* 구분선 */}
+              <div className="border-t border-[var(--color-border-light)]" />
+
               <PayrollSummaryCard
                 totalNetPay={totalNetPay}
-                onBulkSend={() => setBulkSendModalOpen(true)}
+                employeeCount={monthlyPayrolls.length}
+                totalWorkMinutes={totalWorkMinutes}
+                nightWorkMinutes={nightWorkMinutes}
+                overtimeMinutes={480}
+                isPaid={isPaid}
+                isAutoTransferOn={isAutoTransferOn}
+                onAutoTransferToggle={() => {
+                  if (isAutoTransferOn) {
+                    setIsAutoTransferOn(false);
+                  } else {
+                    setAutoTransferModalOpen(true);
+                  }
+                }}
+                onManualTransfer={() => setTransferModalOpen(true)}
               />
             </div>
             <div className="flex flex-col gap-[var(--space-4)]">
@@ -97,13 +134,26 @@ export default function PayrollPage() {
         </div>
       </div>
       <BottomNav />
-      <ConfirmModal
-        isOpen={bulkSendModalOpen}
-        message="급여를 일괄 송금하시겠습니까?"
-        confirmText="송금"
-        cancelText="취소"
-        onConfirm={() => setBulkSendModalOpen(false)}
-        onClose={() => setBulkSendModalOpen(false)}
+      {/* 수동 이체 확인 모달 */}
+      <TransferAgreementModal
+        isOpen={transferModalOpen}
+        type="manual"
+        employeeCount={monthlyPayrolls.length}
+        totalNetPay={totalNetPay}
+        onConfirm={() => setTransferModalOpen(false)}
+        onClose={() => setTransferModalOpen(false)}
+      />
+      {/* 예약 이체 활성화 확인 모달 */}
+      <TransferAgreementModal
+        isOpen={autoTransferModalOpen}
+        type="auto"
+        employeeCount={monthlyPayrolls.length}
+        totalNetPay={totalNetPay}
+        onConfirm={() => {
+          setIsAutoTransferOn(true);
+          setAutoTransferModalOpen(false);
+        }}
+        onClose={() => setAutoTransferModalOpen(false)}
       />
     </>
   );
