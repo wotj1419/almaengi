@@ -1,33 +1,58 @@
 ﻿import Avatar from 'boring-avatars';
 import { Check, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { DOCUMENT_EMPLOYEE_OPTIONS } from '@/features/documents/data/mockDocuments';
+import { useEffect, useMemo, useState } from 'react';
+import { getEmployees, type Employee } from '@/api/store';
 
 interface DocumentEmployeeSearchModalProps {
   isOpen: boolean;
+  storeId: number;
+  selectedEmployeeId: number | null;
   selectedEmployeeName: string;
   onClose: () => void;
-  onApply: (employeeName: string) => void;
+  onApply: (employee: { employeeId: number; employeeName: string }) => void;
 }
 
 export default function DocumentEmployeeSearchModal({
   isOpen,
+  storeId,
+  selectedEmployeeId,
   selectedEmployeeName,
   onClose,
   onApply,
 }: DocumentEmployeeSearchModalProps) {
   const [query, setQuery] = useState('');
-  const [tempSelectedName, setTempSelectedName] = useState<string | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [tempSelectedId, setTempSelectedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const data = await getEmployees(storeId);
+        setEmployees(data);
+      } catch (error) {
+        console.error('Failed to fetch employees:', error);
+        setEmployees([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, [isOpen, storeId]);
 
   const filteredEmployees = useMemo(
-    () =>
-      DOCUMENT_EMPLOYEE_OPTIONS.filter((employee) =>
-        employee.name.includes(query.trim())
-      ),
-    [query]
+    () => employees.filter((employee) => employee.name.includes(query.trim())),
+    [query, employees]
   );
 
-  const selectedName = tempSelectedName ?? selectedEmployeeName;
+  const currentSelectedId = tempSelectedId ?? selectedEmployeeId;
+  const currentSelectedName =
+    employees.find((e) => e.employeeId === currentSelectedId)?.name ??
+    selectedEmployeeName;
 
   if (!isOpen) return null;
 
@@ -62,34 +87,44 @@ export default function DocumentEmployeeSearchModal({
         </div>
 
         <div className="max-h-72 space-y-[var(--space-2)] overflow-y-auto">
-          {filteredEmployees.map((employee) => {
-            const checked = selectedName === employee.name;
+          {loading ? (
+            <p className="py-8 text-center text-[length:var(--text-sm)] text-[var(--color-text-secondary)]">
+              직원 목록을 불러오는 중...
+            </p>
+          ) : filteredEmployees.length === 0 ? (
+            <p className="py-8 text-center text-[length:var(--text-sm)] text-[var(--color-text-secondary)]">
+              검색 결과가 없습니다.
+            </p>
+          ) : (
+            filteredEmployees.map((employee) => {
+              const checked = currentSelectedId === employee.employeeId;
 
-            return (
-              <button
-                key={employee.id}
-                type="button"
-                onClick={() => setTempSelectedName(employee.name)}
-                className="flex w-full items-center gap-[var(--space-3)] rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-2)] text-left hover:bg-[var(--color-bg-base)]"
-              >
-                <div
-                  className={`flex h-5 w-5 items-center justify-center rounded border ${
-                    checked
-                      ? 'border-[var(--color-action-todo)] bg-[var(--color-action-todo)]'
-                      : 'border-[var(--color-border-muted)] bg-[var(--color-bg-white)]'
-                  }`}
+              return (
+                <button
+                  key={employee.employeeId}
+                  type="button"
+                  onClick={() => setTempSelectedId(employee.employeeId)}
+                  className="flex w-full items-center gap-[var(--space-3)] rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-2)] text-left hover:bg-[var(--color-bg-base)]"
                 >
-                  {checked && (
-                    <Check size={12} strokeWidth={3} color="#111827" />
-                  )}
-                </div>
-                <Avatar size={30} name={employee.name} variant="beam" />
-                <span className="text-[length:var(--text-md)] font-medium text-[var(--color-text-primary)]">
-                  {employee.name}
-                </span>
-              </button>
-            );
-          })}
+                  <div
+                    className={`flex h-5 w-5 items-center justify-center rounded border ${
+                      checked
+                        ? 'border-[var(--color-action-todo)] bg-[var(--color-action-todo)]'
+                        : 'border-[var(--color-border-muted)] bg-[var(--color-bg-white)]'
+                    }`}
+                  >
+                    {checked && (
+                      <Check size={12} strokeWidth={3} color="#111827" />
+                    )}
+                  </div>
+                  <Avatar size={30} name={employee.name} variant="beam" />
+                  <span className="text-[length:var(--text-md)] font-medium text-[var(--color-text-primary)]">
+                    {employee.name}
+                  </span>
+                </button>
+              );
+            })
+          )}
         </div>
 
         <div className="mt-[var(--space-4)] flex gap-[var(--space-2)]">
@@ -97,7 +132,7 @@ export default function DocumentEmployeeSearchModal({
             type="button"
             onClick={() => {
               setQuery('');
-              setTempSelectedName(null);
+              setTempSelectedId(null);
               onClose();
             }}
             className="h-11 flex-1 rounded-[var(--radius-md)] bg-[var(--color-bg-surface)] text-[length:var(--text-md)] font-bold text-[var(--color-text-muted)]"
@@ -107,9 +142,14 @@ export default function DocumentEmployeeSearchModal({
           <button
             type="button"
             onClick={() => {
-              onApply(selectedName);
+              if (currentSelectedId !== null) {
+                onApply({
+                  employeeId: currentSelectedId,
+                  employeeName: currentSelectedName,
+                });
+              }
               setQuery('');
-              setTempSelectedName(null);
+              setTempSelectedId(null);
               onClose();
             }}
             className="h-11 flex-1 rounded-[var(--radius-md)] bg-[var(--color-action-todo)] text-[length:var(--text-md)] font-bold text-[var(--color-text-primary)]"

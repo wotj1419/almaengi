@@ -10,6 +10,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
 import { signup, checkEmail } from '@/api/auth';
+import { validateEmailFormat, validatePasswordFormat } from '@/utils/validation';
 
 const INPUT_CLASS =
   'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';

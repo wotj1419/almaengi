@@ -1,10 +1,12 @@
 import { FileText, UserPlus } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { generateInviteCode } from '@/api/store';
+import { getApiErrorMessage } from '@/api/error';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import { ROUTES } from '@/constants/routes';
-import { generateInviteCode, type InviteCodeInfo } from '@/api/store';
 import EmployeeListItem from '@/features/employee/components/EmployeeListItem';
 import EmployeeInviteCodeModal from '@/features/employee/components/EmployeeInviteCodeModal';
 import EmployeePendingInviteItem from '@/features/employee/components/EmployeePendingInviteItem';
@@ -20,15 +22,13 @@ import {
   pendingInvites as initialPendingInvites,
   type EmployeeSummary,
 } from '@/features/employee/data/mockEmployee';
-import { ownerInviteCodeMock } from '@/features/employee/data/mockInviteCode';
 import type {
   EmployeeRecord,
   StaffGroupKey,
 } from '@/features/employee/types/employeeRecord';
 import { WORKING_STATUS_GROUP } from '@/features/employee/types/employeeRecord';
-import useStoreManageStore from '@/stores/useStoreManageStore';
+import useStoreStore from '@/stores/useStoreStore';
 
-// 초대 대기 직원(pendingInvites)과 기존 직원(employees)을 하나의 EmployeeRecord 배열로 병합
 const buildInitialEmployeeRecords = (): EmployeeRecord[] => [
   ...initialPendingInvites.map((item) => ({
     id: item.id,
@@ -47,55 +47,48 @@ const buildInitialEmployeeRecords = (): EmployeeRecord[] => [
   })),
 ];
 
-// 직원 관리 메인 페이지 - 초대 코드 발급, 초대 승인/삭제, 재직/퇴사 직원 목록 조회
 export default function EmployeePage() {
   const navigate = useNavigate();
-  const registeredStore = useStoreManageStore((state) => state.registeredStore);
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const inviteCodes = useStoreStore((s) => s.inviteCodes);
+  const setInviteCodeStore = useStoreStore((s) => s.setInviteCode);
+
+  const currentEntry = currentStore ? inviteCodes[currentStore.storeId] : null;
+  const storedInviteCode = currentEntry?.code ?? null;
+  const storedExpiredAt = currentEntry?.expiredAt ?? null;
+
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [inviteCodeData, setInviteCodeData] = useState<InviteCodeInfo | null>(
-    null
-  );
-  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
-  // 현재 직원 / 퇴사 직원 탭 전환 상태
+  const [isReissuing, setIsReissuing] = useState(false);
   const [selectedStaffGroup, setSelectedStaffGroup] =
     useState<StaffGroupKey>('CURRENT');
   const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>(
     buildInitialEmployeeRecords
   );
 
-  // localStorage 캐시 확인 후 유효하면 재사용, 만료/없으면 API 호출
-  // force=true 이면 캐시를 무시하고 항상 API 재발급
-  const loadInviteCode = useCallback(
-    async (force = false) => {
-      const storeId = registeredStore?.storeId;
-      if (!storeId) return;
-
-      if (!force) {
-        const cached = localStorage.getItem(`invite_code_${storeId}`);
-        if (cached) {
-          const parsed: InviteCodeInfo = JSON.parse(cached) as InviteCodeInfo;
-          if (new Date(parsed.expiredAt) > new Date()) {
-            setInviteCodeData(parsed);
-            return;
-          }
-        }
-      }
-
-      setIsRegeneratingCode(true);
+  const fetchInviteCode = useCallback(
+    async (storeId: number) => {
+      setIsReissuing(true);
       try {
-        const data = await generateInviteCode(storeId);
-        setInviteCodeData(data);
-        localStorage.setItem(`invite_code_${storeId}`, JSON.stringify(data));
+        const result = await generateInviteCode(storeId);
+        setInviteCodeStore(storeId, result.inviteCode, result.expiredAt);
       } catch (error) {
-        console.error('[employee] 초대 코드 발급 실패', error);
+        toast.error(getApiErrorMessage(error, '초대코드 발급에 실패했어요.'));
       } finally {
-        setIsRegeneratingCode(false);
+        setIsReissuing(false);
       }
     },
-    [registeredStore?.storeId]
+    [setInviteCodeStore]
   );
 
-  // status 기준으로 초대 대기 / 재직 / 퇴사 직원을 각각 필터링
+  useEffect(() => {
+    if (!currentStore) return;
+    const isExpired =
+      !storedInviteCode ||
+      !storedExpiredAt ||
+      new Date() >= new Date(storedExpiredAt);
+    if (isExpired) void fetchInviteCode(currentStore.storeId);
+  }, [currentStore, fetchInviteCode, storedInviteCode, storedExpiredAt]);
+
   const invitedRecords = useMemo(
     () => employeeRecords.filter((item) => item.status === 'INVITED'),
     [employeeRecords]
@@ -114,37 +107,32 @@ export default function EmployeePage() {
     [employeeRecords]
   );
 
-  // 탭 선택에 따라 보여줄 직원 목록 결정
   const selectedStaffRecords =
     selectedStaffGroup === 'CURRENT' ? currentRecords : resignedRecords;
 
-  // API 응답 또는 fallback mock으로 모달에 전달할 초대 코드 구성
   const ownerInviteCode = useMemo(
     () => ({
-      storeName: registeredStore?.name ?? ownerInviteCodeMock.storeName,
-      code: inviteCodeData?.inviteCode ?? ownerInviteCodeMock.code,
-      expiresAt: inviteCodeData?.expiredAt ?? ownerInviteCodeMock.expiresAt,
+      storeName: currentStore?.storeName ?? '',
+      code: storedInviteCode ?? '',
+      expiresAt: storedExpiredAt ?? '',
     }),
-    [registeredStore, inviteCodeData]
+    [currentStore, storedInviteCode, storedExpiredAt]
   );
 
-  // 페이지 내 사용자 인터랙션 핸들러 모음
   const handlers = {
-    openInviteModal: () => {
-      setIsInviteModalOpen(true);
-      void loadInviteCode();
-    },
-    openContractPage: () => console.info('[employee] 근로계약서 작성 클릭'),
+    openInviteModal: () => setIsInviteModalOpen(true),
+    openContractPage: () => toast('준비 중인 기능입니다.'),
     closeInviteModal: () => setIsInviteModalOpen(false),
-    regenerateCode: () => void loadInviteCode(true),
-    // 초대 대기 직원을 목록에서 제거
+    regenerateCode: () => {
+      if (currentStore && !isReissuing)
+        void fetchInviteCode(currentStore.storeId);
+    },
+    // 초대 대기 직원 관리
     removeInvitedEmployee: (id: number) => {
       setEmployeeRecords((prev) =>
         prev.filter((item) => !(item.id === id && item.status === 'INVITED'))
       );
-      console.info('[employee] 초대 직원 삭제', id);
     },
-    // 초대 승인: INVITED → WORKING 상태로 변경하여 재직 직원 목록으로 이동
     approveInvitedEmployee: (id: number) => {
       setEmployeeRecords((prev) =>
         prev.map((item) =>
@@ -157,9 +145,7 @@ export default function EmployeePage() {
             : item
         )
       );
-      console.info('[employee] 초대 승인 처리', id);
     },
-    // 직원 상세 페이지로 이동 시 location.state에 요약 정보를 전달
     openEmployeeDetail: (item: EmployeeRecord) => {
       const employeeSummary: EmployeeSummary = {
         id: item.id,
@@ -181,7 +167,6 @@ export default function EmployeePage() {
         <DetailHeader title={EMPLOYEE_PAGE_TEXT.pageTitle} />
 
         <main className="flex flex-1 flex-col gap-[var(--space-5)] px-[var(--space-5)] pb-[calc(var(--height-bottom-nav)+var(--space-9)+env(safe-area-inset-bottom,0px))] pt-[var(--space-4)]">
-          {/* 퀵 액션 버튼: 신규직원 초대 / 근로계약서 작성 */}
           <section className="grid grid-cols-2 gap-[var(--space-3)]">
             <EmployeeQuickActionCard
               label={EMPLOYEE_PAGE_TEXT.inviteAction}
@@ -256,9 +241,10 @@ export default function EmployeePage() {
       <EmployeeInviteCodeModal
         isOpen={isInviteModalOpen}
         inviteCode={ownerInviteCode}
+        isReissuing={isReissuing}
         onClose={handlers.closeInviteModal}
         onRegenerate={handlers.regenerateCode}
-        isRegenerating={isRegeneratingCode}
+        isRegenerating={isReissuing}
       />
 
       <BottomNav activeTab="staff" />
