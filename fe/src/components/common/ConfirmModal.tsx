@@ -41,7 +41,7 @@ export default function ConfirmModal({
             <X size={20} color="var(--color-text-muted)" />
           </button>
         )}
-        <div className="flex flex-col items-center gap-[var(--space-1)] pt-[var(--space-8)] pb-[var(--space-6)]">
+        <div className="flex flex-col items-center gap-[var(--space-1)] pt-[var(--space-8)] pb-[var(--space-6)] px-[var(--space-6)]">
           <span className="whitespace-pre-line text-center text-[length:var(--text-lg)] font-bold text-[color:var(--color-text-primary)]">
             {primaryText}
           </span>

@@ -16,6 +16,7 @@ export const mockPayrolls: Payroll[] = [
     total_allowance: 400000,
     total_deduction: 0,
     net_pay: 2400000,
+    hourly_wage: 12000,
     is_approved: true,
     approved_at: '2026-02-28T10:00:00',
     created_at: '2026-02-28T09:00:00',
@@ -32,7 +33,8 @@ export const mockPayrolls: Payroll[] = [
     total_allowance: 300000,
     total_deduction: 0,
     net_pay: 1800000,
-    is_approved: false, // 승인 대기 상태
+    hourly_wage: 10500,
+    is_approved: false,
     approved_at: null,
     created_at: '2026-02-28T09:00:00',
     updated_at: '2026-02-28T09:00:00',
@@ -48,6 +50,7 @@ export const mockPayrolls: Payroll[] = [
     total_allowance: 360000,
     total_deduction: 0,
     net_pay: 2160000,
+    hourly_wage: 11000,
     is_approved: true,
     approved_at: '2026-02-28T11:00:00',
     created_at: '2026-02-28T09:00:00',
@@ -60,11 +63,12 @@ export const mockPayrolls: Payroll[] = [
     employee_name: '차직원',
     target_month: '2026-03-01',
     total_work_minutes: 11200, // 약 186시간
-    night_work_minutes: 0,
+    night_work_minutes: 600, // 10시간
     basic_pay: 2000000,
     total_allowance: 400000,
     total_deduction: 0,
     net_pay: 2400000,
+    hourly_wage: 12000,
     is_approved: false,
     approved_at: null,
     created_at: '2026-03-20T09:00:00',
@@ -76,11 +80,12 @@ export const mockPayrolls: Payroll[] = [
     employee_name: '박직원',
     target_month: '2026-03-01',
     total_work_minutes: 7200, // 120시간
-    night_work_minutes: 0,
+    night_work_minutes: 180, // 3시간
     basic_pay: 1500000,
     total_allowance: 300000,
     total_deduction: 0,
     net_pay: 1800000,
+    hourly_wage: 10500,
     is_approved: false,
     approved_at: null,
     created_at: '2026-03-20T09:00:00',

@@ -12,6 +12,7 @@ export interface Payroll {
   total_allowance: number; // 총 수당 합계 (원)
   total_deduction: number; // 총 공제 합계 (원)
   net_pay: number; // 실수령액 = 기본급 + 수당 - 공제 (원)
+  hourly_wage: number; // 시급 (원)
   is_approved: boolean; // 사장님 급여 승인 여부
   approved_at: string | null; // 승인 시각 (미승인 시 null)
   created_at: string; // 급여 레코드 생성 시각
