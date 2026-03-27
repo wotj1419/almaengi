@@ -2,7 +2,7 @@ import { FileText, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { generateInviteCode } from '@/api/store';
+import { generateInviteCode, getEmployees } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
@@ -17,35 +17,14 @@ import {
   EMPLOYEE_PAGE_TEXT,
   STAFF_GROUP_EMPTY_MESSAGE,
 } from '@/features/employee/constants/ui';
-import {
-  employees as initialEmployees,
-  pendingInvites as initialPendingInvites,
-  type EmployeeSummary,
-} from '@/features/employee/data/mockEmployee';
+import { type EmployeeSummary } from '@/features/employee/data/mockEmployee';
 import type {
   EmployeeRecord,
   StaffGroupKey,
+  UIEmployeeStatus,
 } from '@/features/employee/types/employeeRecord';
 import { WORKING_STATUS_GROUP } from '@/features/employee/types/employeeRecord';
 import useStoreStore from '@/stores/useStoreStore';
-
-const buildInitialEmployeeRecords = (): EmployeeRecord[] => [
-  ...initialPendingInvites.map((item) => ({
-    id: item.id,
-    name: item.name,
-    avatarSeed: item.avatarSeed,
-    status: item.status,
-    phone: item.phone,
-    workSummary: EMPLOYEE_PAGE_TEXT.inviteWaitingSummary,
-  })),
-  ...initialEmployees.map((item) => ({
-    id: item.id,
-    name: item.name,
-    avatarSeed: item.avatarSeed,
-    status: item.status,
-    workSummary: item.workSummary,
-  })),
-];
 
 export default function EmployeePage() {
   const navigate = useNavigate();
@@ -61,9 +40,7 @@ export default function EmployeePage() {
   const [isReissuing, setIsReissuing] = useState(false);
   const [selectedStaffGroup, setSelectedStaffGroup] =
     useState<StaffGroupKey>('CURRENT');
-  const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>(
-    buildInitialEmployeeRecords
-  );
+  const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>([]);
 
   const fetchInviteCode = useCallback(
     async (storeId: number) => {
@@ -80,19 +57,43 @@ export default function EmployeePage() {
     [setInviteCodeStore]
   );
 
+  // 매장의 직원 목록을 API에서 조회
+  const fetchEmployees = useCallback(async (storeId: number) => {
+    try {
+      const employees = await getEmployees(storeId);
+      const records: EmployeeRecord[] = employees.map((emp) => ({
+        id: emp.employeeId,
+        name: emp.name,
+        avatarSeed: `employee-${emp.userId}`,
+        status: emp.status as UIEmployeeStatus,
+        position: emp.position,
+        hourlyWage: emp.hourlyWage,
+      }));
+      setEmployeeRecords(records);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, '직원 목록 조회에 실패했어요.'));
+    }
+  }, []);
+
+  // currentStore 변경 시 직원 목록 조회 및 초대코드 갱신
   useEffect(() => {
     if (!currentStore) return;
+    void fetchEmployees(currentStore.storeId);
     const isExpired =
       !storedInviteCode ||
       !storedExpiredAt ||
       new Date() >= new Date(storedExpiredAt);
     if (isExpired) void fetchInviteCode(currentStore.storeId);
-  }, [currentStore, fetchInviteCode, storedInviteCode, storedExpiredAt]);
+  }, [
+    currentStore,
+    fetchEmployees,
+    fetchInviteCode,
+    storedInviteCode,
+    storedExpiredAt,
+  ]);
 
-  const invitedRecords = useMemo(
-    () => employeeRecords.filter((item) => item.status === 'INVITED'),
-    [employeeRecords]
-  );
+  // INVITED 섹션: 백엔드 API에서 제공하지 않으므로 빈 배열 고정
+  const invitedRecords: EmployeeRecord[] = useMemo(() => [], []);
 
   const currentRecords = useMemo(
     () =>
@@ -127,32 +128,27 @@ export default function EmployeePage() {
       if (currentStore && !isReissuing)
         void fetchInviteCode(currentStore.storeId);
     },
-    // 초대 대기 직원 관리
-    removeInvitedEmployee: (id: number) => {
-      setEmployeeRecords((prev) =>
-        prev.filter((item) => !(item.id === id && item.status === 'INVITED'))
-      );
+    removeInvitedEmployee: () => {
+      // INVITED 섹션은 빈 배열이므로 호출되지 않음
     },
-    approveInvitedEmployee: (id: number) => {
-      setEmployeeRecords((prev) =>
-        prev.map((item) =>
-          item.id === id && item.status === 'INVITED'
-            ? {
-                ...item,
-                status: 'WORKING',
-                workSummary: EMPLOYEE_PAGE_TEXT.defaultWorkSummary,
-              }
-            : item
-        )
-      );
+    approveInvitedEmployee: () => {
+      // INVITED 섹션은 빈 배열이므로 호출되지 않음
     },
     openEmployeeDetail: (item: EmployeeRecord) => {
       const employeeSummary: EmployeeSummary = {
         id: item.id,
         name: item.name,
         avatarSeed: item.avatarSeed,
-        workSummary: item.workSummary ?? EMPLOYEE_PAGE_TEXT.defaultWorkSummary,
-        status: item.status,
+        workSummary:
+          item.position ??
+          item.workSummary ??
+          EMPLOYEE_PAGE_TEXT.defaultWorkSummary,
+        status: item.status as
+          | 'INVITED'
+          | 'WORKING'
+          | 'RESIGNED'
+          | 'ON_LEAVE'
+          | 'BEST',
       };
 
       navigate(ROUTES.EMPLOYEE_DETAIL.replace(':employeeId', String(item.id)), {

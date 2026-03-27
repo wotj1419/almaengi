@@ -5,6 +5,7 @@ import { ROUTES } from '@/constants/routes';
 import { useUnreadNotificationCount } from '@/features/notification/hooks/useNotificationQueries';
 import BottomSheet from '@/components/common/BottomSheet';
 import useStoreStore from '@/stores/useStoreStore';
+import useAuthStore from '@/stores/useAuthStore';
 
 interface HeaderProps {
   storeName?: string;
@@ -31,6 +32,7 @@ export default function Header({
   const stores = useStoreStore((s) => s.stores);
   const currentStore = useStoreStore((s) => s.currentStore);
   const selectStore = useStoreStore((s) => s.selectStore);
+  const setActiveStoreId = useAuthStore((s) => s.setActiveStoreId);
 
   const displayName = currentStore?.storeName ?? storeName ?? '';
   const hasMultipleStores = stores.length > 1;
@@ -141,6 +143,7 @@ export default function Header({
                 }`}
                 onClick={() => {
                   selectStore(store);
+                  setActiveStoreId(store.storeId);
                   setIsStoreSheetOpen(false);
                 }}
               >
