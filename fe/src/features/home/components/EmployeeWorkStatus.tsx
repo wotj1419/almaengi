@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { PieChart, Pie } from 'recharts';
+import { useEffect, useMemo, useState } from 'react';
+import workingImg from '@/assets/images/working.png';
 
 // 백엔드 AttendanceStatus와 동일. DONE은 clockOut 존재 여부로 판단
 export type AttendanceStatus =
@@ -11,41 +11,32 @@ export type AttendanceStatus =
 
 interface Props {
   status: AttendanceStatus;
-  // 백엔드 연동 시 교체: clockInTime, scheduledEndTime을 서버 응답에서 받아올 것
   clockInTime: Date | null;
+  scheduledEndTime?: string | null; // e.g. "18:00:00"
 }
 
-const CHART_SIZE = 80;
-const CX = CHART_SIZE / 2;
-const INNER_RADIUS = 24;
-const OUTER_RADIUS = 35;
-
-// 백엔드 연동 시 교체: WorkSchedule의 scheduledEndTime을 서버에서 받아올 것
-const SCHEDULED_END_HOUR = 18;
-const SCHEDULED_END_MIN = 0;
-
-const CHART_COLORS = {
-  working: 'var(--chart-attendance-working)',
-  late: 'var(--chart-attendance-late)',
-  done: 'var(--chart-attendance-done)',
-  track: 'var(--chart-attendance-track)',
-  trackActive: 'var(--chart-attendance-track-active)',
-} as const;
-
 const bgColors: Record<AttendanceStatus, string> = {
-  WAITING: 'bg-gray-100',
+  WAITING: 'bg-[var(--color-bg-surface)]',
   WORKING: 'bg-[var(--color-badge-green-bg)]',
   LATE: 'bg-[var(--color-badge-orange-bg)]',
-  ABSENT: 'bg-gray-100',
+  ABSENT: 'bg-[var(--color-bg-surface)]',
   DONE: 'bg-[var(--color-badge-purple-bg)]',
 };
 
 const textColors: Record<AttendanceStatus, string> = {
-  WAITING: 'text-gray-400',
+  WAITING: 'text-[color:var(--color-text-placeholder)]',
   WORKING: 'text-[color:var(--color-badge-green-text)]',
   LATE: 'text-[color:var(--color-badge-orange-text)]',
-  ABSENT: 'text-gray-400',
+  ABSENT: 'text-[color:var(--color-text-placeholder)]',
   DONE: 'text-[color:var(--color-badge-purple-text)]',
+};
+
+const barColors: Record<AttendanceStatus, string> = {
+  WAITING: 'bg-[var(--color-border-muted)]',
+  WORKING: 'bg-[var(--chart-attendance-working)]',
+  LATE: 'bg-[var(--chart-attendance-late)]',
+  ABSENT: 'bg-[var(--color-border-muted)]',
+  DONE: 'bg-[var(--chart-attendance-done)]',
 };
 
 const statusLabels: Record<AttendanceStatus, string> = {
@@ -56,93 +47,108 @@ const statusLabels: Record<AttendanceStatus, string> = {
   DONE: '퇴근',
 };
 
-export default function EmployeeWorkStatus({ status, clockInTime }: Props) {
-  const { chartData, centerText } = useMemo(() => {
+export default function EmployeeWorkStatus({
+  status,
+  clockInTime,
+  scheduledEndTime,
+}: Props) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (status !== 'WORKING' && status !== 'LATE') return;
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  const { progress, subText } = useMemo(() => {
     if (status === 'WAITING' || status === 'ABSENT') {
-      return {
-        chartData: [{ value: 1, fill: CHART_COLORS.track }],
-        centerText: '-',
-      };
+      return { progress: 0, subText: '-' };
     }
 
     if (status === 'DONE') {
-      return {
-        chartData: [{ value: 1, fill: CHART_COLORS.done }],
-        centerText: '완료',
-      };
+      return { progress: 100, subText: '완료' };
     }
 
     // WORKING / LATE
     const now = new Date();
     const endTime = new Date();
-    // 백엔드 연동 시 교체: scheduledEndTime 사용
-    endTime.setHours(SCHEDULED_END_HOUR, SCHEDULED_END_MIN, 0, 0);
+    if (scheduledEndTime) {
+      const parts = scheduledEndTime.split(':').map(Number);
+      const h = parts[0];
+      const m = parts[1] ?? 0;
+      if (!isNaN(h) && !isNaN(m)) {
+        endTime.setHours(h, m, 0, 0);
+      } else {
+        endTime.setHours(18, 0, 0, 0);
+      }
+    } else {
+      endTime.setHours(18, 0, 0, 0);
+    }
 
     const start = clockInTime ?? now;
     const elapsed = Math.max(0, (now.getTime() - start.getTime()) / 60000);
+    const totalScheduled = Math.max(
+      1,
+      (endTime.getTime() - start.getTime()) / 60000
+    );
     const remaining = Math.max(0, (endTime.getTime() - now.getTime()) / 60000);
-    const activeColor =
-      status === 'LATE' ? CHART_COLORS.late : CHART_COLORS.working;
+    const progress = Math.min(100, (elapsed / totalScheduled) * 100);
 
-    const h = Math.floor(remaining / 60);
-    const m = Math.floor(remaining % 60);
-    const centerText =
-      remaining > 0 ? `${h}:${String(m).padStart(2, '0')}` : '곧 퇴근';
+    let rh = Math.floor(remaining / 60);
+    let rm = Math.ceil(remaining % 60);
+    if (rm === 60) {
+      rh += 1;
+      rm = 0;
+    }
+    const hasTimeLeft = endTime.getTime() > now.getTime() && (rh > 0 || rm > 0);
+    const subText = hasTimeLeft
+      ? rh > 0
+        ? `${rh}시간 ${rm}분 남음`
+        : `${rm}분 남음`
+      : '퇴근 가능';
+    const finalProgress = hasTimeLeft ? progress : 100;
 
-    return {
-      chartData:
-        elapsed + remaining > 0
-          ? [
-              { value: elapsed, fill: activeColor },
-              { value: remaining, fill: CHART_COLORS.trackActive },
-            ]
-          : [{ value: 1, fill: activeColor }],
-      centerText,
-    };
-  }, [status, clockInTime]);
+    return { progress: finalProgress, subText };
+  }, [status, clockInTime, scheduledEndTime, tick]);
 
   return (
     <div
       className={`${bgColors[status]} flex-1 rounded-[var(--radius-lg)] shadow-[var(--shadow-badge)]`}
     >
-      <div className="flex flex-col items-center justify-center gap-[17px] px-[var(--space-3)] py-[var(--space-6)] h-full">
-        {/* 도넛 차트 */}
-        <div
-          className="relative"
-          style={{ width: CHART_SIZE, height: CHART_SIZE }}
-        >
-          <PieChart
-            width={CHART_SIZE}
-            height={CHART_SIZE}
-            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      <div className="flex flex-col justify-between px-[var(--space-4)] pt-[var(--space-5)] pb-[var(--space-5)] h-full">
+        {/* 상태 라벨 + 시간 */}
+        <div className="flex items-center justify-between">
+          <span
+            className={`${textColors[status]} text-[length:var(--text-md)] font-bold leading-tight`}
           >
-            <Pie
-              data={chartData}
-              cx={CX}
-              cy={CX}
-              innerRadius={INNER_RADIUS}
-              outerRadius={OUTER_RADIUS}
-              dataKey="value"
-              startAngle={90}
-              endAngle={-270}
-              strokeWidth={0}
-            />
-          </PieChart>
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span
-              className={`${textColors[status]} text-[10px] font-bold leading-none`}
-            >
-              {centerText}
-            </span>
-          </div>
+            {statusLabels[status]}
+          </span>
+          <span
+            className={`${textColors[status]} text-[length:var(--text-md)] font-bold`}
+          >
+            {subText}
+          </span>
         </div>
 
-        {/* 상태 라벨 */}
-        <span
-          className={`${textColors[status]} text-[length:var(--text-md)] font-semibold text-center leading-tight`}
-        >
-          {statusLabels[status]}
-        </span>
+        {/* 진행 바 + 캐릭터 */}
+        <div className="relative w-full">
+          {(status === 'WORKING' || status === 'LATE') && (
+            <img
+              src={workingImg}
+              alt="running"
+              className="absolute -top-[52px] w-[52px] h-[52px] object-contain transition-all duration-300"
+              style={{
+                left: `clamp(0px, calc(${progress}% - 26px), calc(100% - 52px))`,
+              }}
+            />
+          )}
+          <div className="w-full h-[6px] bg-[var(--chart-attendance-track-active)] rounded-full overflow-hidden">
+            <div
+              className={`${barColors[status]} h-full rounded-full transition-all duration-300`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

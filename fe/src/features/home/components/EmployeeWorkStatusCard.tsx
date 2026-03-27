@@ -6,6 +6,29 @@ import EmployeeWorkStatus, {
   type AttendanceStatus,
 } from './EmployeeWorkStatus';
 import { ROUTES } from '@/constants/routes';
+import { ATTENDANCE_STORAGE_KEY } from '@/features/attendance/pages/AttendanceCheckPage';
+
+function getStoredAttendance(): {
+  status: AttendanceStatus;
+  clockInTime: Date | null;
+  scheduledEndTime: string | null;
+} {
+  try {
+    const stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+    if (!stored)
+      return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+    const { status, date, clockInTime, scheduledEndTime } = JSON.parse(stored);
+    if (date !== new Date().toDateString())
+      return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+    return {
+      status: (status as AttendanceStatus) ?? 'WAITING',
+      clockInTime: clockInTime ? new Date(clockInTime) : null,
+      scheduledEndTime: scheduledEndTime ?? null,
+    };
+  } catch {
+    return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+  }
+}
 
 const buttonConfig: Record<
   AttendanceStatus,
@@ -19,9 +42,10 @@ const buttonConfig: Record<
 };
 
 export default function EmployeeWorkStatusCard() {
-  // 백엔드 연동 시 교체: GET /api/v1/attendances/me 응답으로 초기값 세팅
-  const [attendanceStatus] = useState<AttendanceStatus>('WAITING');
-  const [clockInTime] = useState<Date | null>(null);
+  const stored = getStoredAttendance();
+  const [attendanceStatus] = useState<AttendanceStatus>(stored.status);
+  const [clockInTime] = useState<Date | null>(stored.clockInTime);
+  const [scheduledEndTime] = useState<string | null>(stored.scheduledEndTime);
 
   const navigate = useNavigate();
 
@@ -34,7 +58,7 @@ export default function EmployeeWorkStatusCard() {
     attendanceStatus === 'ABSENT' || attendanceStatus === 'DONE';
 
   return (
-    <div className="relative z-[var(--z-content)] bg-white rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] shrink-0 w-full">
+    <div className="relative z-[var(--z-content)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] shrink-0 w-full">
       <div className="flex flex-col gap-[var(--space-5)] px-[var(--space-5)] py-[var(--space-5)]">
         {/* 헤더: 제목 */}
         <div className="flex items-center justify-between">
@@ -51,11 +75,17 @@ export default function EmployeeWorkStatusCard() {
             color={btn.color}
             icon={btn.icon}
             onClick={isButtonDisabled ? undefined : handleAttendanceClick}
+            compact={
+              attendanceStatus !== 'WAITING' && attendanceStatus !== 'DONE'
+            }
           />
-          <EmployeeWorkStatus
-            status={attendanceStatus}
-            clockInTime={clockInTime}
-          />
+          {attendanceStatus !== 'WAITING' && attendanceStatus !== 'DONE' && (
+            <EmployeeWorkStatus
+              status={attendanceStatus}
+              clockInTime={clockInTime}
+              scheduledEndTime={scheduledEndTime}
+            />
+          )}
         </div>
       </div>
     </div>

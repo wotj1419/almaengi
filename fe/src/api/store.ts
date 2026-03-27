@@ -23,6 +23,13 @@ export async function getMyStores() {
   return data.data;
 }
 
+export async function getMyEmployeeStores() {
+  const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
+    '/api/v1/stores/employees/my'
+  );
+  return data.data;
+}
+
 export async function getMyStoresWithToken(accessToken: string) {
   const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
     '/api/v1/stores',
@@ -73,6 +80,25 @@ export interface InviteCodeInfo {
 export async function generateInviteCode(storeId: number) {
   const { data } = await instance.post<ApiResponse<InviteCodeInfo>>(
     `/api/v1/stores/${storeId}/invite-code`
+  );
+  return data.data;
+}
+
+export interface Employee {
+  employeeId: number;
+  userId: number;
+  name: string;
+  position: string;
+  hourlyWage: number;
+  taxType: string;
+  includeHolidayPay: boolean;
+  hireDate: string;
+  status: string;
+}
+
+export async function getEmployees(storeId: number) {
+  const { data } = await instance.get<ApiResponse<Employee[]>>(
+    `/api/v1/stores/${storeId}/employees`
   );
   return data.data;
 }

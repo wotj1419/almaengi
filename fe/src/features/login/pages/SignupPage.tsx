@@ -4,18 +4,15 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
+import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
-import { signup } from '@/api/auth';
+import { signup, checkEmail } from '@/api/auth';
 
 const INPUT_CLASS =
   'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_REGEX =
-  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,72}$/;
 
 type FieldName = 'name' | 'email' | 'phone' | 'password' | 'passwordConfirm';
 
@@ -112,6 +109,16 @@ function formatPhoneInput(value: string) {
   return formatPhoneDigits(toPhoneDigits(value));
 }
 
+// ─── 중복 이메일 에러 판별 ───────────────────────────────────────────────────
+// 백엔드가 이메일 중복 시 HTTP 409 + status: "U002"를 반환
+// axios 인터셉터가 4xx를 모두 throw하므로, catch 블록에서 판별 필요
+function isDuplicateEmailError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response?.status === 409) return true;
+  const code = (error.response?.data as { status?: string })?.status;
+  return code === 'U002';
+}
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -136,12 +143,7 @@ export default function SignupPage() {
     return '';
   };
 
-  const validateEmail = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return '이메일은 필수입니다.';
-    if (!EMAIL_REGEX.test(trimmed)) return '올바른 이메일 형식이 아닙니다.';
-    return '';
-  };
+  const validateEmail = (value: string) => validateEmailFormat(value);
 
   const validatePhone = (value: string) => {
     const digits = toPhoneDigits(value);
@@ -152,13 +154,7 @@ export default function SignupPage() {
     return '';
   };
 
-  const validatePassword = (value: string) => {
-    if (!value) return '비밀번호는 필수입니다.';
-    if (!PASSWORD_REGEX.test(value)) {
-      return '비밀번호는 8자 이상 72자 이하, 영문/숫자/특수문자를 포함해야 합니다.';
-    }
-    return '';
-  };
+  const validatePassword = (value: string) => validatePasswordFormat(value);
 
   const validatePasswordConfirm = (
     value: string,
@@ -183,6 +179,29 @@ export default function SignupPage() {
 
   const handleBlur = (field: FieldName) => {
     setFieldErrors((prev) => ({ ...prev, [field]: getFieldError(field) }));
+  };
+
+  // ─── 이메일 중복 확인 (onBlur 시) ──────────────────────────────────────────
+  // [목적] 이메일 입력 완료 후 다른 곳 클릭 시 즉시 중복 여부 확인
+  // [로직] 1. 형식 유효성 검사 (validateEmail) → 실패 시 API 호출 없이 반환
+  //       2. 형식 통과 → checkEmail API 호출 → exists: true이면 중복 에러 표시
+  //       3. API 호출 실패 → 조용히 통과 (제출 시 409로 재검증됨)
+  const handleEmailBlur = async () => {
+    const formatError = validateEmail(email);
+    // 형식이 유효하지 않으면 서버 호출 없이 형식 에러만 표시
+    if (formatError) {
+      setFieldErrors((prev) => ({ ...prev, email: formatError }));
+      return;
+    }
+    // 형식이 맞으면 서버에 중복 확인
+    try {
+      const res = await checkEmail(email.trim());
+      if (res.data.exists) {
+        setFieldErrors((prev) => ({ ...prev, email: '중복된 이메일입니다.' }));
+      }
+    } catch {
+      // 네트워크 오류 등 → 서버 확인 실패 시 조용히 통과 (제출 시 재검증됨)
+    }
   };
 
   const isFormValid =
@@ -243,8 +262,16 @@ export default function SignupPage() {
       }
 
       navigate(ROUTES.SIGNUP_COMPLETE, { replace: true });
-    } catch {
-      setFormError('서버에 연결할 수 없습니다.');
+    } catch (error) {
+      // ─── 중복 이메일 에러 처리 ────────────────────────────────────────────
+      // [목적] 이메일 중복 시 버튼 위 공통 에러가 아닌 이메일 필드 하단에 표시
+      // [처리] HTTP 409(중복) 판별 → formError 비우기 → fieldErrors.email에 고정 메시지
+      if (isDuplicateEmailError(error)) {
+        setFormError('');
+        setFieldErrors((prev) => ({ ...prev, email: '중복된 이메일입니다.' }));
+      } else {
+        setFormError('서버에 연결할 수 없습니다.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -297,7 +324,9 @@ export default function SignupPage() {
             clearFieldError('email');
             setFormError('');
           }}
-          onBlur={() => handleBlur('email')}
+          onBlur={() => {
+            void handleEmailBlur();
+          }}
           placeholder="example@email.com"
           error={fieldErrors.email}
         />

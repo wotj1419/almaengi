@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Avatar from 'boring-avatars';
 import { Check } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/layout/DetailHeader';
 import useAuthStore from '@/stores/useAuthStore';
-import { mockEmployees } from '../data/mockChat';
+import { getEmployees, type Employee } from '@/api/store';
 import { useChatStore } from '@/stores/useChatStore';
 
 export default function NewChatPage() {
@@ -13,7 +13,14 @@ export default function NewChatPage() {
   const location = useLocation();
   const storeId = useAuthStore((s) => s.activeStoreId);
   const createDirectRoom = useChatStore((s) => s.createDirectRoom);
+  const createGroupRoom = useChatStore((s) => s.createGroupRoom);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    getEmployees(storeId).then(setEmployees).catch(console.error);
+  }, [storeId]);
 
   const toggleSelect = (userId: number) => {
     setSelectedIds((prev) => {
@@ -27,13 +34,25 @@ export default function NewChatPage() {
   const handleConfirm = async () => {
     if (selectedIds.size === 0 || !storeId) return;
 
-    // 1명 선택 → DM 방 생성/재사용
-    // TODO: 2명 이상 선택 → 그룹방 생성 (추후 구현)
-    const targetUserId = [...selectedIds][0];
-    const roomId = await createDirectRoom(storeId, targetUserId);
-    navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)), {
-      state: location.state,
-    });
+    if (selectedIds.size === 1) {
+      // 1명 선택 → DM 방 생성/재사용
+      const targetUserId = [...selectedIds][0];
+      const roomId = await createDirectRoom(storeId, targetUserId);
+      navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)), {
+        state: location.state,
+      });
+    } else {
+      // 2명 이상 선택 → 참여자 이름으로 그룹방 생성
+      const selectedUserIds = [...selectedIds];
+      const groupName = employees
+        .filter((e) => selectedIds.has(e.userId))
+        .map((e) => e.name)
+        .join(', ');
+      const roomId = await createGroupRoom(storeId, groupName, selectedUserIds);
+      navigate(ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(roomId)), {
+        state: location.state,
+      });
+    }
   };
 
   return (
@@ -56,8 +75,7 @@ export default function NewChatPage() {
       />
 
       <main className="flex-1 flex flex-col">
-        {/* TODO: mockEmployees → BE 직원 목록 API로 교체 */}
-        {mockEmployees.map((employee) => {
+        {employees.map((employee) => {
           const isSelected = selectedIds.has(employee.userId);
 
           return (

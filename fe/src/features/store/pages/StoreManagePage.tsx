@@ -7,7 +7,7 @@ import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import NoStoreCard from '@/components/common/NoStoreCard';
 import useStoreStore from '@/stores/useStoreStore';
-import { generateInviteCode } from '@/api/store';
+import { generateInviteCode, getMyStores } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 
 type MenuItem = {
@@ -44,17 +44,29 @@ const LIST_SECTION_CLASS =
 export default function StoreManagePage() {
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
-  const storedInviteCode = useStoreStore((s) => s.inviteCode);
-  const storedExpiredAt = useStoreStore((s) => s.inviteCodeExpiredAt);
+  const inviteCodes = useStoreStore((s) => s.inviteCodes);
+  const setStores = useStoreStore((s) => s.setStores);
   const setInviteCodeStore = useStoreStore((s) => s.setInviteCode);
+
+  const currentEntry = currentStore ? inviteCodes[currentStore.storeId] : null;
+  const storedInviteCode = currentEntry?.code ?? null;
+  const storedExpiredAt = currentEntry?.expiredAt ?? null;
   const [isReissuing, setIsReissuing] = useState(false);
+
+  useEffect(() => {
+    if (!currentStore) {
+      getMyStores()
+        .then(setStores)
+        .catch(() => {});
+    }
+  }, [currentStore, setStores]);
 
   const fetchInviteCode = useCallback(
     async (storeId: number) => {
       setIsReissuing(true);
       try {
         const result = await generateInviteCode(storeId);
-        setInviteCodeStore(result.inviteCode, result.expiredAt);
+        setInviteCodeStore(storeId, result.inviteCode, result.expiredAt);
       } catch (error) {
         toast.error(getApiErrorMessage(error, '초대코드 발급에 실패했어요.'));
       } finally {
@@ -83,6 +95,10 @@ export default function StoreManagePage() {
 
   const handleRegisterClick = () => {
     navigate(ROUTES.STORE_REGISTER, { state: { mode: 'edit' } });
+  };
+
+  const handleAddStoreClick = () => {
+    navigate(ROUTES.STORE_REGISTER, { state: { mode: 'add' } });
   };
 
   const handleMenuClick = (item: MenuItem) => {
@@ -177,16 +193,12 @@ export default function StoreManagePage() {
           )}
 
           <section className={LIST_SECTION_CLASS}>
-            {MENU_ITEMS.map((item, index) => (
+            {MENU_ITEMS.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => handleMenuClick(item)}
-                className={`w-full px-[var(--space-5)] py-5 flex items-center justify-between text-left cursor-pointer ${
-                  index < MENU_ITEMS.length - 1
-                    ? 'border-b border-[var(--color-border-light)]'
-                    : ''
-                }`}
+                className="w-full px-[var(--space-5)] py-5 flex items-center justify-between text-left cursor-pointer border-b border-[var(--color-border-light)]"
               >
                 <div className="min-w-0 pr-4">
                   <p className="text-[length:var(--text-md2)] font-bold text-[var(--color-text-primary)] leading-5">
@@ -204,6 +216,28 @@ export default function StoreManagePage() {
                 />
               </button>
             ))}
+            {currentStore && (
+              <button
+                type="button"
+                onClick={handleAddStoreClick}
+                className="w-full px-[var(--space-5)] py-5 flex items-center justify-between text-left cursor-pointer"
+              >
+                <div className="min-w-0 pr-4">
+                  <p className="text-[length:var(--text-md2)] font-bold text-[var(--color-text-primary)] leading-5">
+                    추가 매장 등록하기
+                  </p>
+                  <p className="mt-1 text-[length:var(--text-xs)] text-[var(--color-text-muted)] leading-5">
+                    새로운 매장을 추가로 등록해요
+                  </p>
+                </div>
+                <ChevronRight
+                  size={18}
+                  color="var(--color-text-placeholder)"
+                  strokeWidth={2.2}
+                  className="shrink-0"
+                />
+              </button>
+            )}
           </section>
         </main>
 

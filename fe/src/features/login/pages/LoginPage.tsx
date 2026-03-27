@@ -5,6 +5,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
@@ -12,7 +13,10 @@ import { login } from '@/api/auth';
 import { validateSessionByReissue } from '@/api/session';
 import { getMyStoresWithToken } from '@/api/store';
 import useAuthStore from '@/stores/useAuthStore';
-import ConfirmModal from '@/components/common/ConfirmModal';
+import {
+  validateEmailFormat,
+  validatePasswordFormat,
+} from '@/utils/validation';
 
 const INPUT_CLASS =
   'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border border-[var(--color-border-muted)] text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
@@ -36,14 +40,20 @@ const IS_TEST_LOGIN_ENABLED =
 interface LabeledInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   suffix?: ReactNode;
+  error?: string;
 }
 
 function LabeledInput({
   label,
   suffix,
+  error,
   className,
   ...inputProps
 }: LabeledInputProps) {
+  const borderClass = error
+    ? 'border-red-500'
+    : 'border-[var(--color-border-muted)]';
+
   return (
     <div className="flex flex-col">
       <label className="pb-2 text-[length:var(--text-sm)] font-medium text-[var(--color-text-secondary)] leading-5">
@@ -52,16 +62,21 @@ function LabeledInput({
       {suffix ? (
         <div className="relative">
           <input
-            className={`w-full pr-12 ${INPUT_CLASS} ${className ?? ''}`}
+            className={`w-full pr-12 ${INPUT_CLASS} ${borderClass} ${className ?? ''}`}
             {...inputProps}
           />
           {suffix}
         </div>
       ) : (
         <input
-          className={`${INPUT_CLASS} ${className ?? ''}`}
+          className={`${INPUT_CLASS} ${borderClass} ${className ?? ''}`}
           {...inputProps}
         />
+      )}
+      {error && (
+        <span className="mt-1 text-[length:var(--text-sm)] text-red-500">
+          {error}
+        </span>
       )}
     </div>
   );
@@ -74,9 +89,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<'email' | 'password', string>
+  >({
+    email: '',
+    password: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false);
+
+  const clearFieldError = (field: 'email' | 'password') => {
+    setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -151,12 +174,29 @@ export default function LoginPage() {
   ) => {
     if (isSubmitting) return;
 
+    // ─── 클라이언트 선검증 ────────────────────────────────────────────────────
+    const emailError = validateEmailFormat(nextEmail);
+    const passwordError = validatePasswordFormat(nextPassword);
+
+    if (emailError || passwordError) {
+      setFieldErrors({
+        email: emailError,
+        password: passwordError,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await login({ email: nextEmail, password: nextPassword });
       if (res.status !== 'SUCCESS') {
-        setErrorMessage(res.message || '로그인에 실패했습니다.');
-        setShowErrorModal(true);
+        // ─── 로그인 실패 응답 처리 ────────────────────────────────────────────
+        // [보안] 이메일 또는 비밀번호 중 어느 것이 틀렸는지 명확히 드러내지 않음
+        //        → 비밀번호 필드에만 메시지 표시
+        setFieldErrors({
+          email: '',
+          password: res.message || '로그인에 실패했습니다.',
+        });
         return;
       }
 
@@ -169,9 +209,34 @@ export default function LoginPage() {
       );
 
       navigate(ROUTES.HOME, { replace: true });
-    } catch {
-      setErrorMessage('서버와 연결할 수 없습니다.');
-      setShowErrorModal(true);
+    } catch (error) {
+      // ─── Axios 에러 처리 ─────────────────────────────────────────────────
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message =
+          error.response?.data?.message ||
+          '이메일 또는 비밀번호가 일치하지 않습니다.';
+
+        if (status === 401) {
+          // 401: 인증 실패 (비밀번호 불일치 등)
+          setFieldErrors({
+            email: '',
+            password: message,
+          });
+        } else if (status === 400) {
+          // 400: 요청 오류 (검증 실패 등)
+          if (message.includes('비밀번호')) {
+            setFieldErrors((prev) => ({ ...prev, password: message }));
+          } else if (message.includes('이메일')) {
+            setFieldErrors((prev) => ({ ...prev, email: message }));
+          }
+        }
+        // 기타 에러는 조용히 처리 (네트워크 오류 등)
+        return;
+      }
+
+      // Non-Axios 에러 (예외)
+      console.error('Unexpected login error:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -211,16 +276,24 @@ export default function LoginPage() {
             label="이메일"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearFieldError('email');
+            }}
             placeholder="이메일을 입력하세요"
+            error={fieldErrors.email}
           />
 
           <LabeledInput
             label="비밀번호"
             type={showPassword ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearFieldError('password');
+            }}
             placeholder="비밀번호를 입력하세요"
+            error={fieldErrors.password}
             suffix={
               <button
                 type="button"
@@ -279,17 +352,6 @@ export default function LoginPage() {
 
         <div className="h-2 bg-[var(--color-primary)]" />
       </div>
-
-      <ConfirmModal
-        isOpen={showErrorModal}
-        title="로그인 실패"
-        description={errorMessage}
-        showCloseButton
-        confirmText=""
-        cancelText=""
-        onConfirm={() => setShowErrorModal(false)}
-        onClose={() => setShowErrorModal(false)}
-      />
     </div>
   );
 }

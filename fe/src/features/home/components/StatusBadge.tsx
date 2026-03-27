@@ -6,6 +6,7 @@ interface StatusBadgeProps {
   color: 'green' | 'orange' | 'purple';
   onClick?: () => void;
   icon?: LucideIcon;
+  compact?: boolean;
 }
 
 const bgColors = {
@@ -26,10 +27,11 @@ export default function StatusBadge({
   color,
   onClick,
   icon: Icon,
+  compact = false,
 }: StatusBadgeProps) {
   return (
     <div
-      className={`${bgColors[color]} flex-1 rounded-[var(--radius-lg)] shadow-[var(--shadow-badge)] cursor-pointer`}
+      className={`${bgColors[color]} ${compact ? 'w-fit shrink-0' : 'flex-1'} rounded-[var(--radius-lg)] shadow-[var(--shadow-badge)] cursor-pointer`}
       onClick={onClick}
     >
       <div className="flex flex-col items-center justify-center gap-[17px] px-[var(--space-3)] py-[var(--space-6)] h-full">
