@@ -1,5 +1,6 @@
 package com.almaengi.be.domain.attendance.scheduler;
 
+import com.almaengi.be.domain.attendance.util.RedisKeyUtil;
 import com.almaengi.be.domain.notification.service.NotificationService;
 import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.store.entity.Store;
@@ -48,7 +49,7 @@ public class LateNotificationScheduler {
         for (Store store : stores) {
             // Redis에서 해당 매장의 지각자 ID 목록 조회
             Set<String> lateEmployeeIds = redisTemplate.opsForSet()
-                    .members("store:" + store.getId() + ":late");
+                    .members(RedisKeyUtil.lateKey(store.getId()));
 
             if (lateEmployeeIds == null || lateEmployeeIds.isEmpty()) {
                 continue;

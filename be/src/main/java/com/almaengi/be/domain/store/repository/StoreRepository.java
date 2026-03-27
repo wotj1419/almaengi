@@ -19,6 +19,13 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     Optional<Store> findByQrCode(String qrCode);
 
     /**
+     * 운영 중인(폐업하지 않은) 매장 목록을 조회합니다.
+     * owner가 필요 없는 경우 fetch join 없이 사용합니다.
+     * (예: Redis 복구 시 매장 ID만 필요한 경우)
+     */
+    List<Store> findByIsClosedFalse();
+
+    /**
      * 운영 중인 매장 + 사장님(owner)을 함께 조회합니다.
      * JOIN FETCH로 owner를 즉시 로딩하여,
      * @Transactional 없는 스케줄러에서도 store.getOwner()가 정상 동작합니다.
