@@ -34,6 +34,7 @@ services:
       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - KAKAO_API_KEY=${KAKAO_API_KEY}
       - KAKAO_LOCAL_BASE_URL=https://dapi.kakao.com
+      - APP_CHAT_RAG_API_BASE_URL=${APP_CHAT_RAG_API_BASE_URL}
     depends_on:
       postgres:
         condition: service_healthy

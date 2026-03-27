@@ -3,6 +3,7 @@ import { Calendar, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { createContract } from '@/api/contract';
 import DatePickerModal from '@/components/common/DateSheet';
 import { ROUTES } from '@/constants/routes';
 import DocumentEmployeeSearchModal from '@/features/documents/components/DocumentEmployeeSearchModal';
@@ -15,10 +16,8 @@ import {
   RequestTextInput,
 } from '@/features/documents/components/RequestFormPrimitives';
 import SignaturePad from '@/features/documents/components/SignaturePad';
-import {
-  createContractRecord,
-  type OwnerContractForm,
-} from '@/features/documents/data/mockContracts';
+import type { OwnerContractForm } from '@/features/documents/data/mockContracts';
+import useStoreStore from '@/stores/useStoreStore';
 
 const PAGE_TEXT = {
   pageTitle: '문서 요청',
@@ -28,26 +27,28 @@ const PAGE_TEXT = {
   businessInfo: '사업체 정보 및 서명',
   employeeName: '직원 이름',
   employeePlaceholder: '직원 선택',
+  employeeAddress: '근로자 주소',
+  employeeAddressPlaceholder: '예: 서울시 서초구 서초동 456',
   contractStartDate: '근로계약 시작일',
   contractEndDate: '근로계약 종료일',
   datePlaceholder: '날짜 선택',
   workPlace: '근무 장소',
-  workPlacePlaceholder: '예: 보스온치킨 강남점',
+  workPlacePlaceholder: '예: 서울시 강남구 테헤란로 123',
   workDescription: '업무 내용',
-  workDescriptionPlaceholder: '예: 홀 서빙, 마감 정리',
+  workDescriptionPlaceholder: '예: 매장 고객 응대 및 음료 제조',
   workStartTime: '근무 시작 시간',
   workEndTime: '근무 종료 시간',
   breakStartTime: '휴게 시작 시간',
   breakEndTime: '휴게 종료 시간',
-  timePlaceholder: '00:00',
+  timePlaceholder: '예: 09:00',
   workDays: '근무일',
-  workDaysPlaceholder: '예: 5',
+  workDaysPlaceholder: '예: 5 (1~7)',
   weeklyHoliday: '주휴일',
-  weeklyHolidayPlaceholder: '예: 일요일',
+  weeklyHolidayPlaceholder: '예: 일요일 (복수 가능)',
   hourlyWage: '시급',
-  hourlyWagePlaceholder: '예: 11000',
+  hourlyWagePlaceholder: '예: 10320',
   payday: '임금 지급일',
-  paydayPlaceholder: '예: 매월 10일',
+  paydayPlaceholder: '예: 10일',
   hasBonus: '상여금',
   bonusAmountPlaceholder: '상여금 금액',
   hasOtherPay: '기타급여',
@@ -114,15 +115,21 @@ function formatTimeTyping(rawValue: string) {
 
 export default function ContractRequestPage() {
   const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
   const [form, setForm] = useState<OwnerContractForm>(EMPTY_FORM);
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [datePickerField, setDatePickerField] = useState<
     keyof OwnerContractForm | null
   >(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
+    null
+  );
+  const [employeeAddress, setEmployeeAddress] = useState('');
 
   const canSubmit = useMemo(
     () =>
       Boolean(
+        selectedEmployeeId !== null &&
         form.employeeName &&
         form.contractStartDate &&
         form.contractEndDate &&
@@ -133,9 +140,10 @@ export default function ContractRequestPage() {
         form.businessName &&
         form.representativeName &&
         form.businessPhone &&
-        form.ownerSignatureDataUrl
+        form.ownerSignatureDataUrl &&
+        employeeAddress
       ),
-    [form]
+    [form, selectedEmployeeId, employeeAddress]
   );
 
   const patchForm = <K extends keyof OwnerContractForm>(
@@ -156,15 +164,48 @@ export default function ContractRequestPage() {
     setDatePickerField(null);
   };
 
-  const handleSubmit = () => {
-    if (!canSubmit) {
+  const handleSubmit = async () => {
+    if (!canSubmit || !currentStore || selectedEmployeeId === null) {
       toast.error(PAGE_TEXT.requiredError);
       return;
     }
 
-    createContractRecord(form);
-    toast.success(PAGE_TEXT.success);
-    navigate(`${ROUTES.DOCUMENTS_MY}?tab=CONTRACT`);
+    try {
+      await createContract(currentStore.storeId, selectedEmployeeId, {
+        contractStartDate: form.contractStartDate,
+        contractEndDate: form.contractEndDate || null,
+        workplace: form.workPlace || undefined,
+        jobDescription: form.workDescription,
+        workStartTime: form.scheduledStartTime,
+        workEndTime: form.scheduledEndTime,
+        breakStartTime: form.breakStartTime || null,
+        breakEndTime: form.breakEndTime || null,
+        workDaysPerWeek: parseInt(form.weeklyWorkDays, 10),
+        weeklyHoliday: form.weeklyHoliday,
+        wageType: 'HOURLY',
+        wageAmount: parseInt(form.hourlyWage, 10),
+        hasBonus: form.hasBonus,
+        bonusAmount:
+          form.hasBonus && form.bonusAmount
+            ? parseInt(form.bonusAmount, 10)
+            : null,
+        hasOtherAllowance: form.hasOtherPay,
+        otherAllowanceDetails: form.hasOtherPay
+          ? `${form.otherPayName} ${form.otherPayAmount}원`
+          : null,
+        payDayDescription: `매월 ${form.payday}일`,
+        employmentInsurance: form.insuranceEmployment,
+        industrialAccidentInsurance: form.insuranceIndustrial,
+        nationalPension: form.insuranceNationalPension,
+        healthInsurance: form.insuranceHealth,
+        contractDate: form.writtenDate,
+        employeeAddress,
+      });
+      toast.success(PAGE_TEXT.success);
+      navigate(`${ROUTES.DOCUMENTS_MY}?tab=CONTRACT`);
+    } catch {
+      toast.error('계약서 전송에 실패했습니다.');
+    }
   };
 
   return (
@@ -185,6 +226,17 @@ export default function ContractRequestPage() {
             }
             onClick={() => setIsEmployeeModalOpen(true)}
           />
+
+          <div className="space-y-[var(--space-2)]">
+            <p className="text-[length:var(--text-sm)] font-bold text-[var(--color-text-secondary)]">
+              {PAGE_TEXT.employeeAddress}
+            </p>
+            <RequestTextInput
+              value={employeeAddress}
+              onChange={(value) => setEmployeeAddress(value)}
+              placeholder={PAGE_TEXT.employeeAddressPlaceholder}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-[var(--space-2)]">
             <RequestPickerField
@@ -538,9 +590,14 @@ export default function ContractRequestPage() {
 
         <DocumentEmployeeSearchModal
           isOpen={isEmployeeModalOpen}
+          storeId={currentStore?.storeId || 0}
+          selectedEmployeeId={selectedEmployeeId}
           selectedEmployeeName={form.employeeName}
           onClose={() => setIsEmployeeModalOpen(false)}
-          onApply={(name) => patchForm('employeeName', name)}
+          onApply={({ employeeId, employeeName }) => {
+            setSelectedEmployeeId(employeeId);
+            patchForm('employeeName', employeeName);
+          }}
         />
       </div>
     </DocumentsPageLayout>

@@ -5,6 +5,7 @@ import type { OwnerInviteCode } from '@/features/employee/data/mockInviteCode';
 interface EmployeeInviteCodeModalProps {
   isOpen: boolean;
   inviteCode: OwnerInviteCode;
+  isReissuing: boolean;
   onClose: () => void;
   onRegenerate?: () => void;
   isRegenerating?: boolean;
@@ -14,6 +15,7 @@ interface EmployeeInviteCodeModalProps {
 export default function EmployeeInviteCodeModal({
   isOpen,
   inviteCode,
+  isReissuing,
   onClose,
   onRegenerate,
   isRegenerating = false,
@@ -137,7 +139,7 @@ export default function EmployeeInviteCodeModal({
             </p>
             <div className="mt-[var(--space-1)] rounded-[var(--radius-sm)] border border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-4)] py-[var(--space-3)]">
               <p className="text-center font-mono text-[length:var(--text-xl)] font-bold tracking-[0.12em] text-[var(--color-danger)]">
-                {inviteCode.code}
+                {isReissuing ? 'LOADING' : inviteCode.code}
               </p>
             </div>
           </div>
@@ -160,6 +162,7 @@ export default function EmployeeInviteCodeModal({
             <button
               type="button"
               onClick={handleCopyCode}
+              disabled={isReissuing || !inviteCode.code}
               className="inline-flex h-11 items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-secondary)]"
             >
               <Copy size={14} />
@@ -168,10 +171,11 @@ export default function EmployeeInviteCodeModal({
             <button
               type="button"
               onClick={handleShareCode}
+              disabled={isReissuing || !inviteCode.code}
               className="inline-flex h-11 items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-primary)]"
             >
               <Link2 size={14} />
-              공유하기
+              초대하기
             </button>
           </div>
           {onRegenerate && (
