@@ -2,6 +2,26 @@ import instance from './instance';
 import type { ApiResponse } from './auction.types';
 import type { MyPayrollData } from '@/features/payroll/types';
 
+export interface PayrollSummary {
+  targetMonth: string;
+  thisMonthTotal: number;
+  lastMonthTotal: number;
+  changeRate: number;
+  changeDirection: string;
+  employeeCount: number;
+}
+
+export async function getPayrollSummary(
+  storeId: number
+): Promise<PayrollSummary> {
+  const targetMonth = new Date().toISOString().slice(0, 7); // "2026-03"
+  const { data } = await instance.get<ApiResponse<PayrollSummary>>(
+    `/api/v1/stores/${storeId}/payrolls/summary`,
+    { params: { targetMonth } }
+  );
+  return data.data;
+}
+
 /**
  * 알바생 본인 급여 조회 API
  *

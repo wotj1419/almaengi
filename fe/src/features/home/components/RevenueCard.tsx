@@ -1,39 +1,70 @@
-import { ChevronRight, TrendingDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import imgCharacter from '@/assets/images/character.png';
+import useStoreStore from '@/stores/useStoreStore';
+import { getPayrollSummary, type PayrollSummary } from '@/api/payroll';
 
 export default function RevenueCard() {
   const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const [summary, setSummary] = useState<PayrollSummary | null>(null);
+
+  useEffect(() => {
+    if (!currentStore) return;
+    getPayrollSummary(currentStore.storeId)
+      .then(setSummary)
+      .catch(() => {});
+  }, [currentStore]);
+
+  const targetMonth = summary
+    ? (() => {
+        const [year, month] = summary.targetMonth.split('-');
+        return `${String(year).slice(2)}년 ${String(Number(month))}월 알바 급여`;
+      })()
+    : '';
+
+  const totalAmount = summary ? summary.thisMonthTotal.toLocaleString() : '-';
+
+  const isUp = summary?.changeDirection === 'UP';
+  const TrendIcon = isUp ? TrendingUp : TrendingDown;
+  const changeLabel =
+    summary?.changeRate != null
+      ? `지난달 대비 ${summary.changeRate}%`
+      : '지난달 데이터 없음';
 
   return (
     <div className="relative w-full h-[190px] rounded-[var(--radius-lg)] bg-[var(--color-bg-dark)] shadow-[var(--shadow-card)]">
       {/* 콘텐츠 영역만 overflow-hidden - 캐릭터는 카드 밖으로 튀어나옴 */}
       <div className="flex flex-col px-[var(--space-3)] h-full overflow-hidden rounded-[inherit]">
-        {/* 섹션 1: 날짜 + 금액 */}
-        {/* 백엔드 연동 시 교체:
-            날짜: dayjs(backendDate).format('YY년 M월')
-            금액: totalLaborCost.toLocaleString() */}
-        <div className="flex flex-col gap-[var(--space-1)]">
+        {/* 섹션 1: 날짜 + 금액 (클릭 시 급여 탭 이동) */}
+        <div
+          className="flex flex-col gap-[var(--space-1)] cursor-pointer"
+          onClick={() => navigate(ROUTES.PAYROLL)}
+        >
           <p className="text-[color:var(--color-text-placeholder)] text-base font-medium">
-            26년 3월 알바 급여
+            {targetMonth}
           </p>
           <div className="flex items-baseline gap-[var(--space-1-5)] text-white text-[length:var(--text-3xl)] font-bold">
-            <span>12,450,000</span>
+            <span>{totalAmount}</span>
             <span>원</span>
           </div>
         </div>
 
-        {/* 섹션 2: 지난달 대비 배지 */}
+        {/* 섹션 2: 지난달 대비 배지 (클릭 시 급여 탭 이동) */}
         <div className="flex-1 flex items-start mt-[var(--space-2)]">
-          <div className="flex items-center gap-[var(--space-3)] py-[var(--space-1)] px-[var(--space-4)] rounded-[var(--radius-xs)] bg-[var(--color-primary)]">
-            <TrendingDown
+          <div
+            className="flex items-center gap-[var(--space-3)] py-[var(--space-1)] px-[var(--space-4)] rounded-[var(--radius-xs)] bg-[var(--color-primary)] cursor-pointer"
+            onClick={() => navigate(ROUTES.PAYROLL)}
+          >
+            <TrendIcon
               size={16}
               color="var(--color-text-black)"
               strokeWidth={2.0}
             />
             <span className="text-[length:var(--text-md)] text-[color:var(--color-text-black)] font-bold whitespace-nowrap">
-              지난달 대비 5%
+              {changeLabel}
             </span>
           </div>
         </div>
