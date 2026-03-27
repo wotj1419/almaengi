@@ -1,9 +1,10 @@
 import { FileText, UserPlus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import { ROUTES } from '@/constants/routes';
+import { generateInviteCode, type InviteCodeInfo } from '@/api/store';
 import EmployeeListItem from '@/features/employee/components/EmployeeListItem';
 import EmployeeInviteCodeModal from '@/features/employee/components/EmployeeInviteCodeModal';
 import EmployeePendingInviteItem from '@/features/employee/components/EmployeePendingInviteItem';
@@ -51,11 +52,47 @@ export default function EmployeePage() {
   const navigate = useNavigate();
   const registeredStore = useStoreManageStore((state) => state.registeredStore);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteCodeData, setInviteCodeData] = useState<InviteCodeInfo | null>(
+    null
+  );
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
   // 현재 직원 / 퇴사 직원 탭 전환 상태
   const [selectedStaffGroup, setSelectedStaffGroup] =
     useState<StaffGroupKey>('CURRENT');
   const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>(
     buildInitialEmployeeRecords
+  );
+
+  // localStorage 캐시 확인 후 유효하면 재사용, 만료/없으면 API 호출
+  // force=true 이면 캐시를 무시하고 항상 API 재발급
+  const loadInviteCode = useCallback(
+    async (force = false) => {
+      const storeId = registeredStore?.storeId;
+      if (!storeId) return;
+
+      if (!force) {
+        const cached = localStorage.getItem(`invite_code_${storeId}`);
+        if (cached) {
+          const parsed: InviteCodeInfo = JSON.parse(cached) as InviteCodeInfo;
+          if (new Date(parsed.expiredAt) > new Date()) {
+            setInviteCodeData(parsed);
+            return;
+          }
+        }
+      }
+
+      setIsRegeneratingCode(true);
+      try {
+        const data = await generateInviteCode(storeId);
+        setInviteCodeData(data);
+        localStorage.setItem(`invite_code_${storeId}`, JSON.stringify(data));
+      } catch (error) {
+        console.error('[employee] 초대 코드 발급 실패', error);
+      } finally {
+        setIsRegeneratingCode(false);
+      }
+    },
+    [registeredStore?.storeId]
   );
 
   // status 기준으로 초대 대기 / 재직 / 퇴사 직원을 각각 필터링
@@ -81,25 +118,25 @@ export default function EmployeePage() {
   const selectedStaffRecords =
     selectedStaffGroup === 'CURRENT' ? currentRecords : resignedRecords;
 
-  // 매장 코드가 6자리 숫자인지 검증하여 초대 코드로 사용, 아니면 fallback mock 사용
-  const ownerInviteCode = useMemo(() => {
-    const rawStoreCode = registeredStore?.storeCode ?? '';
-    const sixDigitStoreCode = /^\d{6}$/.test(rawStoreCode)
-      ? rawStoreCode
-      : ownerInviteCodeMock.code;
-
-    return {
+  // API 응답 또는 fallback mock으로 모달에 전달할 초대 코드 구성
+  const ownerInviteCode = useMemo(
+    () => ({
       storeName: registeredStore?.name ?? ownerInviteCodeMock.storeName,
-      code: sixDigitStoreCode,
-      expiresAt: ownerInviteCodeMock.expiresAt,
-    };
-  }, [registeredStore]);
+      code: inviteCodeData?.inviteCode ?? ownerInviteCodeMock.code,
+      expiresAt: inviteCodeData?.expiredAt ?? ownerInviteCodeMock.expiresAt,
+    }),
+    [registeredStore, inviteCodeData]
+  );
 
   // 페이지 내 사용자 인터랙션 핸들러 모음
   const handlers = {
-    openInviteModal: () => setIsInviteModalOpen(true),
+    openInviteModal: () => {
+      setIsInviteModalOpen(true);
+      void loadInviteCode();
+    },
     openContractPage: () => console.info('[employee] 근로계약서 작성 클릭'),
     closeInviteModal: () => setIsInviteModalOpen(false),
+    regenerateCode: () => void loadInviteCode(true),
     // 초대 대기 직원을 목록에서 제거
     removeInvitedEmployee: (id: number) => {
       setEmployeeRecords((prev) =>
@@ -220,6 +257,8 @@ export default function EmployeePage() {
         isOpen={isInviteModalOpen}
         inviteCode={ownerInviteCode}
         onClose={handlers.closeInviteModal}
+        onRegenerate={handlers.regenerateCode}
+        isRegenerating={isRegeneratingCode}
       />
 
       <BottomNav activeTab="staff" />

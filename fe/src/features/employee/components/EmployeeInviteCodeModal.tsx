@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Link2, Send, X } from 'lucide-react';
+import { Copy, Link2, RefreshCw, Send, X } from 'lucide-react';
 import type { OwnerInviteCode } from '@/features/employee/data/mockInviteCode';
 
 interface EmployeeInviteCodeModalProps {
   isOpen: boolean;
   inviteCode: OwnerInviteCode;
   onClose: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
-// 직원 초대 코드 모달 - 매장 코드를 표시하고, 복사/공유 기능을 제공한다
+// 직원 초대 코드 모달 - 매장 코드를 표시하고, 복사/공유/재발급 기능을 제공한다
 export default function EmployeeInviteCodeModal({
   isOpen,
   inviteCode,
   onClose,
+  onRegenerate,
+  isRegenerating = false,
 }: EmployeeInviteCodeModalProps) {
   // 복사/공유 결과를 1.8초간 토스트 메시지로 표시
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -170,6 +174,20 @@ export default function EmployeeInviteCodeModal({
               공유하기
             </button>
           </div>
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={isRegenerating}
+              className="inline-flex h-10 w-full items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] border border-[var(--color-border-muted)] text-[length:var(--text-sm)] font-medium text-[var(--color-text-muted)] disabled:opacity-50"
+            >
+              <RefreshCw
+                size={13}
+                className={isRegenerating ? 'animate-spin' : ''}
+              />
+              {isRegenerating ? '발급 중...' : '코드 재발급'}
+            </button>
+          )}
           {feedbackMessage && (
             <p className="text-center text-[length:var(--text-xs)] font-medium text-[var(--color-status-green-dot)]">
               {feedbackMessage}
