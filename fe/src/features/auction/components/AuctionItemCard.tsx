@@ -64,7 +64,9 @@ export default function AuctionItemCard({
   onStop,
   onDeleteCompleted,
 }: AuctionItemCardProps) {
-  const isCompleted = auction.status === 'completed';
+  const isCompleted =
+    auction.displayStatus === 'closed' || auction.displayStatus === 'cancelled';
+
   const statusStyle = STATUS_STYLES[auction.displayStatus];
   const isActive = auction.displayStatus === 'active';
 
