@@ -130,4 +130,9 @@ public class StoreEmployee extends BaseTimeEntity {
     public void changeStatus(StoreEmployeeStatus status) {
         this.status = status;
     }
+
+    public void approveToWorking() {
+        this.status = StoreEmployeeStatus.WORKING;
+        this.hireDate =  LocalDate.now();
+    }
 }

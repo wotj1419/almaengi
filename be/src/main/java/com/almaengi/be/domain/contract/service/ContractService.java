@@ -254,7 +254,7 @@ public class ContractService {
     // P1-8: 직원 상태 검증
     private void validateEmployeeStatus(StoreEmployee storeEmployee) {
         StoreEmployeeStatus status = storeEmployee.getStatus();
-        if (status == StoreEmployeeStatus.RESIGNED || status == StoreEmployeeStatus.INVITED) {
+        if (status == StoreEmployeeStatus.RESIGNED || status == StoreEmployeeStatus.INVITED || status == StoreEmployeeStatus.WAITING) {
             throw new BusinessException(ErrorCode.CONTRACT_INVALID_EMPLOYEE);
         }
     }

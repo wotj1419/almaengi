@@ -10,8 +10,8 @@ pipeline {
             steps {
                 sh """
                     cd ${PROJECT_DIR}
-                    git fetch origin release
-                    git diff --name-only HEAD origin/release > /tmp/changed_files.txt
+                    git fetch origin release || true
+                    git diff --name-only HEAD origin/release > /tmp/changed_files.txt || true
                     cat /tmp/changed_files.txt
                     git reset --hard origin/release
                 """

@@ -26,6 +26,7 @@ public enum ErrorCode {
     INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "S004", "유효하지 않거나 만료된 초대 코드입니다."),
     STORE_GEOCODING_UPSTREAM_FAILED(HttpStatus.BAD_GATEWAY, "S005", "주소 좌표 변환 서비스가 원활하지 않습니다. 잠시 후 다시 시도해주세요."),
     STORE_GEOCODING_NOT_FOUND(HttpStatus.BAD_REQUEST, "S006", "입력한 주소로 좌표를 찾을 수 없습니다."),
+    INVALID_EMPLOYEE_STATUS(HttpStatus.CONFLICT, "S007", "초대 대기 상태 직원이 아닙니다."),
 
     // Auction
     AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "해당 구인 경매를 찾을 수 없습니다."),

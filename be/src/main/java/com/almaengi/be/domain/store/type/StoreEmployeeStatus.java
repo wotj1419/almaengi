@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum StoreEmployeeStatus {
     INVITED("초대 코드 발송"),
+    WAITING("승인 대기 중"),
     WORKING("근무 중"),
     RESIGNED("퇴사"),
     ON_LEAVE("휴직"),

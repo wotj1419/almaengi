@@ -255,7 +255,9 @@ public class ChatRoomService {
             return;
         }
         Optional<StoreEmployee> employeeOpt = storeEmployeeRepository.findByStoreIdAndUserId(store.getId(), userId);
-        if (employeeOpt.isPresent() && employeeOpt.get().getStatus() != StoreEmployeeStatus.RESIGNED) {
+        if (employeeOpt.isPresent() && employeeOpt.get().getStatus() != StoreEmployeeStatus.RESIGNED
+                                    && employeeOpt.get().getStatus() != StoreEmployeeStatus.WAITING
+                                    && employeeOpt.get().getStatus() != StoreEmployeeStatus.INVITED) {
             return;
         }
         throw new BusinessException(ErrorCode.CHAT_ROOM_ACCESS_DENIED);

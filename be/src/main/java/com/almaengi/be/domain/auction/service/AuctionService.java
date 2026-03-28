@@ -129,6 +129,11 @@ public class AuctionService {
         ShiftAuction auction = getShiftAuctionOrThrow(auctionId);
         StoreEmployee bidder = storeEmployeeRepository.findByStoreIdAndUserId(auction.getStore().getId(), employee.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        // 승인된 직원들만 입찰 가능
+        if(bidder.getStatus() == StoreEmployeeStatus.WAITING || bidder.getStatus() == StoreEmployeeStatus.INVITED)
+            throw new BusinessException(ErrorCode.INVALID_EMPLOYEE_STATUS);
+
         if (auction.getStatus() != AuctionStatus.IN_PROGRESS) {
             // 이미 마감되었거나 취소된 경우
             throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
