@@ -4,6 +4,7 @@ export type ScheduleStatus = 'BEFORE_SHIFT' | 'WORKING' | 'LATE' | 'ABSENT';
 
 export interface ScheduleEmployee {
   id: number;
+  employeeId: number;
   name: string;
   status: ScheduleStatus;
   startTime: string;

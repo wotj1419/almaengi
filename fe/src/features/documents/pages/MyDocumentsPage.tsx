@@ -276,7 +276,7 @@ export default function MyDocumentsPage() {
                     navigate(
                       ROUTES.DOCUMENTS_CONTRACT_DETAIL.replace(
                         ':contractId',
-                        item.id
+                        String(item.id)
                       )
                     )
                   }

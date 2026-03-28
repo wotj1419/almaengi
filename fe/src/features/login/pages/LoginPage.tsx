@@ -24,22 +24,6 @@ import {
 const INPUT_CLASS =
   'h-14 px-4 bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] border border-[var(--color-border-muted)] text-[length:var(--text-base)] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-placeholder)] outline-none';
 
-const TEST_ACCOUNTS = [
-  {
-    label: '사장 테스트 로그인',
-    email: 'owner@test.com',
-    password: 'Test1234!',
-  },
-  {
-    label: '직원 테스트 로그인',
-    email: 'employee@test.com',
-    password: 'Test1234!',
-  },
-] as const;
-
-const IS_TEST_LOGIN_ENABLED =
-  import.meta.env.DEV && import.meta.env.VITE_ENABLE_MSW === 'true';
-
 interface LabeledInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   suffix?: ReactNode;
@@ -150,10 +134,13 @@ export default function LoginPage() {
           authStatus.accessToken,
           activeStoreId
         );
-        // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN으로 이동
+        // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN 또는 STORE_JOIN_PENDING으로 이동
         // HOME을 경유하면 EmployeeHomePage가 잠깐 렌더링되며 불필요한 API 호출이 발생함
         if (authStatus.role === 'EMPLOYEE' && activeStoreId === null) {
-          navigate(ROUTES.STORE_JOIN, { replace: true });
+          const isPending = localStorage.getItem('pendingJoin') === 'true';
+          navigate(isPending ? ROUTES.STORE_JOIN_PENDING : ROUTES.STORE_JOIN, {
+            replace: true,
+          });
         } else {
           navigate(ROUTES.HOME, { replace: true });
         }
@@ -228,9 +215,12 @@ export default function LoginPage() {
         activeStoreId
       );
 
-      // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN으로 이동
+      // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN 또는 STORE_JOIN_PENDING으로 이동
       if (res.data.role === 'EMPLOYEE' && activeStoreId === null) {
-        navigate(ROUTES.STORE_JOIN, { replace: true });
+        const isPending = localStorage.getItem('pendingJoin') === 'true';
+        navigate(isPending ? ROUTES.STORE_JOIN_PENDING : ROUTES.STORE_JOIN, {
+          replace: true,
+        });
       } else {
         navigate(ROUTES.HOME, { replace: true });
       }
@@ -270,12 +260,6 @@ export default function LoginPage() {
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
     void loginWithCredentials(email, password);
-  };
-
-  const handleTestLogin = (testEmail: string, testPassword: string) => {
-    setEmail(testEmail);
-    setPassword(testPassword);
-    void loginWithCredentials(testEmail, testPassword);
   };
 
   return (
@@ -343,25 +327,6 @@ export default function LoginPage() {
             {isSubmitting ? '로그인 중...' : '로그인'}
           </button>
         </form>
-
-        {IS_TEST_LOGIN_ENABLED && (
-          <div className="px-6 pb-4 flex flex-col gap-2">
-            <p className="text-center text-[length:var(--text-sm)] font-medium text-[var(--color-text-muted)]">
-              테스트 계정으로 바로 로그인
-            </p>
-            {TEST_ACCOUNTS.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                onClick={() => handleTestLogin(account.email, account.password)}
-                disabled={isSubmitting}
-                className="w-full h-11 border border-[var(--color-border-muted)] rounded-[var(--radius-lg)] text-[length:var(--text-sm)] font-semibold text-[var(--color-text-primary)] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {account.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="px-6 pt-4 pb-10 flex justify-center gap-1">
           <span className="text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)] leading-5">

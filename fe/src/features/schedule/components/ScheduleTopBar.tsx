@@ -10,9 +10,8 @@ import {
 import {
   buildMonthCells,
   buildWeekDates,
-  hasAbsentOnDate,
   WEEKDAY_LABELS,
-} from '@/features/schedule/data/mockSchedule';
+} from '@/features/schedule/constants/scheduleMeta';
 
 // --- 레이아웃·드래그 상수 ---
 const WEEK_PANEL_HEIGHT = 72; // 주간 달력 높이(px)
@@ -45,6 +44,7 @@ interface ScheduleTopBarProps {
   onHandlePointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
   onHandleKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
   onBack?: () => void;
+  hasAbsentOnDate?: (date: Dayjs) => boolean;
 }
 
 interface MonthYearPickerModalProps {
@@ -193,15 +193,17 @@ function DateButton({
   inCurrentMonth,
   isDisabled,
   onSelectDate,
+  hasAbsentOnDate,
 }: {
   date: Dayjs;
   selectedDate: Dayjs;
   inCurrentMonth: boolean;
   isDisabled: boolean;
   onSelectDate: (date: Dayjs) => void;
+  hasAbsentOnDate?: (date: Dayjs) => boolean;
 }) {
   const isSelected = date.isSame(selectedDate, 'day');
-  const hasAbsent = hasAbsentOnDate(date);
+  const hasAbsent = hasAbsentOnDate?.(date) ?? false;
   const isSunday = date.day() === 0;
   const isSaturday = date.day() === 6;
 
@@ -247,6 +249,7 @@ export default function ScheduleTopBar({
   onHandlePointerCancel,
   onHandleKeyDown,
   onBack,
+  hasAbsentOnDate,
 }: ScheduleTopBarProps) {
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
@@ -366,6 +369,7 @@ export default function ScheduleTopBar({
                     inCurrentMonth={true}
                     isDisabled={isMonthExpanded}
                     onSelectDate={onSelectDate}
+                    hasAbsentOnDate={hasAbsentOnDate}
                   />
                 ))}
               </div>
@@ -397,6 +401,7 @@ export default function ScheduleTopBar({
                     inCurrentMonth={cell.inCurrentMonth}
                     isDisabled={!isMonthExpanded}
                     onSelectDate={onSelectDate}
+                    hasAbsentOnDate={hasAbsentOnDate}
                   />
                 ))}
               </div>
