@@ -139,6 +139,7 @@
   --text-lg: 18px;
   --text-xl: 20px;
   --text-2xl: 25px;
+  --text-2-5xl: 28px;
   --text-3xl: 32px;
 
   /* ── 자간 ── */
@@ -175,7 +176,7 @@
   --p-avatar: 1px;
   --max-w-app: 600px;
   --height-bottom-nav: 80px;
-  --pb-content: 160px;
+  --pb-content: 140px;
   --pb-content-selection: 220px;
 
   /* ── 둥글기 ── */

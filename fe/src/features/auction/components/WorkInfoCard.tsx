@@ -70,13 +70,13 @@ export default function WorkInfoCard({
               </div>
             </div>
             <div className="self-stretch relative">
-              <div className="self-stretch pl-4 pr-10 py-3 bg-[var(--color-bg-card)] rounded-xl inline-flex items-center overflow-hidden">
+              <div className="self-stretch px-4 py-3 bg-[var(--color-bg-card)] rounded-xl inline-flex items-center overflow-hidden">
                 <input
                   type="text"
                   inputMode="numeric"
                   value={staffCount}
                   onChange={(e) => onStaffCountChange?.(e.target.value)}
-                  className="w-full bg-transparent outline-none text-[var(--color-text-primary)] text-sm font-medium leading-5"
+                  className="w-full bg-transparent outline-none text-[var(--color-text-primary)] text-base font-medium leading-5"
                 />
               </div>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-placeholder)] text-sm font-medium leading-5">

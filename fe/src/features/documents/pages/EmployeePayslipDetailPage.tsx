@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react';
+import { Download, ExternalLink } from 'lucide-react';
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
@@ -36,7 +36,7 @@ export default function EmployeePayslipDetailPage() {
         </section>
       ) : (
         <section className="space-y-[var(--space-4)]">
-          <article className="rounded-[var(--radius-xl)] border border-[var(--color-border-light)] bg-[var(--color-bg-white)] p-[var(--space-5)] shadow-[var(--shadow-form-card)]">
+          <article className="rounded-[var(--radius-lg)] border border-[var(--color-border-light)] bg-[var(--color-bg-white)] p-[var(--space-5)] shadow-[var(--shadow-form-card)]">
             <p className="text-[length:var(--text-xs)] font-bold text-[var(--color-text-muted)]">
               {payslip.year}년 {payslip.month}월 · 발행일 {payslip.issuedAt}
             </p>
@@ -56,14 +56,15 @@ export default function EmployeePayslipDetailPage() {
               <a
                 href={payslip.pdfUrl}
                 download={`${payslip.id}.pdf`}
-                className="inline-flex h-10 items-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-[var(--space-3)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-primary)]"
+                className="inline-flex h-10 items-center gap-[var(--space-1)] rounded-[var(--radius-md)] bg-[var(--color-primary)] px-[var(--space-3)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-primary)]"
               >
                 {PAGE_TEXT.download}
+                <Download size={14} />
               </a>
             </div>
           </article>
 
-          <article className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-light)] bg-[var(--color-bg-white)] shadow-[var(--shadow-form-card)]">
+          <article className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border-light)] bg-[var(--color-bg-white)] shadow-[var(--shadow-form-card)]">
             <div className="border-b border-[var(--color-border-light)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-secondary)]">
               {PAGE_TEXT.preview}
             </div>

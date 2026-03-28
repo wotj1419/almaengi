@@ -22,6 +22,7 @@ import {
 } from '@/features/documents';
 import StoreManagePage from '@/features/store/pages/StoreManagePage';
 import StoreRegisterPage from '@/features/store/pages/StoreRegisterPage';
+import StoreJoinPage from '@/features/store/pages/StoreJoinPage';
 import StorePage from '@/features/store/pages/StorePage';
 import QrManagePage from '@/features/store/pages/QrManagePage';
 import NewChatPage from '@/features/store/pages/NewChatPage';
@@ -123,6 +124,7 @@ export default function AppRouter() {
       <Route path={ROUTES.STORE} element={<StoreManagePage />} />
       {/* 매장 관리/경매 빈 상태에서 공통으로 진입하는 등록 페이지 */}
       <Route path={ROUTES.STORE_REGISTER} element={<StoreRegisterPage />} />
+      <Route path={ROUTES.STORE_JOIN} element={<StoreJoinPage />} />
       <Route path={ROUTES.STORE_QR} element={<QrManagePage />} />
       <Route path={ROUTES.STORE_COMMUNITY} element={<StorePage />} />
       <Route path={ROUTES.STORE_CHAT_NEW} element={<NewChatPage />} />

@@ -30,9 +30,14 @@ export default function EmployeeHomePage() {
 
   useEffect(() => {
     getMyEmployeeStores()
-      .then(setStores)
+      .then((stores) => {
+        setStores(stores);
+        if (stores.length === 0) {
+          navigate(ROUTES.STORE_JOIN, { replace: true });
+        }
+      })
       .catch(() => {});
-  }, [setStores]);
+  }, [setStores, navigate]);
 
   useEffect(() => {
     if (currentStore) fetchRooms(currentStore.storeId);

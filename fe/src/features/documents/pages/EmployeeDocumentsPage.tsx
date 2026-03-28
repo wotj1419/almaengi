@@ -1,15 +1,16 @@
 import { CalendarDays, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import {
+  getMyContracts,
+  mapContractStatus,
+  type UIContractStatus,
+} from '@/api/contract';
+import { getApiErrorMessage } from '@/api/error';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/layout/DetailHeader';
 import { ROUTES } from '@/constants/routes';
-import {
-  getEmployeeContractStatusLabel,
-  listEmployeeContractRecords,
-  subscribeEmployeeContractRecords,
-  type EmployeeContractRecord,
-} from '@/features/documents/data/mockEmployeeContracts';
 import {
   listEmployeeEtcDocumentRequests,
   type EmployeeEtcDocumentRequestRecord,
@@ -23,6 +24,15 @@ import {
 } from '@/features/documents/data/mockEmployeeDocuments';
 import PayslipMonthAccordion from '@/features/documents/components/PayslipMonthAccordion';
 import YearPickerModal from '@/features/documents/components/YearPickerModal';
+import useStoreStore from '@/stores/useStoreStore';
+
+// API 기반 EmployeeContractRecord 타입
+export interface EmployeeContractRecord {
+  id: number;
+  title: string;
+  status: UIContractStatus;
+  createdAt: string;
+}
 
 const TABS: Array<{ key: EmployeeDocumentCategory; label: string }> = [
   { key: 'PAYSLIP', label: '급여명세서' },
@@ -56,11 +66,13 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-function EmployeeContractStatusBadge({
-  status,
-}: {
-  status: EmployeeContractRecord['status'];
-}) {
+const CONTRACT_STATUS_LABEL: Record<UIContractStatus, string> = {
+  REQUESTING: '요청중',
+  PENDING_APPROVAL: '승인 대기',
+  APPROVED: '승인 완료',
+};
+
+function EmployeeContractStatusBadge({ status }: { status: UIContractStatus }) {
   const className =
     status === 'REQUESTING'
       ? 'bg-[var(--color-status-orange-bg)] text-[var(--color-status-orange-dot)]'
@@ -72,7 +84,7 @@ function EmployeeContractStatusBadge({
     <span
       className={`rounded-full px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-xs)] font-bold ${className}`}
     >
-      {getEmployeeContractStatusLabel(status)}
+      {CONTRACT_STATUS_LABEL[status]}
     </span>
   );
 }
@@ -147,12 +159,14 @@ function EtcDocumentCard({
 
 export default function EmployeeDocumentsPage() {
   const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
+
   const [selectedTab, setSelectedTab] =
     useState<EmployeeDocumentCategory>('PAYSLIP');
   const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
   const [contractRecords, setContractRecords] = useState<
     EmployeeContractRecord[]
-  >(() => listEmployeeContractRecords());
+  >([]);
   const [etcRequestRecords] = useState<EmployeeEtcDocumentRequestRecord[]>(() =>
     listEmployeeEtcDocumentRequests()
   );
@@ -166,11 +180,28 @@ export default function EmployeeDocumentsPage() {
   const [selectedYear, setSelectedYear] = useState<number>(yearOptions[0]);
   const [draftYear, setDraftYear] = useState<number>(yearOptions[0]);
 
+  // API에서 내 근로계약서 목록 조회
   useEffect(() => {
-    return subscribeEmployeeContractRecords(() => {
-      setContractRecords(listEmployeeContractRecords());
-    });
-  }, []);
+    const fetchMyContracts = async () => {
+      if (!currentStore) return;
+      try {
+        const contracts = await getMyContracts(currentStore.storeId);
+        const records = contracts.map((contract) => ({
+          id: contract.contractId,
+          title: `${contract.employeeName} 근로계약서`,
+          status: mapContractStatus(contract.status),
+          createdAt: contract.createdAt,
+        }));
+        setContractRecords(records);
+      } catch (error) {
+        toast.error(
+          getApiErrorMessage(error, '근로계약서 목록 조회에 실패했습니다.')
+        );
+      }
+    };
+
+    void fetchMyContracts();
+  }, [currentStore]);
 
   const monthlyPayslips = useMemo(
     () =>

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
 import DatePickerModal from '@/components/common/DateSheet';
-import TimePickerModal from '@/components/common/TimeSheet';
+import TimePickerModal from '../components/AuctionTimePickerModal';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/common/DetailHeader';
 import { getApiErrorMessage } from '@/api/error';
@@ -109,35 +109,13 @@ function AuctionEditForm({
     }
 
     const now = dayjs();
-    const targetStart = selectedDate
-      .hour(startHour)
-      .minute(startMinute)
-      .second(0);
-    const targetEnd = selectedDate.hour(endHour).minute(endMinute).second(0);
     const deadline = deadlineDate
       .hour(deadlineHour)
       .minute(deadlineMinute)
       .second(0);
 
-    if (targetStart.isBefore(now)) {
-      setFormErrors({ startTime: '근무 시작 시간은 현재 이후여야 합니다.' });
-      return;
-    }
-
-    if (targetEnd.isBefore(targetStart)) {
-      setFormErrors({ endTime: '근무 종료 시간은 시작 시간 이후여야 합니다.' });
-      return;
-    }
-
     if (!deadline.isAfter(now)) {
       setFormErrors({ deadline: '경매 마감 시간은 현재 이후여야 합니다.' });
-      return;
-    }
-
-    if (!deadline.isBefore(targetStart)) {
-      setFormErrors({
-        deadline: '경매 마감 시간은 근무 시작 전이어야 합니다.',
-      });
       return;
     }
 

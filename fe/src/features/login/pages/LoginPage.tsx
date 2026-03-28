@@ -11,7 +11,10 @@ import { Eye, EyeOff } from 'lucide-react';
 import { ROUTES } from '@/constants/routes';
 import { login } from '@/api/auth';
 import { validateSessionByReissue } from '@/api/session';
-import { getMyStoresWithToken } from '@/api/store';
+import {
+  getMyStoresWithToken,
+  getMyEmployeeStoresWithToken,
+} from '@/api/store';
 import useAuthStore from '@/stores/useAuthStore';
 import {
   validateEmailFormat,
@@ -129,11 +132,13 @@ export default function LoginPage() {
         //        → employee는 최초 로그인 직후에만 activeStoreId가 설정되고,
         //          이후 새로고침 시 null로 고정되어 경매 목록이 표시되지 않는 문제 발생
         //
-        // [해결] resolveActiveStoreId(accessToken)을 호출해 항상 최신 소속 매장 ID 결정
-        //        → /api/v1/stores 응답이 비어 있으면 null 반환 (소속 없는 직원 정상 처리)
+        // [해결] resolveActiveStoreId(accessToken, role)을 호출해 항상 최신 소속 매장 ID 결정
+        //        → OWNER는 /api/v1/stores, EMPLOYEE는 /api/v1/stores/employees/my 호출
+        //        → 응답이 비어 있으면 null 반환 (소속 없는 직원 정상 처리)
         //        → OWNER/EMPLOYEE 모두 이 경로를 통해 올바른 activeStoreId가 설정됨
         const activeStoreId = await resolveActiveStoreId(
-          authStatus.accessToken
+          authStatus.accessToken,
+          authStatus.role
         );
 
         authLogin(
@@ -145,7 +150,13 @@ export default function LoginPage() {
           authStatus.accessToken,
           activeStoreId
         );
-        navigate(ROUTES.HOME, { replace: true });
+        // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN으로 이동
+        // HOME을 경유하면 EmployeeHomePage가 잠깐 렌더링되며 불필요한 API 호출이 발생함
+        if (authStatus.role === 'EMPLOYEE' && activeStoreId === null) {
+          navigate(ROUTES.STORE_JOIN, { replace: true });
+        } else {
+          navigate(ROUTES.HOME, { replace: true });
+        }
       }
     })();
 
@@ -154,9 +165,15 @@ export default function LoginPage() {
     };
   }, [navigate, authLogin]);
 
-  const resolveActiveStoreId = async (accessToken: string) => {
+  const resolveActiveStoreId = async (
+    accessToken: string,
+    role: 'OWNER' | 'EMPLOYEE'
+  ) => {
     try {
-      const stores = await getMyStoresWithToken(accessToken);
+      const stores =
+        role === 'OWNER'
+          ? await getMyStoresWithToken(accessToken)
+          : await getMyEmployeeStoresWithToken(accessToken);
       if (stores.length === 1) return stores[0].storeId;
       if (stores.length > 1) {
         return Math.min(...stores.map((store) => store.storeId));
@@ -200,7 +217,10 @@ export default function LoginPage() {
         return;
       }
 
-      const activeStoreId = await resolveActiveStoreId(res.data.accessToken);
+      const activeStoreId = await resolveActiveStoreId(
+        res.data.accessToken,
+        res.data.role
+      );
 
       authLogin(
         { id: res.data.userId, name: res.data.name, role: res.data.role },
@@ -208,7 +228,12 @@ export default function LoginPage() {
         activeStoreId
       );
 
-      navigate(ROUTES.HOME, { replace: true });
+      // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN으로 이동
+      if (res.data.role === 'EMPLOYEE' && activeStoreId === null) {
+        navigate(ROUTES.STORE_JOIN, { replace: true });
+      } else {
+        navigate(ROUTES.HOME, { replace: true });
+      }
     } catch (error) {
       // ─── Axios 에러 처리 ─────────────────────────────────────────────────
       if (axios.isAxiosError(error)) {

@@ -102,3 +102,34 @@ export async function getEmployees(storeId: number) {
   );
   return data.data;
 }
+
+// ─── 직원 합류 ───────────────────────────────────────────────────────────────
+
+export interface EmployeeInfo {
+  employeeId: number;
+  userId: number;
+  name: string;
+  position: string | null;
+  hourlyWage: number;
+  taxType: string;
+  includeHolidayPay: boolean;
+  hireDate: string;
+  status: string;
+}
+
+// 로그인 시점(토큰 미설정)에 직원 매장 목록 조회용 — getMyStoresWithToken과 동일 패턴
+export async function getMyEmployeeStoresWithToken(accessToken: string) {
+  const { data } = await instance.get<ApiResponse<StoreInfo[]>>(
+    '/api/v1/stores/employees/my',
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  return data.data;
+}
+
+export async function joinStore(inviteCode: string) {
+  const { data } = await instance.post<ApiResponse<EmployeeInfo>>(
+    '/api/v1/stores/employees/join',
+    { inviteCode }
+  );
+  return data.data;
+}
