@@ -45,6 +45,13 @@ public interface WorkScheduleControllerDocs {
             @AuthUser Long userId,
             @PathVariable Long storeId
     );
+    @Operation(summary = "내 스케줄 조회 (알바생)",
+            description = "알바생이 특정 매장에서 자신의 주간 고정 스케줄을 조회합니다. employeeId 없이 로그인된 userId로 자동 조회됩니다.")
+    ApiResponse<List<WorkScheduleResponseDto.ScheduleInfo>> getMySchedules(
+            @AuthUser Long userId,
+            @PathVariable Long storeId
+    );
+
     @Operation(summary = "매장 특정 요일 전체 직원 스케줄 조회",
             description = "사장님이 특정 매장의 특정 요일 근무 스케줄을 전체 직원 기준으로 조회합니다.")
     ApiResponse<List<WorkScheduleResponseDto.ScheduleInfo>> getStoreSchedulesByDay(

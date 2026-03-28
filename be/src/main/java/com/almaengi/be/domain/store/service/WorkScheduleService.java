@@ -120,6 +120,19 @@ public class WorkScheduleService {
                 .toList();
     }
 
+    // 알바생 본인의 주간 스케줄 조회 (employeeId 없이 userId + storeId로 조회)
+    public List<WorkScheduleResponseDto.ScheduleInfo> getMySchedules(Long userId, Long storeId) {
+        StoreEmployee employee = storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        return workScheduleRepository.findByEmployeeId(employee.getId()).stream()
+                .sorted(Comparator
+                        .comparing((WorkSchedule ws) -> ws.getDayOfWeek().getValue())
+                        .thenComparing(WorkSchedule::getStartTime))
+                .map(WorkScheduleResponseDto.ScheduleInfo::from)
+                .toList();
+    }
+
     // 매장 전체 직원의 특정 요일 스케줄(고정 스케줄) 조회
     public List<WorkScheduleResponseDto.ScheduleInfo> getStoreSchedulesByDay(Long userId, Long storeId, DayOfWeek dayOfWeek) {
         Store store = getStoreOrThrow(storeId);
