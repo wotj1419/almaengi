@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -21,10 +21,11 @@ export default function StoreJoinPage() {
 
   const isCodeFilled = inviteCode.trim().length > 0;
 
-  // 합류 성공/이미 소속 시 공통 컨텍스트 설정 로직
+  // 합류 성공/이미 소속 시 공통 컨텍스트 동기화
   const syncStoreContext = async () => {
     const stores = await getMyEmployeeStores();
     setStores(stores);
+
     if (stores.length > 0) {
       const nextActiveId =
         stores.length === 1
@@ -32,6 +33,8 @@ export default function StoreJoinPage() {
           : Math.min(...stores.map((s) => s.storeId));
       setActiveStoreId(nextActiveId);
     }
+
+    return stores;
   };
 
   // 뒤로가기 시 로그아웃 후 로그인 페이지로 이동
@@ -39,7 +42,7 @@ export default function StoreJoinPage() {
     try {
       await logout();
     } catch {
-      /* 무시 */
+      // no-op
     } finally {
       authLogout();
       setStores([]);
@@ -49,26 +52,54 @@ export default function StoreJoinPage() {
 
   const handleJoin = async () => {
     if (!isCodeFilled || isSubmitting) return;
+
     setIsSubmitting(true);
     try {
-      await joinStore(inviteCode.trim());
+      const result = await joinStore(inviteCode.trim());
+
+      // 백엔드 joinStore는 신규 합류 시 WAITING 상태로 생성
+      if (result.status === 'WAITING' || result.status === 'INVITED') {
+        localStorage.setItem('pendingJoin', 'true');
+        toast.success(
+          '매장 합류 요청이 완료되었어요. 사장님 승인까지 기다려주세요.'
+        );
+        navigate(ROUTES.STORE_JOIN_PENDING, { replace: true });
+        return;
+      }
+
+      // WORKING 등 즉시 활성 상태
+      localStorage.removeItem('pendingJoin');
       await syncStoreContext();
-      toast.success('매장에 합류했어요!');
+      toast.success('매장에 합류했어요.');
       navigate(ROUTES.HOME, { replace: true });
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        // ApiResponse.error.status는 에러 "코드" 문자열 (예: S003)
         const errorStatus = error.response?.data?.status as string | undefined;
-        if (errorStatus === 'ALREADY_STORE_EMPLOYEE') {
-          toast.success('이미 합류된 매장이에요. 홈으로 이동합니다.');
-          try {
-            await syncStoreContext();
-          } catch {
-            /* 무시 */
+
+        if (
+          errorStatus === 'S003' ||
+          errorStatus === 'ALREADY_STORE_EMPLOYEE'
+        ) {
+          const stores = await syncStoreContext();
+
+          if (stores.length > 0) {
+            localStorage.removeItem('pendingJoin');
+            toast.success('이미 소속된 매장으로 이동합니다.');
+            navigate(ROUTES.HOME, { replace: true });
+            return;
           }
-          navigate(ROUTES.HOME, { replace: true });
+
+          // 아직 승인 전이면 내 매장 목록이 비어 있으므로 pending으로 이동
+          localStorage.setItem('pendingJoin', 'true');
+          toast.success(
+            '이미 합류 요청 대기중입니다. 승인 상태 페이지로 이동합니다.'
+          );
+          navigate(ROUTES.STORE_JOIN_PENDING, { replace: true });
           return;
         }
       }
+
       toast.error(
         getApiErrorMessage(error, '초대 코드 확인 중 오류가 발생했어요.')
       );

@@ -1,6 +1,6 @@
 ﻿import { useEffect } from 'react';
 import type { Dayjs } from 'dayjs';
-import { WEEKDAY_LABELS } from '@/features/schedule/data/mockSchedule';
+import { WEEKDAY_LABELS } from '@/features/schedule/constants/scheduleMeta';
 import type { ScheduleEmployee } from '@/features/schedule/types';
 
 interface ScheduleDeleteConfirmModalProps {

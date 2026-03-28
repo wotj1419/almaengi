@@ -1,14 +1,17 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import type { Dayjs } from 'dayjs';
 import Avatar from 'boring-avatars';
-import { getStoreEmployees } from '@/features/schedule/data/mockSchedule';
-import type { ScheduleEmployee } from '@/features/schedule/types';
+import type {
+  ScheduleEmployee,
+  ScheduleStoreEmployee,
+} from '@/features/schedule/types';
 
 interface ScheduleChangeEmployeeModalProps {
   isOpen: boolean;
   selectedDate: Dayjs;
   employee: ScheduleEmployee;
   busyEmployeeNames: string[];
+  storeEmployees: ScheduleStoreEmployee[];
   onClose: () => void;
   onConfirm: (candidate: ScheduleEmployee) => void;
 }
@@ -32,6 +35,7 @@ export default function ScheduleChangeEmployeeModal({
   selectedDate,
   employee,
   busyEmployeeNames,
+  storeEmployees,
   onClose,
   onConfirm,
 }: ScheduleChangeEmployeeModalProps) {
@@ -39,16 +43,17 @@ export default function ScheduleChangeEmployeeModal({
   const candidates = useMemo(() => {
     const busySet = new Set(busyEmployeeNames);
 
-    return getStoreEmployees()
+    return storeEmployees
       .filter((storeEmployee) => !busySet.has(storeEmployee.name))
       .map((storeEmployee) => ({
         id: storeEmployee.id,
+        employeeId: storeEmployee.id,
         name: storeEmployee.name,
         status: storeEmployee.status,
         startTime: storeEmployee.defaultStartTime,
         endTime: storeEmployee.defaultEndTime,
       }));
-  }, [busyEmployeeNames]);
+  }, [busyEmployeeNames, storeEmployees]);
 
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(
     candidates[0]?.id ?? null

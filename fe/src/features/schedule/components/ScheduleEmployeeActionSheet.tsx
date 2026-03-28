@@ -10,7 +10,7 @@ import { Calendar, RefreshCw, Trash2, X } from 'lucide-react';
 import {
   STATUS_META,
   WEEKDAY_LABELS,
-} from '@/features/schedule/data/mockSchedule';
+} from '@/features/schedule/constants/scheduleMeta';
 import type {
   ScheduleActionType,
   ScheduleEmployee,

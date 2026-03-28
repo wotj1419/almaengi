@@ -33,7 +33,10 @@ export default function EmployeeHomePage() {
       .then((stores) => {
         setStores(stores);
         if (stores.length === 0) {
-          navigate(ROUTES.STORE_JOIN, { replace: true });
+          const isPending = localStorage.getItem('pendingJoin') === 'true';
+          navigate(isPending ? ROUTES.STORE_JOIN_PENDING : ROUTES.STORE_JOIN, {
+            replace: true,
+          });
         }
       })
       .catch(() => {});
