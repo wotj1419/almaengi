@@ -13,6 +13,7 @@ import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
+import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,10 @@ public class  PayrollQueryService {
     public PayrollResponseDto.MyPayroll getMyPayroll(Long userId, Long storeId, LocalDate targetMonth) {
         StoreEmployee employee = storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        // 승인
+        if (employee.getStatus() != StoreEmployeeStatus.WORKING)
+            throw new BusinessException(ErrorCode.INVALID_EMPLOYEE_STATUS);
 
         LocalDate normalizedMonth = targetMonth.withDayOfMonth(1);
 

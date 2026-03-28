@@ -18,6 +18,7 @@ import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
+import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +77,10 @@ public class AttendanceService {
         // 3. 매장 직원 조회
         StoreEmployee employee = storeEmployeeRepository.findByStoreIdAndUserId(store.getId(), userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        // 3.5. 승인 대기 상태의 직원 차단
+        if(employee.getStatus() == StoreEmployeeStatus.WAITING)
+            throw new BusinessException(ErrorCode.INVALID_EMPLOYEE_STATUS);
 
         // 4. 오늘 Attendance 조회
         LocalDate today = LocalDate.now();

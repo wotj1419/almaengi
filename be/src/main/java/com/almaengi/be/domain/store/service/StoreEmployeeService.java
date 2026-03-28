@@ -76,7 +76,7 @@ public class StoreEmployeeService {
         String inviteCode = request.getInviteCode().toUpperCase();
         String redisKey = REDIS_INVITE_PREFIX + inviteCode;
 
-        String storeIdStr = redisUtil.getAndDelete(redisKey);
+        String storeIdStr = redisUtil.getData(redisKey);
         if(storeIdStr == null || storeIdStr.isEmpty())
             throw new BusinessException(ErrorCode.INVALID_INVITE_CODE);
 
@@ -91,8 +91,10 @@ public class StoreEmployeeService {
         StoreEmployee newEmployee = StoreEmployee.builder()
                 .store(store)
                 .user(user)
-                .hireDate(LocalDate.now())
-                .status(StoreEmployeeStatus.WORKING)
+                // 승인 전까지 입사일 확정 X
+                .hireDate(null)
+                // 승인 대기 상태로 저장
+                .status(StoreEmployeeStatus.WAITING)
                 .hourlyWage(0)
                 .taxType(TaxType.NONE)
                 .workedMinutes(0)
@@ -102,22 +104,45 @@ public class StoreEmployeeService {
                 .build();
         StoreEmployee savedEmployee = storeEmployeeRepository.save(newEmployee);
 
+        return StoreEmployeeResponseDto.EmployeeInfo.from(savedEmployee);
+    }
+
+    @Transactional
+    public StoreEmployeeResponseDto.EmployeeInfo approveEmployee(Long userId, Long storeId, Long employeeId) {
+        Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+
+        if(!store.getOwner().getId().equals(userId))
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+
+        StoreEmployee employee = storeEmployeeRepository.findById(employeeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        if(!employee.getStore().getId().equals(storeId))
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+
+        if(employee.getStatus() != StoreEmployeeStatus.WAITING)
+            throw new BusinessException(ErrorCode.INVALID_EMPLOYEE_STATUS);
+
+        employee.approveToWorking();
         // 매장 합류 시, Chat-BOT 최초 인사
         try {
-            chatRoomService.ensurePersonalBotRoomWithWelcome(userId, storeId);
+            chatRoomService.ensurePersonalBotRoomWithWelcome(employee.getUser().getId(), storeId);
         } catch(Exception e) {
             // 매장 합류 자체를 깨지 않도록 best-effort
             log.warn("[CHAT-BOT] auto bot room init failed on createStore. storeId={}, userId={}, reason={}", storeId, userId, e.getMessage());
         }
 
-        return StoreEmployeeResponseDto.EmployeeInfo.from(savedEmployee);
+        return StoreEmployeeResponseDto.EmployeeInfo.from(employee);
     }
 
     public List<StoreResponseDto.StoreInfo> getMyStores(Long userId) {
         List<StoreEmployee> employees = storeEmployeeRepository.findByUserId(userId);
 
         return employees.stream()
-                .filter(se -> se.getStatus() != StoreEmployeeStatus.RESIGNED)
+                .filter(se -> se.getStatus() != StoreEmployeeStatus.RESIGNED
+                                            && se.getStatus() != StoreEmployeeStatus.WAITING
+                                            && se.getStatus() != StoreEmployeeStatus.INVITED)
                 .map(StoreEmployee::getStore)
                 .filter(store -> !store.getIsClosed())
                 .map(StoreResponseDto.StoreInfo::from)
@@ -137,13 +162,21 @@ public class StoreEmployeeService {
                 .toString();
     }
 
-    // 매장에 소속된 전체 직원 목록 조회
+    // 매장에 소속된 전체 직원(초대, 퇴사 직원 제외) 목록 조회
     public List<StoreEmployeeResponseDto.EmployeeInfo> getStoreEmployees(Long userId, Long storeId) {
         Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
-        if(!store.getOwner().getId().equals(userId) && !storeEmployeeRepository.existsByStoreIdAndUserId(storeId, userId))
-            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+        if(!store.getOwner().getId().equals(userId)) {
+            StoreEmployee requester = storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED_USER));
+
+            if (requester.getStatus() == StoreEmployeeStatus.RESIGNED
+                    || requester.getStatus() == StoreEmployeeStatus.WAITING
+                    || requester.getStatus() == StoreEmployeeStatus.INVITED) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+            }
+        }
 
         List<StoreEmployeeResponseDto.EmployeeInfo> result = new ArrayList<>();
         if(!store.getOwner().getId().equals(userId))
@@ -151,11 +184,29 @@ public class StoreEmployeeService {
 
         List<StoreEmployeeResponseDto.EmployeeInfo> employeeInfos = storeEmployeeRepository.findByStoreId(storeId).stream()
                 .filter(employee -> !employee.getUser().getId().equals(userId))
+                .filter(employee -> employee.getStatus() != StoreEmployeeStatus.RESIGNED
+                                                && employee.getStatus() != StoreEmployeeStatus.WAITING
+                                                && employee.getStatus() != StoreEmployeeStatus.INVITED)
                 .map(StoreEmployeeResponseDto.EmployeeInfo::from)
                 .toList();
 
         result.addAll(employeeInfos);
         return result;
+    }
+
+    // WAITING, RESIGNED 이렇게 두가지로 호출 할 거임.
+    // 대기상태 직원 목록 조회, 퇴사상태 직원 목록 조회 2가지로 사용할 예정
+    public List<StoreEmployeeResponseDto.EmployeeInfo> getStatusEmployees(Long userId, Long storeId, StoreEmployeeStatus status) {
+        Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+        // 사장만 조회 가능
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+        }
+        return storeEmployeeRepository.findByStoreId(storeId).stream()
+                .filter(employee -> employee.getStatus() == status)
+                .map(StoreEmployeeResponseDto.EmployeeInfo::from)
+                .toList();
     }
 
     // 직원 기초 정보 변경

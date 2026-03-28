@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
-@Tag(name = "Store", description = "매장 관리 API")
+@Tag(name = "매장 관리 API", description = "매장 생성, 조회, 수정, 삭제 API")
 public interface StoreControllerDocs {
 
     @Operation(summary = "매장 생성", description = "새로운 매장을 등록합니다.")

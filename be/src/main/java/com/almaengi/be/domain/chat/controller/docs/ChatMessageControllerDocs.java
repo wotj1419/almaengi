@@ -12,7 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-@Tag(name = "Chat Message API", description = "채팅 메시지 전송/조회 API")
+@Tag(name = "채팅 메시지 API", description = "채팅 메시지 전송/조회 API")
 public interface ChatMessageControllerDocs {
     @Operation(
             summary = "메시지 전송",

@@ -18,6 +18,7 @@ import com.almaengi.be.global.util.RedisUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,299 +49,294 @@ class StoreEmployeeServiceTest {
     private StoreRepository storeRepository;
     @Mock
     private UserRepository userRepository;
-
     @Mock
     private ChatRoomService chatRoomService;
-
     @Mock
     private RedisUtil redisUtil;
 
     @Test
     @DisplayName("초대 코드 발급 성공 - 사장님 정상 요청")
-    void generateInviteCode_Success() {
-        // given
+    void generateInviteCodeSuccess() {
         Long ownerId = 1L;
-        Long storeId = 1L;
+        Long storeId = 10L;
 
-        User owner = User.builder().build();
-        ReflectionTestUtils.setField(owner, "id", ownerId);
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
-
+        User owner = createUser(ownerId, "사장님");
+        Store store = createStore(storeId, owner);
         given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
 
-        // when
         StoreEmployeeResponseDto.InviteCodeInfo response = storeEmployeeService.generateInviteCode(ownerId, storeId);
 
-        // then
-        assertThat(response).isNotNull();
-        assertThat(response.getInviteCode()).isNotNull().hasSize(6);
-        // 정책으로 정했던 10800초 (3시간) 파라미터가 정상적으로 RedisUtil에 넘어갔는지 검증
-        verify(redisUtil).setDataExpire(any(String.class), eq(String.valueOf(storeId)), eq(10800L),
-                eq(TimeUnit.SECONDS));
+        assertThat(response.getInviteCode()).hasSize(6);
+        verify(redisUtil).setDataExpire(any(String.class), eq(String.valueOf(storeId)), eq(10800L), eq(TimeUnit.SECONDS));
     }
 
     @Test
-    @DisplayName("초대 코드 발급 실패 - 매장의 사장님이 아님")
-    void generateInviteCode_Fail_Unauthorized() {
-        // given
-        Long userId = 2L; // 사장님(1L)이 아닌 다른 유저
+    @DisplayName("초대 코드 발급 실패 - 사장님이 아닌 사용자")
+    void generateInviteCodeFailUnauthorized() {
         Long ownerId = 1L;
-        Long storeId = 1L;
+        Long requestUserId = 2L;
+        Long storeId = 10L;
 
-        User owner = User.builder().build();
-        ReflectionTestUtils.setField(owner, "id", ownerId);
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
-
+        User owner = createUser(ownerId, "사장님");
+        Store store = createStore(storeId, owner);
         given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
 
-        // when & then
-        assertThatThrownBy(() -> storeEmployeeService.generateInviteCode(userId, storeId))
+        assertThatThrownBy(() -> storeEmployeeService.generateInviteCode(requestUserId, storeId))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.UNAUTHORIZED_USER.getMessage());
     }
 
     @Test
-    @DisplayName("직원 매장 합류 성공 - 정상적인 1회용 코드 사용")
-    void joinStore_Success() {
-        // given
-        Long employeeId = 2L;
-        Long storeId = 1L;
+    @DisplayName("매장 합류 신청 성공 - WAITING 상태로 저장하고 초대 코드는 유지")
+    void joinStoreSuccess() {
+        Long userId = 2L;
+        Long storeId = 10L;
         String inviteCode = "A1B2C3";
         String redisKey = "STORE_INVITE:" + inviteCode;
 
-        User user = User.builder().name("김알바").build();
-        ReflectionTestUtils.setField(user, "id", employeeId);
-        User owner = User.builder().build();
-        ReflectionTestUtils.setField(owner, "id", 1L);
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
+        User employee = createUser(userId, "직원");
+        User owner = createUser(1L, "사장님");
+        Store store = createStore(storeId, owner);
 
         StoreEmployeeRequestDto.Join request = new StoreEmployeeRequestDto.Join();
         ReflectionTestUtils.setField(request, "inviteCode", inviteCode);
 
-        given(userRepository.findById(employeeId)).willReturn(Optional.of(user));
-        // Redis에서 매장 ID가 정상적으로 꺼내졌고 파기되었다고 가정 (1회용 정책)
-        given(redisUtil.getAndDelete(redisKey)).willReturn(String.valueOf(storeId));
+        given(userRepository.findById(userId)).willReturn(Optional.of(employee));
+        given(redisUtil.getData(redisKey)).willReturn(String.valueOf(storeId));
         given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
-        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, employeeId)).willReturn(false); // 가입 이력 없음
+        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, userId)).willReturn(false);
 
-        StoreEmployee savedEmployee = StoreEmployee.builder().store(store).user(user).hireDate(LocalDate.now()).build();
-        ReflectionTestUtils.setField(savedEmployee, "id", 100L); // DB 저장 후 채번된 ID라고 가정
+        StoreEmployee savedEmployee = createEmployee(100L, store, employee, StoreEmployeeStatus.WAITING);
+        ReflectionTestUtils.setField(savedEmployee, "hireDate", null);
         given(storeEmployeeRepository.save(any(StoreEmployee.class))).willReturn(savedEmployee);
 
-        // when
-        StoreEmployeeResponseDto.EmployeeInfo response = storeEmployeeService.joinStore(employeeId, request);
+        StoreEmployeeResponseDto.EmployeeInfo response = storeEmployeeService.joinStore(userId, request);
 
-        // then
-        assertThat(response).isNotNull();
+        ArgumentCaptor<StoreEmployee> captor = ArgumentCaptor.forClass(StoreEmployee.class);
+        verify(storeEmployeeRepository).save(captor.capture());
+        StoreEmployee toSave = captor.getValue();
+
+        assertThat(toSave.getStatus()).isEqualTo(StoreEmployeeStatus.WAITING);
+        assertThat(toSave.getHireDate()).isNull();
         assertThat(response.getEmployeeId()).isEqualTo(100L);
-        assertThat(response.getUserId()).isEqualTo(employeeId);
-        verify(chatRoomService).ensurePersonalBotRoomWithWelcome(employeeId, storeId);
+        assertThat(response.getStatus()).isEqualTo(StoreEmployeeStatus.WAITING);
+        verify(redisUtil).getData(redisKey);
+        verify(chatRoomService, never()).ensurePersonalBotRoomWithWelcome(any(Long.class), any(Long.class));
     }
 
     @Test
-    @DisplayName("직원 매장 합류 실패 - 잘못되거나 만료된 초대 코드 (null 반환 시)")
-    void joinStore_Fail_InvalidInviteCode() {
-        // given
-        Long employeeId = 2L;
+    @DisplayName("매장 합류 신청 실패 - 유효하지 않은 초대 코드")
+    void joinStoreFailInvalidInviteCode() {
+        Long userId = 2L;
         String inviteCode = "XXXXXX";
         String redisKey = "STORE_INVITE:" + inviteCode;
 
-        User user = User.builder().build();
-        ReflectionTestUtils.setField(user, "id", employeeId);
+        User employee = createUser(userId, "직원");
         StoreEmployeeRequestDto.Join request = new StoreEmployeeRequestDto.Join();
         ReflectionTestUtils.setField(request, "inviteCode", inviteCode);
 
-        given(userRepository.findById(employeeId)).willReturn(Optional.of(user));
-        // Redis에서 코드를 찾을 수 없거나 이미 파기됨 (null 반환)
-        given(redisUtil.getAndDelete(redisKey)).willReturn(null);
+        given(userRepository.findById(userId)).willReturn(Optional.of(employee));
+        given(redisUtil.getData(redisKey)).willReturn(null);
 
-        // when & then
-        assertThatThrownBy(() -> storeEmployeeService.joinStore(employeeId, request))
+        assertThatThrownBy(() -> storeEmployeeService.joinStore(userId, request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_INVITE_CODE.getMessage());
     }
 
     @Test
-    @DisplayName("내 매장 목록 조회 성공 - 재직 중이며 폐업되지 않은 매장만 반환")
-    void getMyStores_Success_OnlyWorkingAndOpenStores() {
-        // given
+    @DisplayName("직원 합류 승인 성공 - WAITING에서 WORKING으로 전환")
+    void approveEmployeeSuccess() {
+        Long ownerId = 1L;
+        Long storeId = 10L;
+        Long employeeId = 100L;
+
+        User owner = createUser(ownerId, "사장님");
+        User employeeUser = createUser(2L, "직원");
+        Store store = createStore(storeId, owner);
+        StoreEmployee employee = createEmployee(employeeId, store, employeeUser, StoreEmployeeStatus.WAITING);
+        ReflectionTestUtils.setField(employee, "hireDate", null);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.findById(employeeId)).willReturn(Optional.of(employee));
+
+        StoreEmployeeResponseDto.EmployeeInfo response = storeEmployeeService.approveEmployee(ownerId, storeId, employeeId);
+
+        assertThat(employee.getStatus()).isEqualTo(StoreEmployeeStatus.WORKING);
+        assertThat(employee.getHireDate()).isEqualTo(LocalDate.now());
+        assertThat(response.getStatus()).isEqualTo(StoreEmployeeStatus.WORKING);
+        verify(chatRoomService).ensurePersonalBotRoomWithWelcome(employeeUser.getId(), storeId);
+    }
+
+    @Test
+    @DisplayName("직원 합류 승인 실패 - WAITING 상태가 아님")
+    void approveEmployeeFailInvalidStatus() {
+        Long ownerId = 1L;
+        Long storeId = 10L;
+        Long employeeId = 100L;
+
+        User owner = createUser(ownerId, "사장님");
+        User employeeUser = createUser(2L, "직원");
+        Store store = createStore(storeId, owner);
+        StoreEmployee employee = createEmployee(employeeId, store, employeeUser, StoreEmployeeStatus.WORKING);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.findById(employeeId)).willReturn(Optional.of(employee));
+
+        assertThatThrownBy(() -> storeEmployeeService.approveEmployee(ownerId, storeId, employeeId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_EMPLOYEE_STATUS.getMessage());
+
+        verify(chatRoomService, never()).ensurePersonalBotRoomWithWelcome(any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("내 소속 매장 목록 조회 - RESIGNED, WAITING, INVITED, 폐업 매장 제외")
+    void getMyStoresFiltersStatusesAndClosedStores() {
         Long userId = 2L;
+        User owner = createUser(1L, "사장님");
+        User employee = createUser(userId, "직원");
 
-        User employeeUser = User.builder().name("직원").build();
-        ReflectionTestUtils.setField(employeeUser, "id", userId);
-        User owner = User.builder().name("사장님").build();
-        ReflectionTestUtils.setField(owner, "id", 1L);
-
-        Store openStore = Store.builder()
-                .owner(owner)
-                .name("영업중 매장")
-                .address("서울시 강남구")
-                .phone("010-1111-1111")
-                .qrCode("qr-open")
-                .isOver5Employees(false)
-                .build();
-        ReflectionTestUtils.setField(openStore, "id", 10L);
-
-        Store closedStore = Store.builder()
-                .owner(owner)
-                .name("폐업 매장")
-                .address("서울시 송파구")
-                .phone("010-2222-2222")
-                .qrCode("qr-closed")
-                .isOver5Employees(false)
-                .build();
-        ReflectionTestUtils.setField(closedStore, "id", 11L);
+        Store workingStore = createStore(10L, owner);
+        ReflectionTestUtils.setField(workingStore, "name", "영업중 매장");
+        Store waitingStore = createStore(11L, owner);
+        Store invitedStore = createStore(12L, owner);
+        Store resignedStore = createStore(13L, owner);
+        Store closedStore = createStore(14L, owner);
         closedStore.closeStore();
 
-        Store resignedStore = Store.builder()
-                .owner(owner)
-                .name("퇴사한 매장")
-                .address("서울시 마포구")
-                .phone("010-3333-3333")
-                .qrCode("qr-resigned")
-                .isOver5Employees(false)
-                .build();
-        ReflectionTestUtils.setField(resignedStore, "id", 12L);
+        List<StoreEmployee> employees = List.of(
+                createEmployee(1001L, workingStore, employee, StoreEmployeeStatus.WORKING),
+                createEmployee(1002L, waitingStore, employee, StoreEmployeeStatus.WAITING),
+                createEmployee(1003L, invitedStore, employee, StoreEmployeeStatus.INVITED),
+                createEmployee(1004L, resignedStore, employee, StoreEmployeeStatus.RESIGNED),
+                createEmployee(1005L, closedStore, employee, StoreEmployeeStatus.WORKING)
+        );
+        given(storeEmployeeRepository.findByUserId(userId)).willReturn(employees);
 
-        StoreEmployee workingEmployee = createEmployee(1001L, openStore, employeeUser, StoreEmployeeStatus.WORKING);
-        StoreEmployee resignedEmployee = createEmployee(1002L, resignedStore, employeeUser, StoreEmployeeStatus.RESIGNED);
-        StoreEmployee closedStoreEmployee = createEmployee(1003L, closedStore, employeeUser, StoreEmployeeStatus.WORKING);
-
-        given(storeEmployeeRepository.findByUserId(userId))
-                .willReturn(List.of(workingEmployee, resignedEmployee, closedStoreEmployee));
-
-        // when
         List<StoreResponseDto.StoreInfo> result = storeEmployeeService.getMyStores(userId);
 
-        // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStoreId()).isEqualTo(10L);
-        assertThat(result.get(0).getStoreName()).isEqualTo("영업중 매장");
     }
 
     @Test
-    @DisplayName("내 매장 목록 조회 성공 - 소속 매장이 없으면 빈 배열 반환")
-    void getMyStores_Success_Empty() {
-        // given
-        Long userId = 2L;
-        given(storeEmployeeRepository.findByUserId(userId)).willReturn(List.of());
-
-        // when
-        List<StoreResponseDto.StoreInfo> result = storeEmployeeService.getMyStores(userId);
-
-        // then
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    @DisplayName("직원 목록 조회 성공 - 사장님 요청 시 사장 제외, 직원 전체 반환")
-    void getStoreEmployees_Success_ByOwner() {
-        // given
+    @DisplayName("매장 직원 목록 조회 - 직원 요청 시 사장 포함, 본인/WAITING/INVITED/RESIGNED 제외")
+    void getStoreEmployeesByEmployeeFiltersResults() {
         Long ownerId = 1L;
+        Long requesterId = 101L;
         Long storeId = 10L;
 
-        User owner = User.builder().name("사장님").build();
-        ReflectionTestUtils.setField(owner, "id", ownerId);
+        User owner = createUser(ownerId, "사장님");
+        User requester = createUser(requesterId, "요청직원");
+        User activeUser = createUser(102L, "활성직원");
+        User waitingUser = createUser(103L, "대기직원");
+        User invitedUser = createUser(104L, "초대직원");
+        User resignedUser = createUser(105L, "퇴사직원");
+        User leaveUser = createUser(106L, "휴직직원");
 
-        User employeeUser1 = User.builder().name("직원1").build();
-        ReflectionTestUtils.setField(employeeUser1, "id", 101L);
-        User employeeUser2 = User.builder().name("직원2").build();
-        ReflectionTestUtils.setField(employeeUser2, "id", 102L);
+        Store store = createStore(storeId, owner);
+        StoreEmployee requesterEmployee = createEmployee(2001L, store, requester, StoreEmployeeStatus.WORKING);
 
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
-
-        StoreEmployee employee1 = createWorkingEmployee(1001L, store, employeeUser1);
-        StoreEmployee employee2 = createWorkingEmployee(1002L, store, employeeUser2);
+        List<StoreEmployee> employees = List.of(
+                requesterEmployee,
+                createEmployee(2002L, store, activeUser, StoreEmployeeStatus.WORKING),
+                createEmployee(2003L, store, waitingUser, StoreEmployeeStatus.WAITING),
+                createEmployee(2004L, store, invitedUser, StoreEmployeeStatus.INVITED),
+                createEmployee(2005L, store, resignedUser, StoreEmployeeStatus.RESIGNED),
+                createEmployee(2006L, store, leaveUser, StoreEmployeeStatus.ON_LEAVE)
+        );
 
         given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
-        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(List.of(employee1, employee2));
+        given(storeEmployeeRepository.findByStoreIdAndUserId(storeId, requesterId)).willReturn(Optional.of(requesterEmployee));
+        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(employees);
 
-        // when
-        List<StoreEmployeeResponseDto.EmployeeInfo> result = storeEmployeeService.getStoreEmployees(ownerId, storeId);
+        List<StoreEmployeeResponseDto.EmployeeInfo> result = storeEmployeeService.getStoreEmployees(requesterId, storeId);
 
-        // then
-        assertThat(result).hasSize(2);
         assertThat(result).extracting(StoreEmployeeResponseDto.EmployeeInfo::getUserId)
-                .containsExactlyInAnyOrder(101L, 102L);
-        // 사장 본인은 제외되어야 함
-        assertThat(result).noneMatch(info -> info.getUserId().equals(ownerId));
+                .containsExactlyInAnyOrder(ownerId, activeUser.getId(), leaveUser.getId());
+        assertThat(result).noneMatch(info -> info.getUserId().equals(requesterId));
+        assertThat(result).noneMatch(info -> info.getUserId().equals(waitingUser.getId()));
+        assertThat(result).noneMatch(info -> info.getUserId().equals(invitedUser.getId()));
+        assertThat(result).noneMatch(info -> info.getUserId().equals(resignedUser.getId()));
     }
 
     @Test
-    @DisplayName("직원 목록 조회 성공 - 직원 요청 시 사장 포함 + 본인 제외")
-    void getStoreEmployees_Success_ByEmployee() {
-        // given
+    @DisplayName("매장 직원 목록 조회 실패 - WAITING 상태 직원은 조회 불가")
+    void getStoreEmployeesFailWhenRequesterIsWaiting() {
         Long ownerId = 1L;
-        Long requesterEmployeeId = 101L;
-        Long anotherEmployeeId = 102L;
+        Long requesterId = 101L;
         Long storeId = 10L;
 
-        User owner = User.builder().name("사장님").build();
-        ReflectionTestUtils.setField(owner, "id", ownerId);
-
-        User requesterEmployeeUser = User.builder().name("요청직원").build();
-        ReflectionTestUtils.setField(requesterEmployeeUser, "id", requesterEmployeeId);
-        User anotherEmployeeUser = User.builder().name("다른직원").build();
-        ReflectionTestUtils.setField(anotherEmployeeUser, "id", anotherEmployeeId);
-
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
-
-        StoreEmployee requesterEmployee = createWorkingEmployee(1001L, store, requesterEmployeeUser);
-        StoreEmployee anotherEmployee = createWorkingEmployee(1002L, store, anotherEmployeeUser);
+        User owner = createUser(ownerId, "사장님");
+        User requester = createUser(requesterId, "요청직원");
+        Store store = createStore(storeId, owner);
+        StoreEmployee requesterEmployee = createEmployee(2001L, store, requester, StoreEmployeeStatus.WAITING);
 
         given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
-        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, requesterEmployeeId)).willReturn(true);
-        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(List.of(requesterEmployee, anotherEmployee));
+        given(storeEmployeeRepository.findByStoreIdAndUserId(storeId, requesterId)).willReturn(Optional.of(requesterEmployee));
 
-        // when
-        List<StoreEmployeeResponseDto.EmployeeInfo> result = storeEmployeeService.getStoreEmployees(requesterEmployeeId, storeId);
-
-        // then
-        // 사장 + 다른 직원(요청자 본인은 제외)
-        assertThat(result).hasSize(2);
-        assertThat(result).extracting(StoreEmployeeResponseDto.EmployeeInfo::getUserId)
-                .containsExactlyInAnyOrder(ownerId, anotherEmployeeId);
-        assertThat(result).noneMatch(info -> info.getUserId().equals(requesterEmployeeId));
-
-        // 사장님 항목은 owner 매핑 규칙(employeeId null, position "사장님")을 따라야 함
-        StoreEmployeeResponseDto.EmployeeInfo ownerInfo = result.stream()
-                .filter(info -> info.getUserId().equals(ownerId))
-                .findFirst()
-                .orElseThrow();
-        assertThat(ownerInfo.getEmployeeId()).isNull();
-        assertThat(ownerInfo.getPosition()).isEqualTo("사장님");
-    }
-
-    @Test
-    @DisplayName("직원 목록 조회 실패 - 매장과 무관한 사용자는 UNAUTHORIZED_USER")
-    void getStoreEmployees_Fail_Unauthorized() {
-        // given
-        Long ownerId = 1L;
-        Long strangerUserId = 999L;
-        Long storeId = 10L;
-
-        User owner = User.builder().name("사장님").build();
-        ReflectionTestUtils.setField(owner, "id", ownerId);
-
-        Store store = Store.builder().owner(owner).build();
-        ReflectionTestUtils.setField(store, "id", storeId);
-
-        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
-        given(storeEmployeeRepository.existsByStoreIdAndUserId(storeId, strangerUserId)).willReturn(false);
-
-        // when & then
-        assertThatThrownBy(() -> storeEmployeeService.getStoreEmployees(strangerUserId, storeId))
+        assertThatThrownBy(() -> storeEmployeeService.getStoreEmployees(requesterId, storeId))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.UNAUTHORIZED_USER.getMessage());
     }
 
-    private StoreEmployee createWorkingEmployee(Long employeeId, Store store, User user) {
-        return createEmployee(employeeId, store, user, StoreEmployeeStatus.WORKING);
+    @Test
+    @DisplayName("상태별 직원 목록 조회 성공 - 사장님은 enum 전체 상태로 조회 가능")
+    void getStatusEmployeesSuccessForAnyEnumStatus() {
+        Long ownerId = 1L;
+        Long storeId = 10L;
+
+        User owner = createUser(ownerId, "사장님");
+        User bestEmployeeUser = createUser(2L, "우수직원");
+        User workingEmployeeUser = createUser(3L, "재직직원");
+        Store store = createStore(storeId, owner);
+
+        StoreEmployee bestEmployee = createEmployee(3001L, store, bestEmployeeUser, StoreEmployeeStatus.BEST);
+        StoreEmployee workingEmployee = createEmployee(3002L, store, workingEmployeeUser, StoreEmployeeStatus.WORKING);
+
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+        given(storeEmployeeRepository.findByStoreId(storeId)).willReturn(List.of(bestEmployee, workingEmployee));
+
+        List<StoreEmployeeResponseDto.EmployeeInfo> result =
+                storeEmployeeService.getStatusEmployees(ownerId, storeId, StoreEmployeeStatus.BEST);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo(StoreEmployeeStatus.BEST);
+    }
+
+    @Test
+    @DisplayName("상태별 직원 목록 조회 실패 - 사장님이 아닌 사용자는 조회 불가")
+    void getStatusEmployeesFailUnauthorized() {
+        Long ownerId = 1L;
+        Long requestUserId = 2L;
+        Long storeId = 10L;
+
+        User owner = createUser(ownerId, "사장님");
+        Store store = createStore(storeId, owner);
+        given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+
+        assertThatThrownBy(() -> storeEmployeeService.getStatusEmployees(requestUserId, storeId, StoreEmployeeStatus.WAITING))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.UNAUTHORIZED_USER.getMessage());
+    }
+
+    private User createUser(Long id, String name) {
+        User user = User.builder().name(name).build();
+        ReflectionTestUtils.setField(user, "id", id);
+        return user;
+    }
+
+    private Store createStore(Long id, User owner) {
+        Store store = Store.builder()
+                .owner(owner)
+                .name("테스트 매장")
+                .address("서울")
+                .phone("010-0000-0000")
+                .qrCode("qr")
+                .isOver5Employees(false)
+                .build();
+        ReflectionTestUtils.setField(store, "id", id);
+        return store;
     }
 
     private StoreEmployee createEmployee(Long employeeId, Store store, User user, StoreEmployeeStatus status) {

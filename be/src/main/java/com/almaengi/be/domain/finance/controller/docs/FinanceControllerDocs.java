@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
-@Tag(name = "Finance [시연용]", description = "시연용 금융망 API")
+@Tag(name = "[시연용] Finance", description = "시연용 금융망 API")
 public interface FinanceControllerDocs {
 
     @Operation(summary = "[시연용] 은행코드 목록 조회", description = "SSAFY 금융망에서 지원하는 은행코드 목록을 조회합니다. 계좌 생성 시 bankCode 선택에 사용됩니다.")

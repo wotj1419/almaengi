@@ -49,6 +49,15 @@ public class WorkScheduleController implements WorkScheduleControllerDocs {
     }
 
     @Override
+    @GetMapping("/{storeId}/employees/schedules/me")
+    public ApiResponse<List<WorkScheduleResponseDto.ScheduleInfo>> getMySchedules(
+            @AuthUser Long userId,
+            @PathVariable Long storeId) {
+        List<WorkScheduleResponseDto.ScheduleInfo> response = workScheduleService.getMySchedules(userId, storeId);
+        return ApiResponse.success(response);
+    }
+
+    @Override
     @GetMapping("/{storeId}/employees/schedules/{dayOfWeek}")
     public ApiResponse<List<WorkScheduleResponseDto.ScheduleInfo>> getStoreSchedulesByDay(@AuthUser Long userId, @PathVariable Long storeId, @PathVariable DayOfWeek dayOfWeek) {
         List<WorkScheduleResponseDto.ScheduleInfo> response = workScheduleService.getStoreSchedulesByDay(userId, storeId, dayOfWeek);

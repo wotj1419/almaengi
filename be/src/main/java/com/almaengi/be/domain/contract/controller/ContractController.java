@@ -15,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -87,12 +89,22 @@ public class ContractController implements ContractControllerDocs {
     public ResponseEntity<?> downloadContractPdf(
             @AuthUser Long userId,
             @PathVariable Long storeId,
-            @PathVariable Long contractId) {
+            @PathVariable Long contractId,
+            @RequestParam(defaultValue = "false") boolean download) {
 
         Resource resource = contractService.downloadContractPdf(userId, storeId, contractId);
+
+        String filename = "contract_" + contractId + ".pdf";
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        String disposition = download
+                ? "attachment; filename*=UTF-8''" + encodedFilename
+                : "inline; filename*=UTF-8''" + encodedFilename;
+
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"contract_" + contractId + ".pdf\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .body(resource);
     }
 

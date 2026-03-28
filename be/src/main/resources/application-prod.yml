@@ -31,7 +31,6 @@ ssafy:
 app:
   cookie:
     secure: true
-
 logging:
   file:
     name: logs/application.log
