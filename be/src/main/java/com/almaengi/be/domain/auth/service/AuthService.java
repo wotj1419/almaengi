@@ -11,12 +11,14 @@ import com.almaengi.be.global.security.jwt.JwtProvider;
 import com.almaengi.be.global.security.redis.RedisTokenRepository;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -52,12 +54,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
 
         // 4. 응답
-        return AuthResponseDto.Signup.builder()
-                .userId(savedUser.getId())
-                .email(savedUser.getEmail())
-                .name(savedUser.getName())
-                .role(savedUser.getRole())
-                .build();
+        return AuthResponseDto.Signup.from(savedUser);
     }
 
     // 로그인
@@ -84,14 +81,16 @@ public class AuthService {
                 user.getId(), user.getRole());
 
         // 5. 응답 (AT는 바디, RT는 Controller에서 Cookie로)
-        return AuthResponseDto.Login.builder()
-                .userId(user.getId())
-                .email(user.getEmail())
-                .name(user.getName())
-                .role(user.getRole())
-                .accessToken(tokenPair.accessToken())
-                .refreshToken(tokenPair.refreshToken())
-                .build();
+        return AuthResponseDto.Login.from(user, tokenPair.accessToken(), tokenPair.refreshToken());
+    }
+
+    // 토큰 재발급
+    public TokenService.TokenPair reissueTokens(String refreshToken) {
+        if (refreshToken == null) {
+            throw new BusinessException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
+
+        return tokenService.reissue(refreshToken);
     }
 
     // 로그아웃
@@ -143,6 +142,13 @@ public class AuthService {
         }
     }
 
+    // 이메일 중복 체크
+    public AuthResponseDto.EmailCheck emailCheck(String email) {
+        return AuthResponseDto.EmailCheck.builder()
+                .exists(userRepository.existsByEmail(email.toLowerCase(Locale.ROOT)))
+                .build();
+    }
+
     // 비밀번호 인코딩 (BCrypt 예외 → BusinessException 변환)
     private String encodePassword(String rawPassword) {
         try {
@@ -150,12 +156,5 @@ public class AuthService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT);
         }
-    }
-
-    // 이메일 중복 체크
-    public AuthResponseDto.EmailCheck emailCheck(String email) {
-        return AuthResponseDto.EmailCheck.builder()
-                .exists(userRepository.existsByEmail(email.toLowerCase(Locale.ROOT)))
-                .build();
     }
 }

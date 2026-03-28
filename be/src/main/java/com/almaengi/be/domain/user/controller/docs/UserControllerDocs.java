@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@Tag(name = "User [시연용]", description = "시연용 사용자 금융 API")
+@Tag(name = "[시연용] User", description = "시연용 사용자 금융 API")
 public interface UserControllerDocs {
 
     @Operation(summary = "[시연용] 금융망 계정 생성", description = "SSAFY 금융망에 사용자 계정을 생성합니다.")

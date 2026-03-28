@@ -17,7 +17,7 @@ import jakarta.validation.Valid;
 
 import java.util.List;
 
-@Tag(name = "Store Employee API", description = "매장 직원 초대 및 가입 API")
+@Tag(name = "매장 직원 API", description = "매장 직원 초대 및 가입 API")
 public interface StoreEmployeeControllerDocs {
 
     @Operation(summary = "매장 초대 코드 발급", description = "사장님이 특정 매장의 초대 코드를 발급받습니다.")

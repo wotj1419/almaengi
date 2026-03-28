@@ -330,4 +330,38 @@ class AuthServiceTest {
                             .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
         }
     }
+
+    // ===== 토큰 재발급 테스트 =====
+
+    @Nested
+    @DisplayName("토큰 재발급")
+    class Reissue {
+
+        @Test
+        @DisplayName("성공 — TokenService에 위임하여 새 토큰쌍을 반환한다")
+        void reissueTokens_success() {
+            // given
+            String refreshToken = "old-rt";
+            TokenService.TokenPair tokenPair = new TokenService.TokenPair("new-at", "new-rt");
+            given(tokenService.reissue(refreshToken)).willReturn(tokenPair);
+
+            // when
+            TokenService.TokenPair result = authService.reissueTokens(refreshToken);
+
+            // then
+            assertThat(result.accessToken()).isEqualTo("new-at");
+            assertThat(result.refreshToken()).isEqualTo("new-rt");
+            verify(tokenService).reissue(refreshToken);
+        }
+
+        @Test
+        @DisplayName("실패 — refreshToken이 null이면 REFRESH_TOKEN_EXPIRED")
+        void reissueTokens_nullToken_throwsException() {
+            // when & then
+            assertThatThrownBy(() -> authService.reissueTokens(null))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.REFRESH_TOKEN_EXPIRED));
+        }
+    }
 }

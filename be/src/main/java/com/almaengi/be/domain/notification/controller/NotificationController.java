@@ -6,6 +6,7 @@ import com.almaengi.be.domain.notification.service.FcmService;
 import com.almaengi.be.domain.notification.service.NotificationService;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
+@Tag(name = "알림 API", description = "알림 토큰, 목록, 읽음 API")
 public class NotificationController {
     private final FcmService fcmService;
     private final NotificationService notificationService;
