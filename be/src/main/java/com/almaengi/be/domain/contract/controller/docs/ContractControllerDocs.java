@@ -80,7 +80,7 @@ public interface ContractControllerDocs {
             @RequestBody ContractRequestDto.Sign request
     );
 
-    @Operation(summary = "계약서 PDF 다운로드", description = "생성된 근로계약서 PDF를 다운로드합니다.")
+    @Operation(summary = "계약서 PDF 미리보기/다운로드", description = "생성된 근로계약서 PDF를 조회합니다. 기본은 미리보기(inline), download=true 시 다운로드(attachment). 매장 사장님 또는 해당 알바생만 가능합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "C006: PDF 파일 없음"),
@@ -89,7 +89,8 @@ public interface ContractControllerDocs {
     ResponseEntity<?> downloadContractPdf(
             @Parameter(hidden = true) @AuthUser Long userId,
             @Parameter(description = "매장 ID", example = "1") @PathVariable Long storeId,
-            @Parameter(description = "계약서 ID", example = "1") @PathVariable Long contractId
+            @Parameter(description = "계약서 ID", example = "1") @PathVariable Long contractId,
+            @Parameter(description = "true이면 파일 다운로드, 기본값은 미리보기", example = "false") boolean download
     );
 
     @Operation(summary = "내 계약서 목록 조회 (알바생)", description = "알바생이 본인의 전체 근로계약서 목록을 조회합니다.")

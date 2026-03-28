@@ -10,7 +10,8 @@ public enum NotificationType {
     SCHEDULE("스케쥴 알림"),
     SALARY("급여 알림"),
     LATE("지각 알림"),
-    CHAT("채팅 알림");
+    CHAT("채팅 알림"),
+    DOCUMENT("서류 알림");
 
     private final String description;
 }
