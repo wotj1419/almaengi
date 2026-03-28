@@ -2,6 +2,7 @@ package com.almaengi.be.domain.payroll.service;
 
 import com.almaengi.be.domain.document.entity.EmployeeDocument;
 import com.almaengi.be.domain.document.repository.EmployeeDocumentRepository;
+import com.almaengi.be.domain.document.type.DocType;
 import com.almaengi.be.domain.payroll.entity.Payroll;
 import com.almaengi.be.domain.payroll.entity.PayrollDetail;
 import com.almaengi.be.domain.payroll.repository.PayrollDetailRepository;
@@ -327,11 +328,9 @@ public class PayslipService {
 
         if (!exists) {
             employeeDocumentRepository.save(EmployeeDocument.builder()
-                    .store(store)
                     .employee(employee)
-                    .docType(DOC_TYPE_PAYSLIP)
+                    .docType(DocType.PAYSLIP)
                     .fileUrl(filePath)
-                    .status("ACTIVE")
                     .build());
         }
     }

@@ -66,6 +66,10 @@ app:
     health-insurance-max: 119625000
   payslip:
     storage-path: /home/ubuntu/documents
+  file:
+    upload-dir: /home/ubuntu/documents
+    max-size:
+      default: 10485760
   chat:
     bot-user-id: 999
     rag-api-base-url: http://ai:8000
