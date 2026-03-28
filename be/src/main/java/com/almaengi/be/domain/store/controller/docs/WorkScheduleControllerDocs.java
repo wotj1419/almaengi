@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "WorkSchedule API", description = "직원 주간 고정 근무 스케줄 관리 API")
+@Tag(name = "직원 스케줄 API", description = "직원 주간 고정 근무 스케줄 관리 API")
 public interface WorkScheduleControllerDocs {
 
     @Operation(summary = "직원 주간 스케줄 단건 등록",

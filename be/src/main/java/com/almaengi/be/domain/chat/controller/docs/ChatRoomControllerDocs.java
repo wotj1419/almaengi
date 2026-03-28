@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
-@Tag(name = "Chat Room API", description = "채팅방 생성, 수정, 목록/상세 조회 API")
+@Tag(name = "채팅방 API", description = "채팅방 생성, 수정, 목록/상세 조회 API")
 public interface ChatRoomControllerDocs {
 
     @Operation(

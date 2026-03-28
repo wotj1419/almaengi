@@ -4,10 +4,10 @@ import com.almaengi.be.domain.auth.dto.AuthRequestDto;
 import com.almaengi.be.domain.auth.dto.AuthResponseDto;
 import com.almaengi.be.domain.auth.service.AuthService;
 import com.almaengi.be.domain.auth.service.TokenService;
+import com.almaengi.be.domain.auth.util.RefreshTokenCookieProvider;
 import com.almaengi.be.domain.user.type.Role;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
-import com.almaengi.be.global.security.jwt.JwtProvider;
 import com.almaengi.be.global.security.redis.RedisTokenRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
@@ -24,7 +24,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -51,10 +50,7 @@ class AuthControllerTest {
     private AuthService authService;
 
     @MockitoBean
-    private TokenService tokenService;
-
-    @MockitoBean
-    private JwtProvider jwtProvider;
+    private RefreshTokenCookieProvider cookieProvider;
 
     @MockitoBean
     private RedisTokenRepository redisTokenRepository;
@@ -102,7 +98,7 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/v1/auth/signup")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isCreated())
+                    .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data.userId").value(1))
                     .andExpect(jsonPath("$.data.email").value("test@test.com"));
@@ -193,7 +189,6 @@ class AuthControllerTest {
                     .build();
 
             given(authService.login(any())).willReturn(response);
-            given(jwtProvider.getRefreshTokenExpiry()).willReturn(604800000L);
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/login")
@@ -202,10 +197,9 @@ class AuthControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-                    .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=refresh-token")))
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+                    .andExpect(jsonPath("$.data.refreshToken").doesNotExist());
+
+            verify(cookieProvider).addCookie(any(), eq("refresh-token"));
         }
 
         @Test
@@ -283,21 +277,25 @@ class AuthControllerTest {
             Cookie rtCookie = new Cookie("refresh_token", "old-rt");
             TokenService.TokenPair tokenPair = new TokenService.TokenPair("new-at", "new-rt");
 
-            given(tokenService.reissue("old-rt")).willReturn(tokenPair);
-            given(jwtProvider.getRefreshTokenExpiry()).willReturn(604800000L);
+            given(authService.reissueTokens("old-rt")).willReturn(tokenPair);
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/reissue")
                             .cookie(rtCookie))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(jsonPath("$.data.accessToken").value("new-at"))
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=new-rt")));
+                    .andExpect(jsonPath("$.data.accessToken").value("new-at"));
+
+            verify(cookieProvider).addCookie(any(), eq("new-rt"));
         }
 
         @Test
         @DisplayName("실패: 리프레시 토큰 쿠키가 없으면 401을 반환한다")
         void reissueNoCookie() throws Exception {
+            // given
+            given(authService.reissueTokens(null))
+                    .willThrow(new BusinessException(ErrorCode.REFRESH_TOKEN_EXPIRED));
+
             // when & then
             mockMvc.perform(post("/api/v1/auth/reissue"))
                     .andExpect(status().isUnauthorized())
@@ -313,16 +311,17 @@ class AuthControllerTest {
         @DisplayName("성공: 로그아웃 후 쿠키를 삭제한다")
         void logoutSuccess() throws Exception {
             // given
+            given(cookieProvider.extractAccessToken(any())).willReturn("access-token");
             doNothing().when(authService).logout("access-token");
 
             // when & then
             mockMvc.perform(post("/api/v1/auth/logout")
                             .header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+                    .andExpect(jsonPath("$.status").value("SUCCESS"));
 
             verify(authService).logout("access-token");
+            verify(cookieProvider).clearCookie(any());
         }
     }
 
@@ -337,6 +336,7 @@ class AuthControllerTest {
             AuthRequestDto.Withdraw request = new AuthRequestDto.Withdraw();
             ReflectionTestUtils.setField(request, "password", "Test1234!");
 
+            given(cookieProvider.extractAccessToken(any())).willReturn("access-token");
             doNothing().when(authService).withdraw(eq("access-token"), any());
 
             // when & then
@@ -345,10 +345,10 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("SUCCESS"))
-                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+                    .andExpect(jsonPath("$.status").value("SUCCESS"));
 
             verify(authService).withdraw(eq("access-token"), any());
+            verify(cookieProvider).clearCookie(any());
         }
 
         @Test
@@ -358,6 +358,7 @@ class AuthControllerTest {
             AuthRequestDto.Withdraw request = new AuthRequestDto.Withdraw();
             ReflectionTestUtils.setField(request, "password", "WrongPass1!");
 
+            given(cookieProvider.extractAccessToken(any())).willReturn("access-token");
             doThrow(new BusinessException(ErrorCode.INVALID_CREDENTIALS))
                     .when(authService).withdraw(eq("access-token"), any());
 

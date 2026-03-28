@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@Tag(name = "Payroll", description = "급여 관리 API")
+@Tag(name = "급여 관리 API", description = "급여 조회, 승인, 지출 요약, 이체, 문서 API")
 public interface PayrollControllerDocs {
 
     @Operation(summary = "내 급여 조회 (알바생)", description = "이번 달 누적 근무 시간과 예상 급여를 실시간으로 확인합니다. 급여 미생성 시 실시간 추정값을 반환합니다.")
