@@ -10,15 +10,26 @@ import {
 } from 'lucide-react';
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import BottomNav from '@/components/layout/BottomNav';
 import {
   buildSummary,
-  DEFAULT_SELECTED_DATE,
-  getEmployeesByDate,
-  getStoreEmployees,
   STATUS_META,
   WEEKDAY_LABELS,
-} from '@/features/schedule/data/mockSchedule';
+  DAYS_OF_WEEK,
+} from '@/features/schedule/constants/scheduleMeta';
+import { getEmployees } from '@/api/store';
+import { getApiErrorMessage } from '@/api/error';
+import useAuthStore from '@/stores/useAuthStore';
+import {
+  useSchedulesByDay,
+  useMySchedules,
+  useCreateSchedule,
+  useUpdateSchedule,
+  useDeleteSchedule,
+} from '@/features/schedule/hooks/useScheduleQueries';
 import ScheduleAddWorkModal from '@/features/schedule/components/ScheduleAddWorkModal';
 import ScheduleChangeEmployeeModal from '@/features/schedule/components/ScheduleChangeEmployeeModal';
 import ScheduleChangeTimeModal from '@/features/schedule/components/ScheduleChangeTimeModal';
@@ -38,15 +49,6 @@ const CLICK_GUARD_MS = 220; // 드래그 직후 의도치 않은 클릭을 무�
 const WEEK_PANEL_HEIGHT = 72; // 주간 달력 패널 높이(px)
 const MONTH_PANEL_HEIGHT = 320; // 월간 달력 패널 높이(px)
 const CALENDAR_DRAG_RANGE = MONTH_PANEL_HEIGHT - WEEK_PANEL_HEIGHT; // 드래그 가능한 최대 범위
-
-// 로컬 수정 이력(source)에 해당 날짜 데이터가 있으면 그것을, 없으면 mock 기본값을 반환
-function resolveEmployeesByDate(
-  date: Dayjs,
-  dateKey: string,
-  source: Record<string, ScheduleEmployee[]>
-) {
-  return source[dateKey] ?? getEmployeesByDate(date);
-}
 
 interface ScheduleSummaryCardsProps {
   summary: ScheduleSummary;
@@ -133,6 +135,7 @@ function ScheduleSummaryCards({ summary }: ScheduleSummaryCardsProps) {
 interface ScheduleDayHeaderProps {
   selectedDate: Dayjs;
   scheduleCount: number;
+  canAddSchedule: boolean;
   onAddSchedule: () => void;
 }
 
@@ -140,6 +143,7 @@ interface ScheduleDayHeaderProps {
 function ScheduleDayHeader({
   selectedDate,
   scheduleCount,
+  canAddSchedule,
   onAddSchedule,
 }: ScheduleDayHeaderProps) {
   const weekdayLabel = WEEKDAY_LABELS[selectedDate.day()];
@@ -156,6 +160,7 @@ function ScheduleDayHeader({
       </div>
       <button
         type="button"
+        hidden={!canAddSchedule}
         onClick={onAddSchedule}
         className="inline-flex h-9 items-center gap-[var(--space-1)] rounded-[var(--radius-sm)] border border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-3)] text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
       >
@@ -249,26 +254,27 @@ function ScheduleEmployeeList({
 // 흐름: 달력에서 날짜 선택 → 직원 목록 → 직원 클릭 → 액션시트 → 모달(시간변경/직원변경/삭제) → state 갱신
 export default function SchedulePage() {
   const navigate = useNavigate();
-  // --- 날짜·달력 상태 ---
-  const [selectedDate, setSelectedDate] = useState(DEFAULT_SELECTED_DATE);
-  const [isMonthExpanded, setIsMonthExpanded] = useState(false); // 달력이 월간으로 확장되어 있는지
+  const activeStoreId = useAuthStore((state) => state.activeStoreId);
+  const role = useAuthStore((state) => state.user?.role);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const isOwner = role === 'OWNER';
 
-  // --- 모달 제어용 상태 (각 모달의 대상 직원을 저장, null이면 닫힘) ---
+  // --- 날짜·달력 상태 ---
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [isMonthExpanded, setIsMonthExpanded] = useState(false);
+
+  // --- 모달 제어용 상태 ---
   const [selectedEmployee, setSelectedEmployee] =
-    useState<ScheduleEmployee | null>(null); // 액션시트 대상
+    useState<ScheduleEmployee | null>(null);
   const [changeTimeTarget, setChangeTimeTarget] =
-    useState<ScheduleEmployee | null>(null); // 시간변경 모달 대상
+    useState<ScheduleEmployee | null>(null);
   const [changeEmployeeTarget, setChangeEmployeeTarget] =
-    useState<ScheduleEmployee | null>(null); // 직원교체 모달 대상
+    useState<ScheduleEmployee | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleEmployee | null>(
     null
-  ); // 삭제확인 모달 대상
-  const [isAddWorkOpen, setIsAddWorkOpen] = useState(false); // 근무추가 모달
-  const [addWorkError, setAddWorkError] = useState<string | null>(null); // 근무추가 시 유효성 에러
-  // 서버 연동 전까지, 날짜별 수정 결과를 로컬에서 단일 소스로 유지한다.
-  const [employeesByDate, setEmployeesByDate] = useState<
-    Record<string, ScheduleEmployee[]>
-  >({});
+  );
+  const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
+  const [addWorkError, setAddWorkError] = useState<string | null>(null);
 
   // 달력 드래그 제스처 메타 정보 (시작 좌표, 수직 이동 거리, 드래그 확정 여부 등)
   const dragMetaRef = useRef<{
@@ -284,51 +290,97 @@ export default function SchedulePage() {
   const [isCalendarDragging, setIsCalendarDragging] = useState(false);
   const clickGuardUntilRef = useRef(0);
 
-  const selectedDateKey = selectedDate.format('YYYY-MM-DD');
-
-  // add/change/delete가 모두 같은 경로로 업데이트되도록 통일한다.
-  const updateSelectedDateEmployees = (
-    updater: (current: ScheduleEmployee[]) => ScheduleEmployee[]
-  ) => {
-    setEmployeesByDate((prev) => {
-      const current = resolveEmployeesByDate(
-        selectedDate,
-        selectedDateKey,
-        prev
-      );
-      return {
-        ...prev,
-        [selectedDateKey]: updater(current),
-      };
-    });
+  // --- API 데이터 조회 ---
+  const dayOfWeek = DAYS_OF_WEEK[selectedDate.day()];
+  const normalizeDayOfWeek = (value: unknown) => {
+    if (typeof value === 'string') return value.toUpperCase();
+    if (typeof value === 'number' && value >= 0 && value <= 6)
+      return DAYS_OF_WEEK[value];
+    if (value && typeof value === 'object') {
+      const enumLike = value as { name?: unknown; value?: unknown };
+      if (typeof enumLike.name === 'string') return enumLike.name.toUpperCase();
+      if (
+        typeof enumLike.value === 'number' &&
+        enumLike.value >= 0 &&
+        enumLike.value <= 6
+      ) {
+        return DAYS_OF_WEEK[enumLike.value];
+      }
+    }
+    return '';
   };
-
-  // --- 파생 데이터 (선택 날짜가 바뀔 때 재계산) ---
-  const employees = useMemo(
-    () =>
-      resolveEmployeesByDate(selectedDate, selectedDateKey, employeesByDate),
-    [employeesByDate, selectedDate, selectedDateKey]
+  const { data: ownerScheduleData = [] } = useSchedulesByDay(
+    activeStoreId,
+    dayOfWeek,
+    isOwner
   );
-  // 이미 해당 날짜에 배치된 직원 이름 집합 (중복 배치 방지에 사용)
+  const { data: myScheduleData = [] } = useMySchedules(
+    activeStoreId,
+    userId,
+    !isOwner
+  );
+  const scheduleData = useMemo(
+    () =>
+      isOwner
+        ? ownerScheduleData
+        : myScheduleData.filter(
+            (dto) => normalizeDayOfWeek(dto.dayOfWeek) === dayOfWeek
+          ),
+    [dayOfWeek, isOwner, myScheduleData, ownerScheduleData]
+  );
+  const { data: storeEmployeeData = [] } = useQuery({
+    queryKey: ['employees', activeStoreId],
+    queryFn: () => getEmployees(activeStoreId!),
+    enabled: !!activeStoreId && isOwner,
+  });
+
+  // --- 뮤테이션 ---
+  const createScheduleMutation = useCreateSchedule();
+  const updateScheduleMutation = useUpdateSchedule();
+  const deleteScheduleMutation = useDeleteSchedule();
+
+  // --- 파생 데이터: API 데이터 → 화면용 타입 변환 ---
+  const employees = useMemo(() => {
+    return scheduleData.map((dto) => ({
+      id: dto.scheduleId,
+      employeeId: dto.employeeId,
+      name: dto.employeeName,
+      status: 'BEFORE_SHIFT' as const,
+      startTime: dto.startTime.slice(0, 5),
+      endTime: dto.endTime.slice(0, 5),
+    }));
+  }, [scheduleData]);
+
   const employeeNames = useMemo(
-    () => new Set(employees.map((employee) => employee.name)),
+    () => new Set(employees.map((e) => e.name)),
     [employees]
   );
+
   const busyEmployeeNames = useMemo(
     () => Array.from(employeeNames),
     [employeeNames]
   );
 
-  // 매장 전체 직원 목록 (근무 추가 시 후보 목록의 원본)
-  const storeEmployees = useMemo(() => getStoreEmployees(), []);
-  // 해당 날짜에 아직 배치되지 않은 직원만 필터링 → 근무 추가 모달의 후보
+  const storeEmployees = useMemo(
+    () =>
+      storeEmployeeData
+        .filter((emp) => Number.isFinite(emp.employeeId))
+        .map((emp) => ({
+          id: emp.employeeId as number,
+          name: emp.name,
+          status: 'BEFORE_SHIFT' as const,
+          defaultStartTime: '09:00',
+          defaultEndTime: '18:00',
+        })),
+    [storeEmployeeData]
+  );
+
   const addableEmployees = useMemo(
     () =>
       storeEmployees.filter((candidate) => !employeeNames.has(candidate.name)),
     [employeeNames, storeEmployees]
   );
 
-  // 총 인원 / 근무 / 지각 / 결근 통계 요약
   const summary = useMemo(() => buildSummary(employees), [employees]);
 
   // 달력 드래그 직후의 잔여 클릭 이벤트가 날짜/직원 클릭으로 번지는 것을 방지한다.
@@ -345,11 +397,13 @@ export default function SchedulePage() {
 
   const handleSelectEmployee = (employee: ScheduleEmployee) => {
     if (isClickGuarded()) return;
+    if (!isOwner) return;
     setSelectedEmployee(employee);
   };
 
   const handleOpenAddSchedule = () => {
     if (isClickGuarded()) return;
+    if (!isOwner) return;
     setAddWorkError(null);
     setIsAddWorkOpen(true);
   };
@@ -358,12 +412,13 @@ export default function SchedulePage() {
     setAddWorkError(null);
   };
 
-  // 근무 추가 확인 — 시간 유효성·중복 검사 후 새 직원을 목록에 추가
+  // 근무 추가 확인 — API 호출로 일정 생성
   const handleAddWorkConfirm = (
     candidate: ScheduleStoreEmployee,
     startTime: string,
     endTime: string
   ) => {
+    if (!isOwner) return;
     if (startTime >= endTime) {
       return;
     }
@@ -373,23 +428,39 @@ export default function SchedulePage() {
       return;
     }
 
+    if (!activeStoreId) {
+      setAddWorkError('매장 정보가 없습니다.');
+      return;
+    }
+
     setAddWorkError(null);
 
-    const newEmployee: ScheduleEmployee = {
-      id: Date.now(),
-      name: candidate.name,
-      status: 'BEFORE_SHIFT',
-      startTime,
-      endTime,
-    };
-
-    updateSelectedDateEmployees((current) => [...current, newEmployee]);
-
-    handleCloseAddSchedule();
+    createScheduleMutation.mutate(
+      {
+        storeId: activeStoreId,
+        employeeId: candidate.id,
+        body: {
+          dayOfWeek,
+          startTime: `${startTime}:00`,
+          endTime: `${endTime}:00`,
+        },
+      },
+      {
+        onSuccess: () => {
+          handleCloseAddSchedule();
+        },
+        onError: (error) => {
+          setAddWorkError(
+            getApiErrorMessage(error, '근무 추가에 실패했습니다.')
+          );
+        },
+      }
+    );
   };
 
   // 액션시트에서 선택한 액션에 따라 해당 모달을 열어주는 분기 핸들러
   const handleScheduleAction = (action: ScheduleActionType) => {
+    if (!isOwner) return;
     if (!selectedEmployee) return;
 
     if (action === 'CHANGE_TIME') {
@@ -409,46 +480,93 @@ export default function SchedulePage() {
   };
 
   const handleChangeTimeConfirm = (startTime: string, endTime: string) => {
-    if (!changeTimeTarget) return;
+    if (!isOwner) return;
+    if (!changeTimeTarget || !activeStoreId) return;
     if (startTime >= endTime) return;
 
-    updateSelectedDateEmployees((current) =>
-      current.map((employee) =>
-        employee.id === changeTimeTarget.id
-          ? { ...employee, startTime, endTime }
-          : employee
-      )
+    updateScheduleMutation.mutate(
+      {
+        storeId: activeStoreId,
+        employeeId: changeTimeTarget.employeeId,
+        scheduleId: changeTimeTarget.id,
+        body: {
+          startTime: `${startTime}:00`,
+          endTime: `${endTime}:00`,
+        },
+      },
+      {
+        onSuccess: () => {
+          setChangeTimeTarget(null);
+        },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '시간 변경에 실패했습니다.'));
+        },
+      }
     );
-
-    setChangeTimeTarget(null);
   };
 
   const handleChangeEmployeeConfirm = (candidate: ScheduleEmployee) => {
-    if (!changeEmployeeTarget) return;
+    if (!isOwner) return;
+    if (!changeEmployeeTarget || !activeStoreId) return;
 
-    updateSelectedDateEmployees((current) =>
-      current.map((employee) =>
-        employee.id === changeEmployeeTarget.id
-          ? {
-              ...employee,
-              name: candidate.name,
-              status: candidate.status,
+    // 기존 일정 삭제 + 새 일정 생성
+    deleteScheduleMutation.mutate(
+      {
+        storeId: activeStoreId,
+        employeeId: changeEmployeeTarget.employeeId,
+        scheduleId: changeEmployeeTarget.id,
+      },
+      {
+        onSuccess: () => {
+          // 삭제 후 새 일정 생성
+          createScheduleMutation.mutate(
+            {
+              storeId: activeStoreId,
+              employeeId: candidate.employeeId,
+              body: {
+                dayOfWeek,
+                startTime: `${changeEmployeeTarget.startTime}:00`,
+                endTime: `${changeEmployeeTarget.endTime}:00`,
+              },
+            },
+            {
+              onSuccess: () => {
+                setChangeEmployeeTarget(null);
+              },
+              onError: (error) => {
+                toast.error(
+                  getApiErrorMessage(error, '직원 변경에 실패했습니다.')
+                );
+              },
             }
-          : employee
-      )
+          );
+        },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '직원 변경에 실패했습니다.'));
+        },
+      }
     );
-
-    setChangeEmployeeTarget(null);
   };
 
   const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
+    if (!isOwner) return;
+    if (!deleteTarget || !activeStoreId) return;
 
-    updateSelectedDateEmployees((current) =>
-      current.filter((employee) => employee.id !== deleteTarget.id)
+    deleteScheduleMutation.mutate(
+      {
+        storeId: activeStoreId,
+        employeeId: deleteTarget.employeeId,
+        scheduleId: deleteTarget.id,
+      },
+      {
+        onSuccess: () => {
+          setDeleteTarget(null);
+        },
+        onError: (error) => {
+          toast.error(getApiErrorMessage(error, '일정 삭제에 실패했습니다.'));
+        },
+      }
     );
-
-    setDeleteTarget(null);
   };
 
   // =============================================
@@ -559,6 +677,7 @@ export default function SchedulePage() {
           onHandlePointerCancel={handlePointerCancel}
           onHandleKeyDown={handleHandleKeyDown}
           onBack={() => navigate(-1)}
+          hasAbsentOnDate={() => false}
         />
 
         <main
@@ -573,6 +692,7 @@ export default function SchedulePage() {
           <ScheduleDayHeader
             selectedDate={selectedDate}
             scheduleCount={employees.length}
+            canAddSchedule={isOwner}
             onAddSchedule={handleOpenAddSchedule}
           />
 
@@ -581,7 +701,7 @@ export default function SchedulePage() {
             onSelectEmployee={handleSelectEmployee}
           />
 
-          {isMonthExpanded && (
+          {isMonthExpanded && isOwner && (
             <button
               type="button"
               onClick={handleOpenAddSchedule}
@@ -596,16 +716,18 @@ export default function SchedulePage() {
       <BottomNav activeTab="schedule" />
 
       {/* 직원 클릭 시 액션 시트 (시간변경 / 직원변경 / 삭제) */}
-      <ScheduleEmployeeActionSheet
-        isOpen={selectedEmployee !== null}
-        selectedDate={selectedDate}
-        employee={selectedEmployee}
-        onClose={() => setSelectedEmployee(null)}
-        onAction={handleScheduleAction}
-      />
+      {isOwner && (
+        <ScheduleEmployeeActionSheet
+          isOpen={selectedEmployee !== null}
+          selectedDate={selectedDate}
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+          onAction={handleScheduleAction}
+        />
+      )}
 
       {/* 근무 추가 모달 */}
-      {isAddWorkOpen && (
+      {isOwner && isAddWorkOpen && (
         <ScheduleAddWorkModal
           isOpen={true}
           selectedDate={selectedDate}
@@ -618,7 +740,7 @@ export default function SchedulePage() {
       )}
 
       {/* 근무시간 변경 모달 */}
-      {changeTimeTarget && (
+      {isOwner && changeTimeTarget && (
         <ScheduleChangeTimeModal
           isOpen={true}
           selectedDate={selectedDate}
@@ -629,25 +751,28 @@ export default function SchedulePage() {
       )}
 
       {/* 직원 교체 모달 */}
-      {changeEmployeeTarget && (
+      {isOwner && changeEmployeeTarget && (
         <ScheduleChangeEmployeeModal
           isOpen={true}
           selectedDate={selectedDate}
           employee={changeEmployeeTarget}
           busyEmployeeNames={busyEmployeeNames}
+          storeEmployees={storeEmployees}
           onClose={() => setChangeEmployeeTarget(null)}
           onConfirm={handleChangeEmployeeConfirm}
         />
       )}
 
       {/* 근무 삭제 확인 모달 */}
-      <ScheduleDeleteConfirmModal
-        isOpen={deleteTarget !== null}
-        selectedDate={selectedDate}
-        employee={deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDeleteConfirm}
-      />
+      {isOwner && (
+        <ScheduleDeleteConfirmModal
+          isOpen={deleteTarget !== null}
+          selectedDate={selectedDate}
+          employee={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
     </div>
   );
 }

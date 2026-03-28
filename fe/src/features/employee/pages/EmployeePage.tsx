@@ -2,7 +2,12 @@ import { FileText, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { generateInviteCode, getEmployees } from '@/api/store';
+import {
+  approveEmployee,
+  generateInviteCode,
+  getEmployees,
+  getEmployeesByStatus,
+} from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
@@ -41,6 +46,7 @@ export default function EmployeePage() {
   const [selectedStaffGroup, setSelectedStaffGroup] =
     useState<StaffGroupKey>('CURRENT');
   const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>([]);
+  const [invitedRecords, setInvitedRecords] = useState<EmployeeRecord[]>([]);
 
   const fetchInviteCode = useCallback(
     async (storeId: number) => {
@@ -75,10 +81,28 @@ export default function EmployeePage() {
     }
   }, []);
 
+  const fetchPendingEmployees = useCallback(async (storeId: number) => {
+    try {
+      const pendingEmployees = await getEmployeesByStatus(storeId, 'WAITING');
+      const records: EmployeeRecord[] = pendingEmployees.map((emp) => ({
+        id: emp.employeeId,
+        name: emp.name,
+        avatarSeed: `employee-${emp.userId}`,
+        status: 'INVITED',
+      }));
+      setInvitedRecords(records);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, '대기 직원 목록 조회에 실패했어요.')
+      );
+    }
+  }, []);
+
   // currentStore 변경 시 직원 목록 조회 및 초대코드 갱신
   useEffect(() => {
     if (!currentStore) return;
     void fetchEmployees(currentStore.storeId);
+    void fetchPendingEmployees(currentStore.storeId);
     const isExpired =
       !storedInviteCode ||
       !storedExpiredAt ||
@@ -87,13 +111,11 @@ export default function EmployeePage() {
   }, [
     currentStore,
     fetchEmployees,
+    fetchPendingEmployees,
     fetchInviteCode,
     storedInviteCode,
     storedExpiredAt,
   ]);
-
-  // INVITED 섹션: 백엔드 API에서 제공하지 않으므로 빈 배열 고정
-  const invitedRecords: EmployeeRecord[] = useMemo(() => [], []);
 
   const currentRecords = useMemo(
     () =>
@@ -129,10 +151,20 @@ export default function EmployeePage() {
         void fetchInviteCode(currentStore.storeId);
     },
     removeInvitedEmployee: () => {
-      // INVITED 섹션은 빈 배열이므로 호출되지 않음
+      toast('요청 거절 기능은 아직 준비 중입니다.');
     },
-    approveInvitedEmployee: () => {
-      // INVITED 섹션은 빈 배열이므로 호출되지 않음
+    approveInvitedEmployee: async (employeeId: number) => {
+      if (!currentStore) return;
+      try {
+        await approveEmployee(currentStore.storeId, employeeId);
+        toast.success('직원 합류를 승인했어요.');
+        await Promise.all([
+          fetchEmployees(currentStore.storeId),
+          fetchPendingEmployees(currentStore.storeId),
+        ]);
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, '직원 승인에 실패했어요.'));
+      }
     },
     openEmployeeDetail: (item: EmployeeRecord) => {
       const employeeSummary: EmployeeSummary = {

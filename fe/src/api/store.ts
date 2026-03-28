@@ -103,6 +103,33 @@ export async function getEmployees(storeId: number) {
   return data.data;
 }
 
+export type StoreEmployeeStatus =
+  | 'INVITED'
+  | 'WAITING'
+  | 'WORKING'
+  | 'RESTING'
+  | 'BEST'
+  | 'RESIGNED'
+  | 'ON_LEAVE';
+
+export async function getEmployeesByStatus(
+  storeId: number,
+  status: StoreEmployeeStatus
+) {
+  const { data } = await instance.get<ApiResponse<Employee[]>>(
+    `/api/v1/stores/${storeId}/employees/status`,
+    { params: { status } }
+  );
+  return data.data;
+}
+
+export async function approveEmployee(storeId: number, employeeId: number) {
+  const { data } = await instance.patch<ApiResponse<Employee>>(
+    `/api/v1/stores/${storeId}/employees/${employeeId}/approve`
+  );
+  return data.data;
+}
+
 // ─── 직원 합류 ───────────────────────────────────────────────────────────────
 
 export interface EmployeeInfo {

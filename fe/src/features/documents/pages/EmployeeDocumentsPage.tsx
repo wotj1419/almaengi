@@ -279,7 +279,7 @@ export default function EmployeeDocumentsPage() {
                       navigate(
                         ROUTES.WORKER_DOCUMENTS_CONTRACT_SIGN.replace(
                           ':contractId',
-                          item.id
+                          String(item.id)
                         )
                       )
                     }
