@@ -117,15 +117,20 @@ export default function PayslipDetailPage() {
     };
   }, [currentStore, payrollId]);
 
-  const handleBack =
-    locationState?.from === 'payroll' &&
-    locationState.year &&
-    locationState.month
-      ? () =>
-          navigate(ROUTES.PAYROLL, {
-            state: { year: locationState.year, month: locationState.month },
-          })
-      : undefined;
+  const handleBack = () =>
+    navigate(
+      locationState?.from === 'payroll' &&
+        locationState.year &&
+        locationState.month
+        ? ROUTES.PAYROLL
+        : ROUTES.DOCUMENTS_MY,
+      {
+        replace: true,
+        ...(locationState?.from === 'payroll' && {
+          state: { year: locationState.year, month: locationState.month },
+        }),
+      }
+    );
 
   const targetMonth = detail?.targetMonth ?? locationState?.targetMonth ?? '-';
   const [yearLabel, monthLabel] = targetMonth.includes('-')

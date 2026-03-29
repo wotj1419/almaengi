@@ -9,7 +9,9 @@ interface Props {
   nightWorkMinutes: number;
   overtimeMinutes: number;
   isPaid: boolean;
+  isAllApproved: boolean;
   isAutoTransferOn: boolean;
+  onApproveToggle?: () => void;
   onAutoTransferToggle?: () => void;
   onManualTransfer?: () => void;
 }
@@ -31,7 +33,9 @@ export default function PayrollSummaryCard({
   nightWorkMinutes,
   overtimeMinutes,
   isPaid,
+  isAllApproved,
   isAutoTransferOn,
+  onApproveToggle,
   onAutoTransferToggle,
   onManualTransfer,
 }: Props) {
@@ -122,24 +126,29 @@ export default function PayrollSummaryCard({
         )}
       </div>
 
-      {/* 버튼 영역: 분석 리포트 + 수동 이체 */}
-      <div className="flex gap-[var(--space-3)]">
+      {/* 일괄 승인 토글 */}
+      <div className="flex items-center justify-between py-[var(--space-1)]">
+        <span className="text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)]">
+          급여명세서 일괄 승인
+        </span>
         <button
-          onClick={() => navigate(ROUTES.REPORT)}
-          className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
+          onClick={onApproveToggle}
+          className={`relative shrink-0 w-[44px] h-[24px] rounded-full transition-colors cursor-pointer ${
+            isAllApproved
+              ? 'bg-[var(--color-primary)]'
+              : 'bg-[var(--color-status-grey-bg)]'
+          }`}
         >
-          분석 리포트
-        </button>
-        <button
-          onClick={onManualTransfer}
-          className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-badge-green-bg)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
-        >
-          수동 이체
+          <span
+            className={`absolute top-[2px] left-[2px] w-[20px] h-[20px] rounded-full bg-white shadow transition-transform ${
+              isAllApproved ? 'translate-x-[20px]' : 'translate-x-0'
+            }`}
+          />
         </button>
       </div>
 
       {/* 예약 이체 토글 */}
-      <div className="flex items-center justify-between py-[var(--space-3)] px-[var(--space-4)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)]">
+      <div className="flex items-center justify-between py-[var(--space-1)]">
         <span className="text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)]">
           예약 이체
         </span>
@@ -156,6 +165,22 @@ export default function PayrollSummaryCard({
               isAutoTransferOn ? 'translate-x-[20px]' : 'translate-x-0'
             }`}
           />
+        </button>
+      </div>
+
+      {/* 버튼 영역: 분석 리포트 + 수동 이체 */}
+      <div className="flex gap-[var(--space-3)]">
+        <button
+          onClick={() => navigate(ROUTES.REPORT)}
+          className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
+        >
+          분석 리포트
+        </button>
+        <button
+          onClick={onManualTransfer}
+          className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-badge-green-bg)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
+        >
+          수동 이체
         </button>
       </div>
     </div>

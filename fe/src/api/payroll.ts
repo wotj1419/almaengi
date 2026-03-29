@@ -1,6 +1,9 @@
 import instance from './instance';
 import type { ApiResponse } from './auction.types';
-import type { MyPayrollData } from '@/features/payroll/types';
+import type {
+  MyPayrollData,
+  StorePayrollSummary,
+} from '@/features/payroll/types';
 
 export interface PayrollSummary {
   targetMonth: string;
@@ -159,6 +162,17 @@ export async function getPayslipPdfBlob(
  * - payrollId가 null이면 해당 월 급여가 아직 생성되지 않은 것
  * - targetMonth를 생략하면 서버 기준 현재 월을 반환
  */
+export async function fetchStorePayrolls(
+  storeId: number,
+  targetMonth: string
+): Promise<StorePayrollSummary> {
+  const { data } = await instance.get<ApiResponse<StorePayrollSummary>>(
+    `/api/v1/stores/${storeId}/payrolls`,
+    { params: { targetMonth } }
+  );
+  return data.data;
+}
+
 export async function fetchMyPayroll(
   storeId: number,
   targetMonth?: string
@@ -173,4 +187,27 @@ export async function fetchMyPayroll(
 
   // ApiResponse 래퍼에서 실제 데이터만 추출하여 반환
   return data.data;
+}
+
+export async function approveAllPayrolls(
+  storeId: number,
+  targetMonth: string
+): Promise<number> {
+  const { data } = await instance.patch<ApiResponse<number>>(
+    `/api/v1/stores/${storeId}/payrolls/approve-all`,
+    null,
+    { params: { targetMonth } }
+  );
+  return data.data;
+}
+
+export async function transferPayrolls(
+  storeId: number,
+  targetMonth: string
+): Promise<void> {
+  await instance.post<ApiResponse<void>>(
+    `/api/v1/stores/${storeId}/payrolls/transfer`,
+    null,
+    { params: { targetMonth } }
+  );
 }
