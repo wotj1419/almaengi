@@ -1,10 +1,9 @@
 import { Info, Lightbulb, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { mockPayrollAlerts } from '../data/mockReport';
 import AlertCard from './AlertCard';
 import MonthlyPayrollChart from './MonthlyPayrollChart';
 import PayrollDonutChart from './PayrollDonutChart';
-import type { AlertCardData } from '../types';
+import type { AlertCardData, MonthlyBarData, PayrollBreakdownItem } from '../types';
 
 const ICON_CONFIG: Record<
   AlertCardData['variant'],
@@ -37,12 +36,21 @@ const ICON_CONFIG: Record<
 interface Props {
   year: number;
   month: number;
+  alerts: AlertCardData[];
+  monthlyPayroll: MonthlyBarData[];
+  breakdown: PayrollBreakdownItem[];
 }
 
-export default function PayrollStatusTab({ year, month }: Props) {
+export default function PayrollStatusTab({
+  year,
+  month,
+  alerts,
+  monthlyPayroll,
+  breakdown,
+}: Props) {
   return (
     <div className="flex flex-col gap-[var(--space-6)] px-[var(--space-5)]">
-      {mockPayrollAlerts.map((alert) => {
+      {alerts.map((alert) => {
         const { icon, iconBg } = ICON_CONFIG[alert.variant];
         return (
           <AlertCard
@@ -54,8 +62,12 @@ export default function PayrollStatusTab({ year, month }: Props) {
           />
         );
       })}
-      <MonthlyPayrollChart year={year} month={month} />
-      <PayrollDonutChart />
+      <MonthlyPayrollChart
+        year={year}
+        month={month}
+        monthlyPayroll={monthlyPayroll}
+      />
+      <PayrollDonutChart breakdown={breakdown} />
     </div>
   );
 }

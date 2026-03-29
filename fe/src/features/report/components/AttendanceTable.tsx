@@ -1,8 +1,12 @@
-import { mockAttendanceRecords } from '../data/mockReport';
+import type { AttendanceRecord } from '../types';
 
 const HEADERS = ['이름', '출근', '지각', '결근', '시간'];
 
-export default function AttendanceTable() {
+interface Props {
+  records: AttendanceRecord[];
+}
+
+export default function AttendanceTable({ records }: Props) {
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-6)]">
       <div className="flex items-center justify-between mb-[var(--space-5)]">
@@ -32,7 +36,7 @@ export default function AttendanceTable() {
         </div>
 
         {/* 데이터 행 */}
-        {mockAttendanceRecords.map((row) => (
+        {records.map((row) => (
           <div
             key={row.id}
             className="grid grid-cols-5 py-[var(--space-4)] px-[var(--space-3)]"

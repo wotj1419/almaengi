@@ -71,3 +71,28 @@ export interface CloseAuctionResponse {
   status: AuctionStatus;
   winners: CloseAuctionWinnerDto[];
 }
+
+export interface AuctionInsightTimelineItemDto {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  auctionCount: number;
+}
+
+export interface AuctionInsightTimelinePageDto {
+  content: AuctionInsightTimelineItemDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface AuctionInsightsReportDto {
+  yearMonth: string;
+  totalAuctionCount: number;
+  closedAuctionCount: number;
+  successRate: number;
+  averageWinningWage: number;
+  timelinePage: AuctionInsightTimelinePageDto;
+}

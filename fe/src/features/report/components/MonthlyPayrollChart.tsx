@@ -1,10 +1,11 @@
 import dayjs from 'dayjs';
 import { BarChart, Bar, XAxis, ResponsiveContainer } from 'recharts';
-import { mockMonthlyPayroll } from '../data/mockReport';
+import type { MonthlyBarData } from '../types';
 
 interface Props {
   year: number;
   month: number;
+  monthlyPayroll: MonthlyBarData[];
 }
 
 function getLast6Months(
@@ -18,14 +19,18 @@ function getLast6Months(
   });
 }
 
-export default function MonthlyPayrollChart({ year, month }: Props) {
+export default function MonthlyPayrollChart({
+  year,
+  month,
+  monthlyPayroll,
+}: Props) {
   const months = getLast6Months(year, month);
 
-  const data = mockMonthlyPayroll.map((d, i) => ({
+  const data = monthlyPayroll.map((d, i) => ({
     month: `${months[i].month}월`,
     value: d.value,
     fill:
-      i === mockMonthlyPayroll.length - 1
+      i === monthlyPayroll.length - 1
         ? 'var(--color-primary)'
         : 'var(--color-border-muted)',
   }));

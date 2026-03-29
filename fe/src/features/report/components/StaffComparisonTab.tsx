@@ -1,11 +1,15 @@
 import { TriangleAlert, BadgeCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { mockStaffAlerts } from '../data/mockReport';
 import AlertCard from './AlertCard';
 import MonthlyHighlights from './MonthlyHighlights';
 import AttendanceTable from './AttendanceTable';
 import PayrollRankingCard from './PayrollRankingCard';
-import type { AlertCardData } from '../types';
+import type {
+  AlertCardData,
+  AttendanceRecord,
+  MonthlyHighlightItem,
+  PayrollRankingItem,
+} from '../types';
 
 const ICON_CONFIG: Record<
   AlertCardData['variant'],
@@ -39,10 +43,22 @@ const ICON_CONFIG: Record<
   },
 };
 
-export default function StaffComparisonTab() {
+interface Props {
+  alerts: AlertCardData[];
+  highlights: MonthlyHighlightItem[];
+  attendanceRecords: AttendanceRecord[];
+  payrollRanking: PayrollRankingItem[];
+}
+
+export default function StaffComparisonTab({
+  alerts,
+  highlights,
+  attendanceRecords,
+  payrollRanking,
+}: Props) {
   return (
     <div className="flex flex-col gap-[var(--space-6)] px-[var(--space-5)]">
-      {mockStaffAlerts.map((alert) => {
+      {alerts.map((alert) => {
         const { icon, iconBg } = ICON_CONFIG[alert.variant];
         return (
           <AlertCard
@@ -54,9 +70,9 @@ export default function StaffComparisonTab() {
           />
         );
       })}
-      <MonthlyHighlights />
-      <AttendanceTable />
-      <PayrollRankingCard />
+      <MonthlyHighlights highlights={highlights} />
+      <AttendanceTable records={attendanceRecords} />
+      <PayrollRankingCard ranking={payrollRanking} />
     </div>
   );
 }
