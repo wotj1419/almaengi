@@ -26,18 +26,8 @@ public class ChatWsService {
     public ChatMessageResponseDto.MessageItem handleIncomingMessage(Long userId, Long roomId, ChatMessageRequestDto.SendMessage request) {
         ChatMessageResponseDto.MessageItem saved = chatMessageService.sendMessage(userId, roomId, request);
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    chatRedisPublisher.publishMessageCreated(roomId, saved);
-                } catch(Exception e) {
-                    // 실시간 전송 실패가 메시지 저장 성공을 깨지 않도록 로그만 남깁니다.
-                    log.warn("[CHAT-WS] redis publish failed. roomId={}, messageId={}, reason={}", roomId, saved.getMessageId(), e.getMessage());
-                }
-            }
-        });
-
+        // publish 책임을 ChatMessageService로 통합했기 때문에
+        // 여기서는 저장/검증만 위임하고 그대로 반환한다.
         return saved;
     }
 

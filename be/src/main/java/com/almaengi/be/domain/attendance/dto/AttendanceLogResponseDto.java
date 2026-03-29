@@ -21,6 +21,11 @@ public class AttendanceLogResponseDto {
     private LocalDate date;
     private List<AttendanceLogDto> attendances;
 
+    private Long all;        // 전체직원
+    private Long working;    // 출근
+    private Long late;       // 지각자
+    private Long absent;     // 결근자
+
     /**
      * 직원별 근태 기록 DTO입니다.
      * 예정 근무시간, 실제 출퇴근 시각, 근태 상태, 연장근무 여부를 포함합니다.

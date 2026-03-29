@@ -11,6 +11,7 @@ import com.almaengi.be.domain.chat.repository.ChatRoomMemberRepository;
 import com.almaengi.be.domain.chat.repository.ChatRoomRepository;
 import com.almaengi.be.domain.chat.type.ChatMessageType;
 import com.almaengi.be.domain.chat.type.ChatRoomType;
+import com.almaengi.be.domain.chat.ws.pubsub.ChatRedisPublisher;
 import com.almaengi.be.domain.notification.service.NotificationService;
 import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.user.entity.User;
@@ -44,6 +45,9 @@ public class ChatMessageService {
 
     private final NotificationService notificationService;
 
+    // DM/GROUP/BOT 공통 실시간 전파를 위한 Redis publisher
+    private final ChatRedisPublisher chatRedisPublisher;
+
     /**
      * 메세지 전송
      * - 활성 멤버인지 검증
@@ -69,6 +73,17 @@ public class ChatMessageService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                // 1) 실시간 WS fan-out 이벤트 발행
+                // - REST 전송(DM/GROUP)도 BOT과 동일하게 publish 되도록 통일
+                try {
+                    ChatMessageResponseDto.MessageItem payload = ChatMessageResponseDto.MessageItem.from(saved);
+                    chatRedisPublisher.publishMessageCreated(roomId, payload);
+                } catch (Exception e) {
+                    // 실시간 발행 실패가 메시지 저장 성공을 깨지 않도록 best-effort
+                    log.warn("[CHAT] redis publish failed. roomId={}, messageId={}, reason={}",
+                            roomId, saved.getId(), e.getMessage());
+                }
+
                 notifyChatPushOnly(room, sender, saved);
             }
         });
