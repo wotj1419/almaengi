@@ -83,14 +83,14 @@ export default function EmployeeRevenueCard() {
           </div>
         </div>
 
-        {/* 섹션 3: 리포트 보러가기 */}
+        {/* 섹션 3: 급여 페이지 바로가기 */}
         <div className="flex-1 flex items-center">
           <div
             className="flex items-center gap-[var(--space-1-5)] px-[var(--space-1)] pb-[var(--space-5)] cursor-pointer"
-            onClick={() => navigate(ROUTES.REPORT)}
+            onClick={() => navigate(ROUTES.PAYROLL)}
           >
             <span className="text-[length:var(--text-md)] text-white font-bold whitespace-nowrap">
-              리포트 보러가기
+              급여 상세 보기
             </span>
             <ChevronRight size={20} color="white" strokeWidth={2} />
           </div>

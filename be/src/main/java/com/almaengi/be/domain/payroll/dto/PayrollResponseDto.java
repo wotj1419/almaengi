@@ -389,6 +389,12 @@ public class PayrollResponseDto {
 
         // ── 수당 비교 ──
 
+        @Schema(description = "이번 달 기본급 합계")
+        private Long thisMonthBasicPay;
+
+        @Schema(description = "이전 달 기본급 합계")
+        private Long lastMonthBasicPay;
+
         @Schema(description = "이번 달 주휴수당 합계")
         private Long thisMonthWeeklyHolidayPay;
 

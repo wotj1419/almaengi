@@ -260,10 +260,10 @@ export default function EmployeePayrollPage() {
 
           <div className="flex gap-[var(--space-3)]">
             <button
-              onClick={() => navigate(ROUTES.REPORT)}
+              onClick={() => navigate(ROUTES.HOME)}
               className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
             >
-              분석 리포트
+              홈으로 이동
             </button>
             <button
               onClick={() => {

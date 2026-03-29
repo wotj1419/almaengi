@@ -244,6 +244,8 @@ public class  PayrollQueryService {
 
         long thisTotal = thisPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
         long lastTotal = lastPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
+        long thisBasicPay = thisPayrolls.stream().mapToLong(Payroll::getBasicPay).sum();
+        long lastBasicPay = lastPayrolls.stream().mapToLong(Payroll::getBasicPay).sum();
 
         // PayrollDetail에서 수당 항목별 합계 조회
         AllowanceSums thisAllowances = sumAllowances(
@@ -259,6 +261,7 @@ public class  PayrollQueryService {
                 thisMonth, false,
                 thisMonth, thisEnd, lastMonth, lastEnd,
                 thisTotal, lastTotal,
+                thisBasicPay, lastBasicPay,
                 thisAllowances, lastAllowances,
                 employees, topEarners);
     }
@@ -290,6 +293,7 @@ public class  PayrollQueryService {
                     thisMonth, true,
                     thisStart, thisEnd, lastStart, lastEnd,
                     0L, 0L,
+                    0L, 0L,
                     AllowanceSums.ZERO, AllowanceSums.ZERO,
                     List.of(), List.of());
         }
@@ -320,6 +324,8 @@ public class  PayrollQueryService {
         // 직원별 급여 재계산 → 합계 집계
         long thisTotal = 0;
         long lastTotal = 0;
+        long thisBasicPay = 0;
+        long lastBasicPay = 0;
         AllowanceSums thisAllowances = new AllowanceSums();
         AllowanceSums lastAllowances = new AllowanceSums();
         List<PayrollResponseDto.SummaryEmployee> employees = new ArrayList<>();
@@ -334,12 +340,14 @@ public class  PayrollQueryService {
             List<Attendance> thisEmpAtt = thisAttByEmp.getOrDefault(empId, List.of());
             EmployeePayCalc thisCalc = calculateEmployeePay(thisEmpAtt, hourlyWage, isOver5, includeHolidayPay, emp.getTaxType(), thisMonth);
             thisTotal += thisCalc.netPay;
+            thisBasicPay += thisCalc.basicPay;
             thisAllowances.add(thisCalc);
 
             // 이전 달 급여 계산
             List<Attendance> lastEmpAtt = lastAttByEmp.getOrDefault(empId, List.of());
             EmployeePayCalc lastCalc = calculateEmployeePay(lastEmpAtt, hourlyWage, isOver5, includeHolidayPay, emp.getTaxType(), lastMonth);
             lastTotal += lastCalc.netPay;
+            lastBasicPay += lastCalc.basicPay;
             lastAllowances.add(lastCalc);
 
             // 직원 리스트에는 이번 달 netPay 기준
@@ -358,6 +366,7 @@ public class  PayrollQueryService {
                 thisMonth, true,
                 thisStart, thisEnd, lastStart, lastEnd,
                 thisTotal, lastTotal,
+                thisBasicPay, lastBasicPay,
                 thisAllowances, lastAllowances,
                 employees, topEarners);
     }
@@ -403,7 +412,7 @@ public class  PayrollQueryService {
         long totalDeduction = calculationService.calculateDeduction(grossPay, taxType);
         long netPay = grossPay - totalDeduction;
 
-        return new EmployeePayCalc(netPay, weeklyHolidayPay, overtimePay, nightPay);
+        return new EmployeePayCalc(netPay, basicPay, weeklyHolidayPay, overtimePay, nightPay);
     }
 
     // ─── Private Helpers (급여 요약) ───
@@ -411,7 +420,7 @@ public class  PayrollQueryService {
     /**
      * 직원별 급여 계산 결과를 담는 내부 레코드입니다.
      */
-    private record EmployeePayCalc(long netPay, long weeklyHolidayPay, long overtimePay, long nightPay) {}
+    private record EmployeePayCalc(long netPay, long basicPay, long weeklyHolidayPay, long overtimePay, long nightPay) {}
 
     /**
      * 수당 합계를 누적하는 내부 클래스입니다.
@@ -484,6 +493,7 @@ public class  PayrollQueryService {
             LocalDate thisStart, LocalDate thisEnd,
             LocalDate lastStart, LocalDate lastEnd,
             long thisTotal, long lastTotal,
+            long thisBasicPay, long lastBasicPay,
             AllowanceSums thisAllowances, AllowanceSums lastAllowances,
             List<PayrollResponseDto.SummaryEmployee> employees,
             List<PayrollResponseDto.SummaryEmployee> topEarners) {
@@ -514,6 +524,8 @@ public class  PayrollQueryService {
                 .lastMonthTotal(lastTotal)
                 .changeRate(changeRate)
                 .changeDirection(changeDirection)
+                .thisMonthBasicPay(thisBasicPay)
+                .lastMonthBasicPay(lastBasicPay)
                 .thisMonthWeeklyHolidayPay(thisAllowances.weeklyHolidayPay)
                 .lastMonthWeeklyHolidayPay(lastAllowances.weeklyHolidayPay)
                 .thisMonthOvertimePay(thisAllowances.overtimePay)

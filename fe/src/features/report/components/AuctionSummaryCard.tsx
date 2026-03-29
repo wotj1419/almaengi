@@ -1,6 +1,10 @@
-import { mockAuctionSummary } from '../data/mockReport';
+import type { AuctionSummaryItem } from '../types';
 
-export default function AuctionSummaryCard() {
+interface Props {
+  summary: AuctionSummaryItem[];
+}
+
+export default function AuctionSummaryCard({ summary }: Props) {
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-xl)] shadow-[var(--shadow-form-card)] border border-[var(--color-border-light)] overflow-hidden">
       <div className="px-[var(--space-5)] py-[var(--space-4)] border-b border-[var(--color-table-header-bg)]">
@@ -10,7 +14,7 @@ export default function AuctionSummaryCard() {
       </div>
 
       <div className="flex gap-[var(--space-3)] px-[var(--space-5)] py-[var(--space-5)]">
-        {mockAuctionSummary.map((item) => (
+        {summary.map((item) => (
           <div
             key={item.id}
             className="flex-1 flex flex-col items-center gap-[var(--space-3)] rounded-[var(--radius-xl)] px-[var(--space-4)] py-[var(--space-4)]"
