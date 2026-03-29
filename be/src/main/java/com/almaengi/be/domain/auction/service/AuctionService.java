@@ -12,6 +12,8 @@ import com.almaengi.be.domain.auction.repository.AuctionBidRepository;
 import com.almaengi.be.domain.auction.repository.AuctionWinnerRepository;
 import com.almaengi.be.domain.auction.repository.ShiftAuctionRepository;
 import com.almaengi.be.domain.auction.type.AuctionStatus;
+import com.almaengi.be.domain.auction.ws.dto.AuctionWsEventDto;
+import com.almaengi.be.domain.auction.ws.service.AuctionWsPublisher;
 import com.almaengi.be.domain.notification.service.NotificationService;
 import com.almaengi.be.domain.notification.type.NotificationType;
 import com.almaengi.be.domain.store.entity.Store;
@@ -32,6 +34,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -59,6 +63,8 @@ public class AuctionService {
     private final UserRepository userRepository;
 
     private final NotificationService notificationService;
+
+    private final AuctionWsPublisher auctionWsPublisher;
 
     // 법정 최저시급
     @Value("${app.auction.legal-minimum-wage}")
@@ -108,7 +114,16 @@ public class AuctionService {
                 .recruitCount(recruitCount)
                 .build();
 
-        return shiftAuctionRepository.save(auction).getId();
+        ShiftAuction saved = shiftAuctionRepository.save(auction);
+        // 트랜잭션 커밋 이후에만 WS 이벤트를 발행해
+        // 롤백된 데이터가 클라이언트에 노출되지 않도록 합니다.
+        publishAuctionEventAfterCommit(
+                saved.getStore().getId(),
+                saved.getId(),
+                AuctionWsEventDto.EventType.AUCTION_CREATED
+        );
+
+        return saved.getId();
     }
 
     /**
@@ -251,6 +266,11 @@ public class AuctionService {
                         }).toList();
 
         notifyAuctionWinners(auction, winningBids); // 푸시 알림 + 알림함 저장
+        publishAuctionEventAfterCommit(
+                auction.getStore().getId(),
+                auction.getId(),
+                AuctionWsEventDto.EventType.AUCTION_CLOSED
+        );
         log.info("경매 마감 - AuctionID: {}, 선택된 인원 수: {}", auctionId, winningBids.size());
 
         return AuctionResponseDto.CloseResult.builder()
@@ -341,6 +361,12 @@ public class AuctionService {
                 request.getDeadline(),
                 minWage, maxWage, recruitCount
         );
+
+        publishAuctionEventAfterCommit(
+                auction.getStore().getId(),
+                auction.getId(),
+                AuctionWsEventDto.EventType.AUCTION_UPDATED
+        );
     }
 
     @Transactional
@@ -354,6 +380,12 @@ public class AuctionService {
             throw new BusinessException(ErrorCode.AUCTION_NOT_IN_PROGRESS);
 
         auction.cancelAuction();
+
+        publishAuctionEventAfterCommit(
+                auction.getStore().getId(),
+                auction.getId(),
+                AuctionWsEventDto.EventType.AUCTION_DELETED
+        );
     }
 
     public AuctionResponseDto.InsightsReport getInsightsReport(Long userId, Long storeId, AuctionRequestDto.AuctionInsightsQuery request) {
@@ -592,5 +624,24 @@ public class AuctionService {
             case 6 -> "SAT";
             default -> "UNKNOWN";
         };
+    }
+
+    /**
+     * 경매 변경 이벤트를 커밋 이후 발행합니다.
+     * - DB 반영 성공 후에만 클라이언트 동기화를 수행
+     * - 실패해도 핵심 트랜잭션에는 영향 없는 best-effort 정책
+     */
+    private void publishAuctionEventAfterCommit(Long storeId, Long auctionId, AuctionWsEventDto.EventType eventType) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    auctionWsPublisher.publishStoreEvent(AuctionWsEventDto.of(eventType, storeId, auctionId));
+                } catch (Exception e) {
+                    log.warn("[AUCTION-WS] publish failed. storeId={}, auctionId={}, eventType={}, reason={}",
+                            storeId, auctionId, eventType, e.getMessage());
+                }
+            }
+        });
     }
 }

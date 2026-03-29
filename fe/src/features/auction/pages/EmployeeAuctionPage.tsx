@@ -8,11 +8,16 @@ import AuctionSummaryCard from '../components/AuctionSummaryCard';
 import EmployeeAuctionItemCard from '../components/EmployeeAuctionItemCard';
 import { useAuctions } from '../hooks/useAuctionQueries';
 import { toAuctionItem } from '../utils/auctionMapper';
+import { useAuctionSocket } from '../hooks/useAuctionSocket';
 
 export default function EmployeeAuctionPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const activeStoreId = useAuthStore((state) => state.activeStoreId);
+
+  // 알바 페이지에서 경매 생성/수정/마감 이벤트를 실시간 반영
+  useAuctionSocket(activeStoreId);
+
   const userId = useAuthStore((state) => state.user?.id ?? 0);
 
   const initialTab =
