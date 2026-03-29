@@ -1,22 +1,37 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
+import { Calendar, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import imgCharacter from '@/assets/images/character.png';
 import useStoreStore from '@/stores/useStoreStore';
-import { getPayrollSummary, type PayrollSummary } from '@/api/payroll';
+import {
+  getPayrollSummary,
+  getPayDay,
+  type PayrollSummary,
+} from '@/api/payroll';
 
 export default function RevenueCard() {
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
   const [summary, setSummary] = useState<PayrollSummary | null>(null);
+  const [payDay, setPayDay] = useState<number | null>(null);
+  const [showDDay, setShowDDay] = useState(true);
 
   useEffect(() => {
     if (!currentStore) return;
     getPayrollSummary(currentStore.storeId)
       .then(setSummary)
       .catch(() => {});
+    getPayDay(currentStore.storeId)
+      .then(setPayDay)
+      .catch(() => {});
   }, [currentStore]);
+
+  // 3초마다 D-Day ↔ 전월대비 전환
+  useEffect(() => {
+    const timer = setInterval(() => setShowDDay((prev) => !prev), 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const targetMonth = summary
     ? (() => {
@@ -27,6 +42,27 @@ export default function RevenueCard() {
 
   const totalAmount = summary ? summary.thisMonthTotal.toLocaleString() : '-';
 
+  // D-Day 계산
+  const today = new Date();
+  const effectivePayDay = payDay ?? 25;
+  const thisMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    effectivePayDay
+  );
+  const nextMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    effectivePayDay
+  );
+  const payDate =
+    today <= thisMonthPayDate ? thisMonthPayDate : nextMonthPayDate;
+  const dDay = Math.ceil(
+    (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const dDayLabel = dDay === 0 ? '오늘 월급날!' : `월급날까지 D-${dDay}`;
+
+  // 전월 대비
   const isUp = summary?.changeDirection === 'UP';
   const TrendIcon = isUp ? TrendingUp : TrendingDown;
   const changeLabel =
@@ -52,20 +88,33 @@ export default function RevenueCard() {
           </div>
         </div>
 
-        {/* 섹션 2: 지난달 대비 배지 (클릭 시 급여 탭 이동) */}
+        {/* 섹션 2: 슬라이드 배지 (D-Day ↔ 전월대비) */}
         <div className="flex-1 flex items-start mt-[var(--space-2)]">
           <div
-            className="flex items-center gap-[var(--space-3)] py-[var(--space-1)] px-[var(--space-4)] rounded-[var(--radius-xs)] bg-[var(--color-primary)] cursor-pointer"
+            className="relative min-w-[170px] h-[28px] rounded-[var(--radius-xs)] bg-[var(--color-primary)] overflow-hidden cursor-pointer"
             onClick={() => navigate(ROUTES.PAYROLL)}
           >
-            <TrendIcon
-              size={16}
-              color="var(--color-text-black)"
-              strokeWidth={2.0}
-            />
-            <span className="text-[length:var(--text-md)] text-[color:var(--color-text-black)] font-bold whitespace-nowrap">
-              {changeLabel}
-            </span>
+            <div
+              key={showDDay ? 'dday' : 'change'}
+              className="absolute inset-0 flex items-center gap-[var(--space-3)] px-[var(--space-4)] animate-slide-down"
+            >
+              {showDDay ? (
+                <Calendar
+                  size={16}
+                  color="var(--color-text-black)"
+                  strokeWidth={2.0}
+                />
+              ) : (
+                <TrendIcon
+                  size={16}
+                  color="var(--color-text-black)"
+                  strokeWidth={2.0}
+                />
+              )}
+              <span className="text-[length:var(--text-md)] text-[color:var(--color-text-black)] font-bold whitespace-nowrap">
+                {showDDay ? dDayLabel : changeLabel}
+              </span>
+            </div>
           </div>
         </div>
 

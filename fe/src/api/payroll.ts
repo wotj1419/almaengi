@@ -123,6 +123,13 @@ export async function getPayrollSummary(
   return data.data;
 }
 
+export async function getPayDay(storeId: number): Promise<number | null> {
+  const { data } = await instance.get<ApiResponse<number | null>>(
+    `/api/v1/stores/${storeId}/pay-day`
+  );
+  return data.data;
+}
+
 export async function getStorePayrolls(
   storeId: number,
   targetMonth: string
