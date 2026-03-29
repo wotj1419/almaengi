@@ -2,8 +2,19 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import App from './App.tsx';
+
+registerSW({
+  immediate: true,
+  onRegistered(registration) {
+    console.info('[PWA] SW registered', registration);
+  },
+  onRegisterError(error) {
+    console.error('[PWA] SW register error', error);
+  },
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
