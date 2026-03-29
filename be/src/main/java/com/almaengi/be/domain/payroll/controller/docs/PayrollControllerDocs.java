@@ -28,7 +28,7 @@ public interface PayrollControllerDocs {
             @RequestParam(required = false) String targetMonth
     );
 
-    @Operation(summary = "전 직원 급여 목록 조회 (사장님)", description = "월별 전 직원 급여를 한눈에 확인합니다.")
+    @Operation(summary = "전 직원 급여 목록 조회 (사장님)", description = "월별 전 직원 급여를 한눈에 확인합니다. 총 근무·연장·야간 시간 합계와 직원별 시급·이체 상태를 포함합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "P005: 해당 매장의 급여를 관리할 권한이 없습니다."),
@@ -77,7 +77,7 @@ public interface PayrollControllerDocs {
             @RequestBody PayrollRequestDto.Generate request
     );
 
-    @Operation(summary = "급여 지출 요약 (전월 대비)", description = "이번 달 총 급여 지출과 지난 달 대비 증감률을 확인합니다.")
+    @Operation(summary = "급여 지출 요약 (전월 대비)", description = "총 급여·주휴수당·연장수당·야간수당의 전월 대비 비교, 직원별 netPay 리스트, 최고급여자를 반환합니다. 진행 중인 월이면 Attendance 기반 부분 기간 비교를 수행합니다.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "P005: 해당 매장의 급여를 관리할 권한이 없습니다.")

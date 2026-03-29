@@ -149,22 +149,23 @@ public class PayrollCalculationService {
     }
 
     // ========================================
-    // 5. 연장수당 계산 (FR-PY-002)
+    // 5. 연장근무시간 및 연장수당 계산 (FR-PY-002)
     // ========================================
 
     /**
-     * 연장근로 가산수당을 계산합니다.
+     * 연장근무시간(분)을 계산합니다.
+     * 일 8시간 / 주 40시간 초과분을 합산하며, 중복 계산을 방지합니다.
      * 월 경계를 포함한 확장 범위 데이터를 받아, targetMonth에 속하는 주차만 계산합니다.
      *
      * @param attendances       월 경계를 포함한 확장 범위의 출퇴근 기록
-     * @param hourlyWage        시급
      * @param isOver5Employees  5인 이상 사업장 여부
-     * @param includeHolidayPay 5인 미만 사업장에서도 가산수당(연장·야간·휴일) 지급 여부 (5인 이상이면 무시)
+     * @param includeHolidayPay 5인 미만 사업장에서도 가산수당 지급 여부 (5인 이상이면 무시)
      * @param targetMonth       정산 대상 월 (1일로 정규화된 값)
+     * @return 연장근무시간 (분)
      */
-    public long calculateOvertimePay(List<Attendance> attendances, int hourlyWage,
-                                     boolean isOver5Employees, boolean includeHolidayPay,
-                                     LocalDate targetMonth) {
+    public int calculateOvertimeMinutes(List<Attendance> attendances,
+                                         boolean isOver5Employees, boolean includeHolidayPay,
+                                         LocalDate targetMonth) {
         // 5인 미만 사업장이고 지급 옵션도 꺼져 있으면 → 면제
         if (!isOver5Employees && !includeHolidayPay) {
             return 0;
@@ -216,7 +217,25 @@ public class PayrollCalculationService {
             totalOvertimeMinutes += dailyOvertimeMinutes + weeklyOnlyOvertime;
         }
 
-        return (long) totalOvertimeMinutes * hourlyWage / (60 * 2);
+        return totalOvertimeMinutes;
+    }
+
+    /**
+     * 연장근로 가산수당을 계산합니다.
+     * 내부적으로 calculateOvertimeMinutes()를 호출하여 연장근무시간(분)을 구한 뒤,
+     * 시급의 50% 가산율을 적용합니다.
+     *
+     * @param attendances       월 경계를 포함한 확장 범위의 출퇴근 기록
+     * @param hourlyWage        시급
+     * @param isOver5Employees  5인 이상 사업장 여부
+     * @param includeHolidayPay 5인 미만 사업장에서도 가산수당 지급 여부 (5인 이상이면 무시)
+     * @param targetMonth       정산 대상 월 (1일로 정규화된 값)
+     */
+    public long calculateOvertimePay(List<Attendance> attendances, int hourlyWage,
+                                     boolean isOver5Employees, boolean includeHolidayPay,
+                                     LocalDate targetMonth) {
+        int overtimeMinutes = calculateOvertimeMinutes(attendances, isOver5Employees, includeHolidayPay, targetMonth);
+        return (long) overtimeMinutes * hourlyWage / (60 * 2);
     }
 
     // ========================================

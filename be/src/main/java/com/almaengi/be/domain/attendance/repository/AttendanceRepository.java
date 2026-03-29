@@ -51,6 +51,13 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<Attendance> findAllByEmployeeIdAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(Long employeeId, LocalDate startDate, LocalDate endDate);
 
     /**
+     * 여러 직원의 지정 기간 내 출퇴근 완료된 기록을 배치 조회합니다. (급여 목록 연장근무시간 동적 계산용)
+     * employeeId IN 절로 N+1 없이 한 번에 조회합니다.
+     */
+    List<Attendance> findAllByEmployeeIdInAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
+            List<Long> employeeIds, LocalDate startDate, LocalDate endDate);
+
+    /**
      * 매장의 월 범위 근태 기록을 직원·유저 정보와 함께 조회합니다. (월별 근태 리포트용)
      * JOIN FETCH로 N+1 문제를 방지합니다.
      */
