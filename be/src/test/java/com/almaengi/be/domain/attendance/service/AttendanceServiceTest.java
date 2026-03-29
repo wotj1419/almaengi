@@ -33,6 +33,7 @@ import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
 import com.almaengi.be.domain.attendance.type.AttendanceResultType;
@@ -785,6 +786,79 @@ class AttendanceServiceTest {
             BusinessException e = assertThrows(BusinessException.class,
                     () -> attendanceService.getAttendanceLog(1L, 999L, LocalDate.now().minusDays(1)));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("알바생 본인 일별 근태 상세 (getMyAttendanceLog) 테스트")
+    class MyAttendanceLogTest {
+
+        @Test
+        @DisplayName("성공: 특정 날짜 근태 기록이 있으면 상세 정보를 반환한다")
+        void getMyAttendanceLogSuccess() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            Attendance attendance = Attendance.builder()
+                    .employee(employee)
+                    .targetDate(targetDate)
+                    .scheduledStartTime(LocalTime.of(9, 0))
+                    .scheduledEndTime(LocalTime.of(18, 0))
+                    .status(AttendanceStatus.WORKING)
+                    .overtime(false)
+                    .breakMinutes(30)
+                    .build();
+            ReflectionTestUtils.setField(attendance, "id", 501L);
+            attendance.clockIn(targetDate.atTime(9, 0));
+            attendance.clockOut(targetDate.atTime(18, 0));
+
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 100L)).thenReturn(Optional.of(employee));
+            when(attendanceRepository.findByEmployeeIdAndTargetDate(10L, targetDate)).thenReturn(Optional.of(attendance));
+
+            // when
+            MyAttendanceLogResponseDto res = attendanceService.getMyAttendanceLog(100L, 1L, targetDate);
+
+            // then
+            assertThat(res.getStoreId()).isEqualTo(1L);
+            assertThat(res.getEmployeeId()).isEqualTo(10L);
+            assertThat(res.getEmployeeName()).isEqualTo("김알바");
+            assertThat(res.getDate()).isEqualTo(targetDate);
+            assertThat(res.getStatus()).isEqualTo(AttendanceStatus.WORKING);
+            assertThat(res.getWorkedMinutes()).isEqualTo(510); // 9시간 - 휴게 30분
+            assertThat(res.getExists()).isTrue();
+        }
+
+        @Test
+        @DisplayName("성공: 특정 날짜 근태 기록이 없으면 exists=false를 반환한다")
+        void getMyAttendanceLogEmpty() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(2);
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 100L)).thenReturn(Optional.of(employee));
+            when(attendanceRepository.findByEmployeeIdAndTargetDate(10L, targetDate)).thenReturn(Optional.empty());
+
+            // when
+            MyAttendanceLogResponseDto res = attendanceService.getMyAttendanceLog(100L, 1L, targetDate);
+
+            // then
+            assertThat(res.getStoreId()).isEqualTo(1L);
+            assertThat(res.getEmployeeId()).isEqualTo(10L);
+            assertThat(res.getDate()).isEqualTo(targetDate);
+            assertThat(res.getWorkedMinutes()).isEqualTo(0);
+            assertThat(res.getExists()).isFalse();
+            assertThat(res.getClockIn()).isNull();
+            assertThat(res.getClockOut()).isNull();
+        }
+
+        @Test
+        @DisplayName("실패: 해당 매장 직원이 아니면 STORE_EMPLOYEE_NOT_FOUND")
+        void getMyAttendanceLogFailWhenEmployeeNotFound() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 999L)).thenReturn(Optional.empty());
+
+            // when & then
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> attendanceService.getMyAttendanceLog(999L, 1L, targetDate));
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_EMPLOYEE_NOT_FOUND);
         }
     }
 

@@ -8,6 +8,7 @@ import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto.EmployeeInfo;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.dto.MyAttendanceResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
@@ -329,6 +330,47 @@ public class AttendanceService {
     }
 
     /**
+     * 알바생 본인의 특정 날짜 근태 상세를 조회합니다.
+     *
+     * - 기록이 없으면 exists=false로 반환하여 프론트에서 빈 상태 UI를 쉽게 처리하도록 합니다.
+     * - 기록이 있으면 출퇴근 시각/상태/연장 여부/실근무시간(분)을 함께 반환합니다.
+     */
+    public MyAttendanceLogResponseDto getMyAttendanceLog(Long userId, Long storeId, LocalDate date) {
+        StoreEmployee employee = storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        Attendance attendance = attendanceRepository.findByEmployeeIdAndTargetDate(employee.getId(), date)
+                .orElse(null);
+
+        if (attendance == null) {
+            return MyAttendanceLogResponseDto.builder()
+                    .storeId(storeId)
+                    .employeeId(employee.getId())
+                    .employeeName(employee.getUser().getName())
+                    .date(date)
+                    .workedMinutes(0)
+                    .exists(false)
+                    .build();
+        }
+
+        return MyAttendanceLogResponseDto.builder()
+                .storeId(storeId)
+                .employeeId(employee.getId())
+                .employeeName(employee.getUser().getName())
+                .date(date)
+                .scheduledStartTime(attendance.getScheduledStartTime())
+                .scheduledEndTime(attendance.getScheduledEndTime())
+                .clockIn(attendance.getClockIn())
+                .clockOut(attendance.getClockOut())
+                .status(attendance.getStatus())
+                .overtime(attendance.getOvertime())
+                .breakMinutes(attendance.getBreakMinutes())
+                .workedMinutes(calculateWorkedMinutes(attendance))
+                .exists(true)
+                .build();
+    }
+
+    /**
      * Redis SET에서 직원의 현재 상태를 확인합니다.
      * working → late → absent 순서로 확인하여 해당 상태를 반환합니다.
      */
@@ -463,6 +505,22 @@ public class AttendanceService {
                 .absentCount(absentCount)
                 .totalWorkMinutes(totalWorkMinutes)
                 .build();
+    }
+
+    /**
+     * 출퇴근 기록으로 실근무시간(분)을 계산합니다.
+     *
+     * - clockIn/clockOut이 모두 있어야 계산
+     * - breakMinutes를 차감하고 0 미만이면 0으로 보정
+     */
+    private int calculateWorkedMinutes(Attendance attendance) {
+        if (attendance.getClockIn() == null || attendance.getClockOut() == null) {
+            return 0;
+        }
+
+        int minutes = (int) Duration.between(attendance.getClockIn(), attendance.getClockOut()).toMinutes();
+        int breakMinutes = attendance.getBreakMinutes() != null ? attendance.getBreakMinutes() : 0;
+        return Math.max(minutes - breakMinutes, 0);
     }
 
     // ========== Private Helpers ==========

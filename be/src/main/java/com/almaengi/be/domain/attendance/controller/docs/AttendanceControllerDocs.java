@@ -6,6 +6,7 @@ import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.dto.MyAttendanceResponseDto;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
@@ -42,6 +43,18 @@ public interface AttendanceControllerDocs {
     ApiResponse<MyAttendanceResponseDto> getMyTodayAttendance(
             @Parameter(hidden = true) @AuthUser Long userId,
             @Parameter(description = "매장 ID", example = "1") @RequestParam Long storeId
+    );
+
+    @Operation(summary = "알바생 본인 일별 근태 상세", description = "본인의 특정 날짜 근태 상세를 조회합니다. 기록이 없으면 exists=false를 반환합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S002: 해당 매장의 직원을 찾을 수 없습니다.")
+    })
+    ApiResponse<MyAttendanceLogResponseDto> getMyAttendanceLog(
+            @Parameter(hidden = true) @AuthUser Long userId,
+            @Parameter(description = "매장 ID", example = "1") @RequestParam Long storeId,
+            @Parameter(description = "조회 날짜 (yyyy-MM-dd)", example = "2026-03-23")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     );
 
     @Operation(summary = "대시보드 요약", description = "매장의 근무중/지각/결근 직원 수를 Redis에서 조회합니다.")

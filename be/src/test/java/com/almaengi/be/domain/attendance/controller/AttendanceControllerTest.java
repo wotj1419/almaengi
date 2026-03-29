@@ -6,6 +6,7 @@ import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.scheduler.AttendanceScheduler;
 import com.almaengi.be.domain.attendance.service.AttendanceService;
 import com.almaengi.be.domain.attendance.type.AttendanceResultType;
@@ -312,6 +313,78 @@ class AttendanceControllerTest {
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data.storeId").value(1))
                     .andExpect(jsonPath("$.data.attendances").isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/attendances/me/log 알바생 본인 일별 근태 상세 API")
+    class MyAttendanceLogApiTest {
+
+        @Test
+        @DisplayName("성공: 근태 기록이 있으면 상세 정보를 반환한다")
+        void getMyAttendanceLogSuccess() throws Exception {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            MyAttendanceLogResponseDto mockResponse = MyAttendanceLogResponseDto.builder()
+                    .storeId(1L)
+                    .employeeId(10L)
+                    .employeeName("김알바")
+                    .date(targetDate)
+                    .scheduledStartTime(LocalTime.of(9, 0))
+                    .scheduledEndTime(LocalTime.of(18, 0))
+                    .clockIn(targetDate.atTime(9, 0))
+                    .clockOut(targetDate.atTime(18, 0))
+                    .status(AttendanceStatus.WORKING)
+                    .overtime(false)
+                    .breakMinutes(30)
+                    .workedMinutes(510)
+                    .exists(true)
+                    .build();
+
+            Mockito.when(attendanceService.getMyAttendanceLog(any(), eq(1L), eq(targetDate)))
+                    .thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/me/log")
+                            .param("storeId", "1")
+                            .param("date", targetDate.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.storeId").value(1))
+                    .andExpect(jsonPath("$.data.employeeId").value(10))
+                    .andExpect(jsonPath("$.data.employeeName").value("김알바"))
+                    .andExpect(jsonPath("$.data.status").value("WORKING"))
+                    .andExpect(jsonPath("$.data.workedMinutes").value(510))
+                    .andExpect(jsonPath("$.data.exists").value(true));
+
+            Mockito.verify(attendanceService, Mockito.times(1)).getMyAttendanceLog(any(), eq(1L), eq(targetDate));
+        }
+
+        @Test
+        @DisplayName("성공: 근태 기록이 없으면 exists=false를 반환한다")
+        void getMyAttendanceLogEmpty() throws Exception {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(2);
+            MyAttendanceLogResponseDto mockResponse = MyAttendanceLogResponseDto.builder()
+                    .storeId(1L)
+                    .employeeId(10L)
+                    .employeeName("김알바")
+                    .date(targetDate)
+                    .workedMinutes(0)
+                    .exists(false)
+                    .build();
+
+            Mockito.when(attendanceService.getMyAttendanceLog(any(), eq(1L), eq(targetDate)))
+                    .thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/me/log")
+                            .param("storeId", "1")
+                            .param("date", targetDate.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.exists").value(false))
+                    .andExpect(jsonPath("$.data.workedMinutes").value(0));
         }
     }
 

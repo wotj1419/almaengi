@@ -7,6 +7,7 @@ import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
 import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.dto.MyAttendanceResponseDto;
 import com.almaengi.be.domain.attendance.service.AttendanceService;
 import com.almaengi.be.global.error.BusinessException;
@@ -52,6 +53,18 @@ public class AttendanceController implements AttendanceControllerDocs {
             @AuthUser Long userId,
             @RequestParam Long storeId) {
         MyAttendanceResponseDto response = attendanceService.getMyTodayAttendance(userId, storeId);
+        return ApiResponse.success(response);
+    }
+
+    @Override
+    @GetMapping("/me/log")
+    public ApiResponse<MyAttendanceLogResponseDto> getMyAttendanceLog(
+            @AuthUser Long userId,
+            @RequestParam Long storeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        // 알바생 본인의 특정 날짜 근태 상세를 반환합니다.
+        // 기록이 없더라도 200 응답으로 exists=false를 내려 프론트 처리 단순화를 지원합니다.
+        MyAttendanceLogResponseDto response = attendanceService.getMyAttendanceLog(userId, storeId, date);
         return ApiResponse.success(response);
     }
 
