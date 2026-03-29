@@ -6,10 +6,24 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
 public interface PayrollDetailRepository extends JpaRepository<PayrollDetail, Long> {
+
+    /**
+     * 매장의 특정 월 수당(ALLOWANCE) 항목을 배치 조회합니다.
+     * 급여 지출 요약 API에서 주휴수당/연장수당/야간수당 합계를 구할 때 사용합니다.
+     */
+    @Query("SELECT d FROM PayrollDetail d " +
+            "JOIN d.payroll p " +
+            "JOIN p.employee e " +
+            "WHERE e.store.id = :storeId AND p.targetMonth = :targetMonth " +
+            "AND d.detailType = com.almaengi.be.domain.payroll.type.PayrollDetailType.ALLOWANCE")
+    List<PayrollDetail> findAllowancesByStoreIdAndTargetMonth(
+            @Param("storeId") Long storeId,
+            @Param("targetMonth") LocalDate targetMonth);
 
     /**
      * 특정 급여의 상세 항목을 비즈니스 순서대로 조회합니다.

@@ -3,6 +3,7 @@ package com.almaengi.be.domain.payroll.controller;
 import com.almaengi.be.domain.payroll.controller.docs.PayrollControllerDocs;
 import com.almaengi.be.domain.payroll.dto.PayrollRequestDto;
 import com.almaengi.be.domain.payroll.dto.PayrollResponseDto;
+import com.almaengi.be.domain.payroll.scheduler.PayrollGenerationScheduler;
 import com.almaengi.be.domain.payroll.service.PayrollQueryService;
 import com.almaengi.be.domain.payroll.service.PayrollService;
 import com.almaengi.be.domain.payroll.service.PayrollTransferService;
@@ -39,6 +40,8 @@ public class PayrollController implements PayrollControllerDocs {
     private final PayrollTransferService payrollTransferService;
     private final PayslipService payslipService;
     private final StoreRepository storeRepository;
+
+    private final PayrollGenerationScheduler payrollGenerationScheduler;
 
     @Override
     @GetMapping("/me")
@@ -151,8 +154,11 @@ public class PayrollController implements PayrollControllerDocs {
             @RequestParam String targetMonth) {
 
         LocalDate month = parseTargetMonth(targetMonth);
-        payrollService.generateStorePayrolls(userId, storeId, month);
-        payslipService.generateStorePayslips(storeId, month);
+//        payrollService.generateStorePayrolls(userId, storeId, month);
+//        payslipService.generateStorePayslips(storeId, month);
+
+        payrollGenerationScheduler.generateMonthlyPayrollsAndPayslipsDummy(storeId, month);
+
         return ApiResponse.success();
     }
 

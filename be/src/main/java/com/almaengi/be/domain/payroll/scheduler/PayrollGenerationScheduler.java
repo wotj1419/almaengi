@@ -82,6 +82,29 @@ public class PayrollGenerationScheduler {
         log.info("[PayrollGenerationScheduler] 급여 자동 정산 완료 - 산정월: {}", targetMonth);
     }
 
+    public void generateMonthlyPayrollsAndPayslipsDummy(Long storeId, LocalDate targetMonth) {
+        Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElse(null);
+        try {
+            // 1단계: Payroll 자동 정산
+            payrollService.generateStorePayrolls(
+                    store.getOwner().getId(), store.getId(), targetMonth);
+
+            // 2단계: 급여명세서 PDF 생성
+            payslipService.generateStorePayslips(
+                    store.getId(), targetMonth);
+
+            // 3단계: 급여명세서 생성 알림 발송
+            sendPayslipNotifications(store, targetMonth);
+
+        } catch (Exception e) {
+            log.error("[PayrollGenerationScheduler] 매장 처리 실패 - storeId: {}, storeName: {}",
+                    store.getId(), store.getName(), e);
+        }
+
+        log.info("[PayrollGenerationScheduler] 급여 자동 정산 완료 - 산정월: {}", targetMonth);
+    }
+
     /**
      * 급여명세서 생성 후 사장님과 알바생에게 알림을 발송합니다.
      * 알림 실패가 급여명세서 생성에 영향을 주지 않도록
