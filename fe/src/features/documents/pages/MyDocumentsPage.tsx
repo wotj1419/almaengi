@@ -8,6 +8,7 @@ import {
   type UIContractStatus,
 } from '@/api/contract';
 import { getApiErrorMessage } from '@/api/error';
+import { getStorePayrolls } from '@/api/payroll';
 import { ROUTES } from '@/constants/routes';
 import ContractStatusBadge from '@/features/documents/components/ContractStatusBadge';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
@@ -22,10 +23,8 @@ import {
 import {
   DOCUMENT_TAB_OPTIONS,
   OTHER_DOCUMENTS,
-  PAYSLIP_DOCUMENTS,
-  getAvailableYears,
-  groupPayslipsByMonth,
   type DocumentCategory,
+  type PayslipMonthGroup,
 } from '@/features/documents/data/mockDocuments';
 import useStoreStore from '@/stores/useStoreStore';
 
@@ -35,6 +34,16 @@ export interface ContractRecord {
   title: string;
   status: UIContractStatus;
   createdAt: string;
+}
+
+interface PayslipMeta {
+  employeeName: string;
+  targetMonth: string;
+}
+
+function buildYearOptions(range = 5) {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: range }, (_, idx) => currentYear - idx);
 }
 
 const PAGE_TEXT = {
@@ -155,13 +164,16 @@ export default function MyDocumentsPage() {
   const [etcRequestRecords, setEtcRequestRecords] = useState<
     EtcDocumentRequestRecord[]
   >(() => listEtcDocumentRequests());
-
-  const availableYears = useMemo(
-    () => getAvailableYears(PAYSLIP_DOCUMENTS),
+  const [monthlyPayslips, setMonthlyPayslips] = useState<PayslipMonthGroup[]>(
     []
   );
-  const yearOptions =
-    availableYears.length > 0 ? availableYears : [new Date().getFullYear()];
+  const [payslipMetaById, setPayslipMetaById] = useState<
+    Record<string, PayslipMeta>
+  >({});
+  const [isPayslipLoading, setIsPayslipLoading] = useState(false);
+  const [payslipError, setPayslipError] = useState<string | null>(null);
+
+  const yearOptions = useMemo(() => buildYearOptions(5), []);
   const [selectedYear, setSelectedYear] = useState<number>(yearOptions[0]);
   const [draftYear, setDraftYear] = useState<number>(yearOptions[0]);
 
@@ -198,10 +210,94 @@ export default function MyDocumentsPage() {
     });
   }, []);
 
-  const monthlyPayslips = useMemo(
-    () => groupPayslipsByMonth(PAYSLIP_DOCUMENTS, selectedYear),
-    [selectedYear]
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPayslips = async () => {
+      if (!currentStore) {
+        if (cancelled) return;
+        setMonthlyPayslips([]);
+        setPayslipMetaById({});
+        setPayslipError(null);
+        setIsPayslipLoading(false);
+        return;
+      }
+
+      if (cancelled) return;
+      setIsPayslipLoading(true);
+      setPayslipError(null);
+
+      const months = Array.from({ length: 12 }, (_, idx) => idx + 1);
+      const targets = months.map((month) => {
+        const paddedMonth = String(month).padStart(2, '0');
+        return {
+          month,
+          targetMonth: `${selectedYear}-${paddedMonth}`,
+        };
+      });
+
+      const results = await Promise.allSettled(
+        targets.map((target) =>
+          getStorePayrolls(currentStore.storeId, target.targetMonth).then(
+            (response) => ({ ...target, response })
+          )
+        )
+      );
+
+      const nextMeta: Record<string, PayslipMeta> = {};
+      const groups: PayslipMonthGroup[] = [];
+      let rejectedCount = 0;
+
+      results.forEach((result) => {
+        if (result.status === 'rejected') {
+          rejectedCount += 1;
+          return;
+        }
+
+        const { month, response } = result.value;
+        const items = response.employees.map((employee) => {
+          const id = String(employee.payrollId);
+          nextMeta[id] = {
+            employeeName: employee.employeeName,
+            targetMonth: response.targetMonth,
+          };
+          return {
+            id,
+            year: selectedYear,
+            month,
+            employeeName: employee.employeeName,
+            issuedAt: '-',
+            title: `${employee.employeeName} ${response.targetMonth} 급여명세서`,
+            pdfUrl: '',
+            status: '확정' as const,
+          };
+        });
+
+        if (items.length > 0) {
+          groups.push({ month, items });
+        }
+      });
+
+      groups.sort((a, b) => b.month - a.month);
+      if (cancelled) return;
+      setMonthlyPayslips(groups);
+      setPayslipMetaById(nextMeta);
+
+      if (rejectedCount > 0) {
+        setPayslipError(
+          '일부 급여명세서를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'
+        );
+      }
+
+      setIsPayslipLoading(false);
+    };
+
+    void fetchPayslips();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStore, selectedYear]);
 
   const etcDocuments = useMemo(
     () => OTHER_DOCUMENTS.filter((item) => item.category === 'ETC'),
@@ -253,17 +349,41 @@ export default function MyDocumentsPage() {
       </section>
 
       <section className="flex flex-1 flex-col px-[var(--space-5)] py-[var(--space-4)]">
-        {selectedTab === 'PAYSLIP' && (
-          <PayslipMonthAccordion
-            year={selectedYear}
-            groups={monthlyPayslips}
-            onSelectPayslip={(payslipId) =>
-              navigate(
-                ROUTES.DOCUMENTS_PAYSLIP_DETAIL.replace(':payslipId', payslipId)
-              )
-            }
-          />
-        )}
+        {selectedTab === 'PAYSLIP' &&
+          (isPayslipLoading ? (
+            <div className="flex h-full min-h-[320px] flex-1 items-center justify-center text-[length:var(--text-md2)] font-medium text-[var(--color-text-muted)]">
+              급여명세서를 불러오는 중입니다...
+            </div>
+          ) : (
+            <div className="space-y-[var(--space-3)]">
+              {payslipError ? (
+                <div className="rounded-[var(--radius-md)] border border-[var(--color-status-orange-dot)] bg-[var(--color-status-orange-bg)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-sm)] font-medium text-[var(--color-status-orange-dot)]">
+                  {payslipError}
+                </div>
+              ) : null}
+
+              <PayslipMonthAccordion
+                year={selectedYear}
+                groups={monthlyPayslips}
+                onSelectPayslip={(payslipId) => {
+                  const meta = payslipMetaById[payslipId];
+                  navigate(
+                    ROUTES.DOCUMENTS_PAYSLIP_DETAIL.replace(
+                      ':payslipId',
+                      payslipId
+                    ),
+                    {
+                      state: {
+                        employeeName: meta?.employeeName,
+                        targetMonth: meta?.targetMonth,
+                        from: 'documents',
+                      },
+                    }
+                  );
+                }}
+              />
+            </div>
+          ))}
 
         {selectedTab === 'CONTRACT' &&
           (contractRecords.length > 0 ? (

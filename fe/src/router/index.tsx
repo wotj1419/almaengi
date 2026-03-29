@@ -112,7 +112,13 @@ export default function AppRouter() {
       />
       <Route
         path={ROUTES.WORKER_DOCUMENTS_PAYSLIP_DETAIL}
-        element={<EmployeePayslipDetailPage />}
+        element={
+          role === 'EMPLOYEE' ? (
+            <EmployeePayslipDetailPage />
+          ) : (
+            <Navigate replace to={ROUTES.DOCUMENTS} />
+          )
+        }
       />
       <Route
         path={ROUTES.WORKER_DOCUMENTS_CONTRACT_SIGN}

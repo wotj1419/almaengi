@@ -1,4 +1,4 @@
-import { CalendarDays, FileText } from 'lucide-react';
+﻿import { CalendarDays, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -8,30 +8,33 @@ import {
   type UIContractStatus,
 } from '@/api/contract';
 import { getApiErrorMessage } from '@/api/error';
+import { fetchMyPayroll } from '@/api/payroll';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/layout/DetailHeader';
 import { ROUTES } from '@/constants/routes';
+import PayslipMonthAccordion from '@/features/documents/components/PayslipMonthAccordion';
+import YearPickerModal from '@/features/documents/components/YearPickerModal';
 import {
   listEmployeeEtcDocumentRequests,
   type EmployeeEtcDocumentRequestRecord,
 } from '@/features/documents/data/mockEmployeeDocumentRequests';
 import {
   EMPLOYEE_OTHER_DOCUMENTS,
-  EMPLOYEE_PAYSLIP_DOCUMENTS,
-  getEmployeeAvailableYears,
-  groupEmployeePayslipsByMonth,
   type EmployeeDocumentCategory,
 } from '@/features/documents/data/mockEmployeeDocuments';
-import PayslipMonthAccordion from '@/features/documents/components/PayslipMonthAccordion';
-import YearPickerModal from '@/features/documents/components/YearPickerModal';
+import type { PayslipMonthGroup } from '@/features/documents/data/mockDocuments';
+import useAuthStore from '@/stores/useAuthStore';
 import useStoreStore from '@/stores/useStoreStore';
 
-// API 기반 EmployeeContractRecord 타입
 export interface EmployeeContractRecord {
   id: number;
   title: string;
   status: UIContractStatus;
   createdAt: string;
+}
+
+interface EmployeePayslipMeta {
+  targetMonth: string;
 }
 
 const TABS: Array<{ key: EmployeeDocumentCategory; label: string }> = [
@@ -47,7 +50,15 @@ const PAGE_TEXT = {
   requestedAt: '요청일',
   dueDate: '제출기한',
   submittedAt: '제출일',
+  loadingPayslip: '급여명세서를 불러오는 중입니다...',
+  payslipError:
+    '일부 급여명세서를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
 } as const;
+
+function buildYearOptions(range = 5) {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: range }, (_, idx) => currentYear - idx);
+}
 
 function formatDate(value: string) {
   return value.slice(0, 10).replaceAll('-', '.');
@@ -160,6 +171,7 @@ function EtcDocumentCard({
 export default function EmployeeDocumentsPage() {
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
+  const userName = useAuthStore((s) => s.user?.name ?? '나');
 
   const [selectedTab, setSelectedTab] =
     useState<EmployeeDocumentCategory>('PAYSLIP');
@@ -170,17 +182,19 @@ export default function EmployeeDocumentsPage() {
   const [etcRequestRecords] = useState<EmployeeEtcDocumentRequestRecord[]>(() =>
     listEmployeeEtcDocumentRequests()
   );
-
-  const availableYears = useMemo(
-    () => getEmployeeAvailableYears(EMPLOYEE_PAYSLIP_DOCUMENTS),
+  const [monthlyPayslips, setMonthlyPayslips] = useState<PayslipMonthGroup[]>(
     []
   );
-  const yearOptions =
-    availableYears.length > 0 ? availableYears : [new Date().getFullYear()];
+  const [payslipMetaById, setPayslipMetaById] = useState<
+    Record<string, EmployeePayslipMeta>
+  >({});
+  const [isPayslipLoading, setIsPayslipLoading] = useState(false);
+  const [payslipError, setPayslipError] = useState<string | null>(null);
+
+  const yearOptions = useMemo(() => buildYearOptions(5), []);
   const [selectedYear, setSelectedYear] = useState<number>(yearOptions[0]);
   const [draftYear, setDraftYear] = useState<number>(yearOptions[0]);
 
-  // API에서 내 근로계약서 목록 조회
   useEffect(() => {
     const fetchMyContracts = async () => {
       if (!currentStore) return;
@@ -203,11 +217,84 @@ export default function EmployeeDocumentsPage() {
     void fetchMyContracts();
   }, [currentStore]);
 
-  const monthlyPayslips = useMemo(
-    () =>
-      groupEmployeePayslipsByMonth(EMPLOYEE_PAYSLIP_DOCUMENTS, selectedYear),
-    [selectedYear]
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPayslips = async () => {
+      if (!currentStore) {
+        if (cancelled) return;
+        setMonthlyPayslips([]);
+        setPayslipMetaById({});
+        setPayslipError(null);
+        setIsPayslipLoading(false);
+        return;
+      }
+
+      setIsPayslipLoading(true);
+      setPayslipError(null);
+
+      const months = Array.from({ length: 12 }, (_, idx) => idx + 1);
+      const targets = months.map((month) => ({
+        month,
+        targetMonth: `${selectedYear}-${String(month).padStart(2, '0')}`,
+      }));
+
+      const results = await Promise.allSettled(
+        targets.map((target) =>
+          fetchMyPayroll(currentStore.storeId, target.targetMonth).then(
+            (response) => ({ ...target, response })
+          )
+        )
+      );
+
+      if (cancelled) return;
+
+      const nextMeta: Record<string, EmployeePayslipMeta> = {};
+      const monthMap = new Map<number, PayslipMonthGroup['items']>();
+      let rejectedCount = 0;
+
+      results.forEach((result) => {
+        if (result.status === 'rejected') {
+          rejectedCount += 1;
+          return;
+        }
+
+        const { month, response } = result.value;
+        if (!response.payrollId) return;
+
+        const id = String(response.payrollId);
+        nextMeta[id] = { targetMonth: response.targetMonth };
+
+        const current = monthMap.get(month) ?? [];
+        current.push({
+          id,
+          year: selectedYear,
+          month,
+          employeeName: userName,
+          issuedAt: '-',
+          title: `${response.targetMonth} 급여명세서`,
+          pdfUrl: '',
+          status: '확정',
+        });
+        monthMap.set(month, current);
+      });
+
+      const groups: PayslipMonthGroup[] = [...monthMap.entries()]
+        .sort((a, b) => b[0] - a[0])
+        .map(([month, items]) => ({ month, items }));
+
+      setMonthlyPayslips(groups);
+      setPayslipMetaById(nextMeta);
+      setPayslipError(rejectedCount > 0 ? PAGE_TEXT.payslipError : null);
+      setIsPayslipLoading(false);
+    };
+
+    void fetchPayslips();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStore, selectedYear, userName]);
 
   return (
     <div className="min-h-dvh bg-[var(--color-bg-base)]">
@@ -253,20 +340,37 @@ export default function EmployeeDocumentsPage() {
         </section>
 
         <main className="flex flex-1 flex-col px-[var(--space-5)] py-[var(--space-4)] pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))]">
-          {selectedTab === 'PAYSLIP' && (
-            <PayslipMonthAccordion
-              year={selectedYear}
-              groups={monthlyPayslips}
-              onSelectPayslip={(payslipId) =>
-                navigate(
-                  ROUTES.WORKER_DOCUMENTS_PAYSLIP_DETAIL.replace(
-                    ':payslipId',
-                    payslipId
-                  )
-                )
-              }
-            />
-          )}
+          {selectedTab === 'PAYSLIP' &&
+            (isPayslipLoading ? (
+              <div className="flex h-full min-h-[320px] flex-1 items-center justify-center text-[length:var(--text-md2)] font-medium text-[var(--color-text-muted)]">
+                {PAGE_TEXT.loadingPayslip}
+              </div>
+            ) : (
+              <div className="space-y-[var(--space-3)]">
+                {payslipError ? (
+                  <div className="rounded-[var(--radius-md)] border border-[var(--color-status-orange-dot)] bg-[var(--color-status-orange-bg)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-sm)] font-medium text-[var(--color-status-orange-dot)]">
+                    {payslipError}
+                  </div>
+                ) : null}
+
+                <PayslipMonthAccordion
+                  year={selectedYear}
+                  groups={monthlyPayslips}
+                  onSelectPayslip={(payslipId) => {
+                    const meta = payslipMetaById[payslipId];
+                    navigate(
+                      ROUTES.WORKER_DOCUMENTS_PAYSLIP_DETAIL.replace(
+                        ':payslipId',
+                        payslipId
+                      ),
+                      {
+                        state: { targetMonth: meta?.targetMonth },
+                      }
+                    );
+                  }}
+                />
+              </div>
+            ))}
 
           {selectedTab === 'CONTRACT' &&
             (contractRecords.length > 0 ? (
