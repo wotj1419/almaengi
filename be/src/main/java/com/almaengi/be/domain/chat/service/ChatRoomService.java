@@ -95,7 +95,7 @@ public class ChatRoomService {
                     .build());
         }
 
-        return toRoomDetail(room);
+        return toRoomDetail(room, requesterId);
     }
 
     // 그룹방 생성
@@ -142,7 +142,7 @@ public class ChatRoomService {
             }
         }
 
-        return toRoomDetail(room);
+        return toRoomDetail(room, requesterId);
     }
 
     // bot 방 생성 / 사용 (개인화: 매장 + 사용자 기준 1개)
@@ -159,7 +159,7 @@ public class ChatRoomService {
         if(!Objects.equals(room.getSortPriority(), BOT_SORT_PRIORITY))
             room.setSortPriority(BOT_SORT_PRIORITY);
 
-        return toRoomDetail(room);
+        return toRoomDetail(room, requesterId);
     }
 
     // 방 이름 수정
@@ -174,7 +174,7 @@ public class ChatRoomService {
             throw new BusinessException(ErrorCode.CHAT_INVALID_REFERENCE);
 
         room.rename(request.getName());
-        return toRoomDetail(room);
+        return toRoomDetail(room, requesterId);
     }
 
     // 내가 참여한 방 목록 조회
@@ -190,11 +190,26 @@ public class ChatRoomService {
                         .thenComparing((ChatRoomMember m) -> m.getRoom().getLastMessageAt(), Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(member -> {
                     ChatRoom room = member.getRoom();
-                    Optional<ChatMessage> lastMessage = chatMessageRepository.findTopByRoomIdOrderByIdDesc(room.getId());
-                    int memberCount = chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(room.getId()).size();
+                    Optional<ChatMessage> lastMessageOpt = chatMessageRepository.findTopByRoomIdOrderByIdDesc(room.getId());
+                    ChatMessage lastMessage = lastMessageOpt.orElse(null);
+
+                    List<ChatRoomMember> activeMembers = chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(room.getId());
+                    int memberCount = activeMembers.size();
                     long unreadCount = calculateUnreadCount(room.getId(), member.getLastReadMessageId());
 
-                    return ChatRoomResponseDto.RoomSummary.of(room, lastMessage.orElse(null), memberCount, unreadCount);
+                    String resolvedName = resolveRoomName(room, userId, activeMembers);
+
+                    return ChatRoomResponseDto.RoomSummary.builder()
+                            .roomId(room.getId())
+                            .roomType(room.getRoomType())
+                            .name(resolvedName)
+                            .sortPriority(room.getSortPriority())
+                            .lastMessageId(lastMessage != null ? lastMessage.getId() : room.getLastMessageId())
+                            .lastMessagePreview(lastMessage != null ? lastMessage.getContent() : null)
+                            .lastMessageAt(room.getLastMessageAt())
+                            .unreadCount(unreadCount)
+                            .memberCount(memberCount)
+                            .build();
                 }).toList();
     }
 
@@ -202,7 +217,7 @@ public class ChatRoomService {
     public ChatRoomResponseDto.RoomDetail getRoom(Long userId, Long roomId) {
         ensureActiveMember(roomId, userId);
         ChatRoom room = getRoomOrThrow(roomId);
-        return toRoomDetail(room);
+        return toRoomDetail(room, userId);
     }
 
     // 매장 합류 시(사장: 매장 생성 / 직원: joinStore) 호출
@@ -219,12 +234,39 @@ public class ChatRoomService {
     // =======================================================================
     //  private helper method
     // =======================================================================
-    private ChatRoomResponseDto.RoomDetail toRoomDetail(ChatRoom room) {
+    private ChatRoomResponseDto.RoomDetail toRoomDetail(ChatRoom room, Long requesterId) {
         List<ChatRoomMember> members = chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(room.getId());
+
         List<ChatRoomResponseDto.MemberInfo> memberInfos = members.stream()
                 .map(ChatRoomResponseDto.MemberInfo::from)
                 .toList();
-        return ChatRoomResponseDto.RoomDetail.of(room, memberInfos);
+
+        String resolvedName = resolveRoomName(room, requesterId, members);
+        return ChatRoomResponseDto.RoomDetail.builder()
+                .roomId(room.getId())
+                .storeId(room.getStore().getId())
+                .roomType(room.getRoomType())
+                .name(resolvedName)
+                .sortPriority(room.getSortPriority())
+                .isArchived(room.getIsArchived())
+                .lastMessageId(room.getLastMessageId())
+                .lastMessageAt(room.getLastMessageAt())
+                .members(memberInfos)
+                .build();
+    }
+
+    private String resolveRoomName(ChatRoom room, Long requesterId, List<ChatRoomMember> activeMembers) {
+        if (room.getRoomType() != ChatRoomType.DM) {
+            return room.getName();
+        }
+        String otherName = activeMembers.stream()
+                .map(ChatRoomMember::getUser)
+                .filter(user -> !user.getId().equals(requesterId))
+                .map(User::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElse("상대방");
+        return otherName + "과의 채팅방";
     }
 
     private Store getStoreOrThrow(Long storeId) {
