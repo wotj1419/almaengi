@@ -5,6 +5,9 @@ export interface StorePayrollEmployee {
   employeeName: string;
   position: string;
   totalWorkMinutes: number;
+  nightWorkMinutes?: number;
+  overtimeMinutes?: number;
+  hourlyWage?: number;
   basicPay: number;
   totalAllowance: number;
   totalDeduction: number;
