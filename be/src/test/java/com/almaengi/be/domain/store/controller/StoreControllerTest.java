@@ -147,4 +147,36 @@ class StoreControllerTest {
             Mockito.verify(storeService, Mockito.times(1)).deleteStore(any(), eq(TEMP_STORE_ID));
         }
     }
+
+    @Nested
+    @DisplayName("GET /api/v1/stores/{storeId}/pay-day 급여일 조회 API")
+    class GetPayDayTest {
+
+        @Test
+        @DisplayName("성공: 매장의 급여일을 반환한다")
+        void getPayDaySuccess() throws Exception {
+            // given
+            Mockito.when(storeService.getPayDay(any(), eq(TEMP_STORE_ID))).thenReturn(25);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/stores/{storeId}/pay-day", TEMP_STORE_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data").value(25));
+
+            Mockito.verify(storeService, Mockito.times(1)).getPayDay(any(), eq(TEMP_STORE_ID));
+        }
+
+        @Test
+        @DisplayName("성공: 급여일이 미설정이면 null을 반환한다")
+        void getPayDayNull() throws Exception {
+            // given
+            Mockito.when(storeService.getPayDay(any(), eq(TEMP_STORE_ID))).thenReturn(null);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/stores/{storeId}/pay-day", TEMP_STORE_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"));
+        }
+    }
 }

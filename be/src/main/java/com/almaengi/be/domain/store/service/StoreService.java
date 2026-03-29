@@ -4,6 +4,7 @@ import com.almaengi.be.domain.chat.service.ChatRoomService;
 import com.almaengi.be.domain.store.dto.StoreRequestDto;
 import com.almaengi.be.domain.store.dto.StoreResponseDto;
 import com.almaengi.be.domain.store.entity.Store;
+import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.repository.UserRepository;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class StoreService {
     private final StoreRepository storeRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserRepository userRepository;
     private final ChatRoomService chatRoomService;
     private final KakaoGeocodingClient kakaoGeocodingClient;
@@ -101,5 +103,27 @@ public class StoreService {
         }
 
         store.closeStore();
+    }
+
+    /**
+     * 매장의 급여일을 조회합니다.
+     * 매장 owner 또는 해당 매장 소속 직원만 조회할 수 있습니다.
+     *
+     * @param userId  인증된 사용자 ID
+     * @param storeId 매장 ID
+     * @return 급여일 (1~31, null 가능)
+     */
+    public Integer getPayDay(Long userId, Long storeId) {
+        Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+
+        boolean isOwner = store.getOwner().getId().equals(userId);
+        boolean isEmployee = storeEmployeeRepository.existsByStoreIdAndUserId(storeId, userId);
+
+        if (!isOwner && !isEmployee) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_USER);
+        }
+
+        return store.getPayDay();
     }
 }

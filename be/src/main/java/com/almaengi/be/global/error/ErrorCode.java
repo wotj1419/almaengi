@@ -81,6 +81,10 @@ public enum ErrorCode {
     PAYROLL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "P006", "해당 급여를 조회할 권한이 없습니다."),
     INVALID_TARGET_MONTH(HttpStatus.BAD_REQUEST, "P007", "잘못된 정산 월 형식입니다. (yyyy-MM)"),
 
+    // Payslip
+    PAYSLIP_NOT_FOUND(HttpStatus.NOT_FOUND, "P101", "급여명세서 파일이 존재하지 않습니다."),
+    PAYSLIP_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "P102", "급여명세서 생성에 실패했습니다."),
+
     // Attendance 도메인
     INVALID_QR_TOKEN(HttpStatus.BAD_REQUEST, "A201", "유효하지 않은 QR 코드입니다."),
     GPS_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "A202", "매장 반경을 벗어난 위치입니다."),
@@ -113,10 +117,6 @@ public enum ErrorCode {
     CONTRACT_PERIOD_OVERLAP(HttpStatus.CONFLICT, "C108", "해당 직원에게 동일 기간에 유효한 계약서가 이미 존재합니다."),
     CONTRACT_INVALID_WORK_TIME(HttpStatus.BAD_REQUEST, "C109", "근무시간 또는 휴게시간 설정이 올바르지 않습니다."),
     CONTRACT_INVALID_DATE(HttpStatus.BAD_REQUEST, "C110", "계약 기간 설정이 올바르지 않습니다."),
-
-    // Payslip
-    PAYSLIP_NOT_FOUND(HttpStatus.NOT_FOUND, "PS001", "급여명세서 파일이 존재하지 않습니다."),
-    PAYSLIP_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PS002", "급여명세서 생성에 실패했습니다."),
 
     // Document
     DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "해당 문서를 찾을 수 없습니다."),

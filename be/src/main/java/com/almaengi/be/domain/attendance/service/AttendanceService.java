@@ -5,6 +5,10 @@ import com.almaengi.be.domain.attendance.dto.AttendanceRequestDto;
 import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto.EmployeeInfo;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
 import com.almaengi.be.domain.attendance.type.AttendanceResultType;
@@ -26,9 +30,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -288,6 +295,173 @@ public class AttendanceService {
                 .absent(absentCount)
                 .date(date)
                 .attendances(logs)
+                .build();
+    }
+
+    // ========== 알바생 본인 출퇴근 현황 ==========
+
+    /**
+     * 알바생 본인의 오늘 출퇴근 현황을 조회합니다.
+     * Redis에서 현재 상태(working/late/absent)를 확인하고,
+     * DB에서 오늘 Attendance의 예정 퇴근 시각을 반환합니다.
+     *
+     * @param userId  인증된 사용자 ID
+     * @param storeId 매장 ID
+     * @return 현재 상태 + 예정 퇴근 시각
+     */
+    public MyAttendanceResponseDto getMyTodayAttendance(Long userId, Long storeId) {
+        StoreEmployee employee = storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_EMPLOYEE_NOT_FOUND));
+
+        String employeeIdStr = employee.getId().toString();
+        AttendanceStatus currentStatus = resolveRedisStatus(storeId, employeeIdStr);
+
+        LocalDate today = LocalDate.now();
+        LocalTime scheduledEndTime = attendanceRepository
+                .findByEmployeeIdAndTargetDate(employee.getId(), today)
+                .map(Attendance::getScheduledEndTime)
+                .orElse(null);
+
+        return MyAttendanceResponseDto.builder()
+                .currentStatus(currentStatus)
+                .scheduledEndTime(scheduledEndTime)
+                .build();
+    }
+
+    /**
+     * Redis SET에서 직원의 현재 상태를 확인합니다.
+     * working → late → absent 순서로 확인하여 해당 상태를 반환합니다.
+     */
+    private AttendanceStatus resolveRedisStatus(Long storeId, String employeeIdStr) {
+        if (Boolean.TRUE.equals(
+                redisTemplate.opsForSet().isMember(RedisKeyUtil.workingKey(storeId), employeeIdStr))) {
+            return AttendanceStatus.WORKING;
+        }
+        if (Boolean.TRUE.equals(
+                redisTemplate.opsForSet().isMember(RedisKeyUtil.lateKey(storeId), employeeIdStr))) {
+            return AttendanceStatus.LATE;
+        }
+        if (Boolean.TRUE.equals(
+                redisTemplate.opsForSet().isMember(RedisKeyUtil.absentKey(storeId), employeeIdStr))) {
+            return AttendanceStatus.ABSENT;
+        }
+        return null;
+    }
+
+    // ========== 월별 근태 리포트 ==========
+
+    /**
+     * 월별 근태 리포트를 조회합니다.
+     * 해당 매장의 직원별 출근수, 지각수, 결근수, 근무시간을 집계하고
+     * 성실왕(결근 0)과 지각왕(지각 최다)을 추출합니다.
+     *
+     * @param userId      인증된 사용자 ID
+     * @param storeId     매장 ID
+     * @param targetMonth 조회 대상 월 (1일로 정규화된 LocalDate)
+     * @return 월별 근태 리포트 DTO
+     */
+    public MonthlyAttendanceReportResponseDto getMonthlyReport(Long userId, Long storeId, LocalDate targetMonth) {
+        validateStoreOwner(userId, storeId);
+
+        // 조회 기간: 해당 월 1일 ~ 말일
+        LocalDate startDate = targetMonth.withDayOfMonth(1);
+        LocalDate endDate = YearMonth.from(targetMonth).atEndOfMonth();
+
+        // 매장의 해당 기간 근태 기록 조회 (employee + user fetch join)
+        List<Attendance> attendances = attendanceRepository
+                .findByStoreIdAndTargetDateBetweenWithUser(storeId, startDate, endDate);
+
+        // 직원별 그룹핑 후 근태 집계
+        Map<Long, List<Attendance>> groupedByEmployee = attendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId()));
+
+        List<EmployeeAttendanceSummary> summaries = groupedByEmployee.entrySet().stream()
+                .map(entry -> buildEmployeeSummary(entry.getValue()))
+                // 1차: 출근수 내림차순, 2차: 지각수 오름차순
+                .sorted(Comparator
+                        .comparingInt(EmployeeAttendanceSummary::getAttendanceCount).reversed()
+                        .thenComparingInt(EmployeeAttendanceSummary::getLateCount))
+                .toList();
+
+        // 성실왕: 결근이 0인 직원
+        List<EmployeeInfo> diligentEmployees = summaries.stream()
+                .filter(s -> s.getAbsentCount() == 0)
+                .map(s -> EmployeeInfo.builder()
+                        .employeeId(s.getEmployeeId())
+                        .employeeName(s.getEmployeeName())
+                        .build())
+                .toList();
+
+        // 지각왕: 지각수가 최대인 직원 (0이면 빈 리스트)
+        int maxLateCount = summaries.stream()
+                .mapToInt(EmployeeAttendanceSummary::getLateCount)
+                .max()
+                .orElse(0);
+
+        List<EmployeeInfo> lateChampions = maxLateCount > 0
+                ? summaries.stream()
+                        .filter(s -> s.getLateCount() == maxLateCount)
+                        .map(s -> EmployeeInfo.builder()
+                                .employeeId(s.getEmployeeId())
+                                .employeeName(s.getEmployeeName())
+                                .build())
+                        .toList()
+                : List.of();
+
+        return MonthlyAttendanceReportResponseDto.builder()
+                .targetMonth(startDate.toString().substring(0, 7))
+                .employees(summaries)
+                .diligentEmployees(diligentEmployees)
+                .lateChampions(lateChampions)
+                .build();
+    }
+
+    /**
+     * 한 직원의 근태 기록 리스트로부터 출근수, 지각수, 결근수, 총 근무시간을 집계합니다.
+     *
+     * - 출근수: clockIn이 있는 기록 (지각도 출근에 포함)
+     * - 지각수: status가 LATE인 기록
+     * - 결근수: status가 ABSENT인 기록
+     * - 근무시간: clockIn ~ clockOut 차이에서 breakMinutes를 뺀 값 (분 단위)
+     */
+    private EmployeeAttendanceSummary buildEmployeeSummary(List<Attendance> employeeAttendances) {
+        Attendance first = employeeAttendances.get(0);
+        String employeeName = first.getEmployee().getUser().getName();
+        Long employeeId = first.getEmployee().getId();
+
+        int attendanceCount = 0;
+        int lateCount = 0;
+        int absentCount = 0;
+        int totalWorkMinutes = 0;
+
+        for (Attendance a : employeeAttendances) {
+            // clockIn이 있으면 출근 (지각 포함)
+            if (a.getClockIn() != null) {
+                attendanceCount++;
+            }
+            if (a.getStatus() == AttendanceStatus.LATE) {
+                lateCount++;
+            }
+            if (a.getStatus() == AttendanceStatus.ABSENT) {
+                absentCount++;
+            }
+            // 근무시간: clockIn과 clockOut이 모두 있는 경우에만 계산
+            if (a.getClockIn() != null && a.getClockOut() != null) {
+                int minutes = (int) Duration.between(a.getClockIn(), a.getClockOut()).toMinutes();
+                int netMinutes = minutes - a.getBreakMinutes();
+                if (netMinutes > 0) {
+                    totalWorkMinutes += netMinutes;
+                }
+            }
+        }
+
+        return EmployeeAttendanceSummary.builder()
+                .employeeId(employeeId)
+                .employeeName(employeeName)
+                .attendanceCount(attendanceCount)
+                .lateCount(lateCount)
+                .absentCount(absentCount)
+                .totalWorkMinutes(totalWorkMinutes)
                 .build();
     }
 
