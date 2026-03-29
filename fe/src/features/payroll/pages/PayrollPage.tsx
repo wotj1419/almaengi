@@ -62,15 +62,13 @@ export default function PayrollPage() {
         employee_name: emp.employeeName,
         target_month: `${targetMonth}-01`,
         total_work_minutes: emp.totalWorkMinutes,
-        // TODO: BE API 에 추가 (night_work_minutes, overtime_minutes)
-        night_work_minutes: 0,
-        overtime_minutes: 0,
+        night_work_minutes: emp.nightWorkMinutes ?? 0,
+        overtime_minutes: emp.overtimeMinutes ?? 0,
         basic_pay: emp.basicPay,
         total_allowance: emp.totalAllowance,
         total_deduction: emp.totalDeduction,
         net_pay: emp.netPay,
-        // TODO: BE API 에 추가 (hourly_wage)
-        hourly_wage: 0,
+        hourly_wage: emp.hourlyWage ?? 0,
         is_approved: emp.isApproved,
         is_transferred: emp.isTransferred,
         transferred_at: emp.transferredAt,
@@ -89,9 +87,14 @@ export default function PayrollPage() {
     [monthlyPayrolls]
   );
 
-  // BE에 nightWorkMinutes, overtimeMinutes 필드 추가 요청 예정 (현재 하드코딩)
-  const nightWorkMinutes = 0;
-  const overtimeMinutes = 0;
+  const nightWorkMinutes = useMemo(
+    () => monthlyPayrolls.reduce((sum, p) => sum + p.night_work_minutes, 0),
+    [monthlyPayrolls]
+  );
+  const overtimeMinutes = useMemo(
+    () => monthlyPayrolls.reduce((sum, p) => sum + p.overtime_minutes, 0),
+    [monthlyPayrolls]
+  );
 
   const isAllApproved =
     (storePayroll?.employees ?? []).length > 0 &&
