@@ -6,7 +6,11 @@ import com.almaengi.be.domain.attendance.dto.AttendanceRequestDto;
 import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceResponseDto;
 import com.almaengi.be.domain.attendance.service.AttendanceService;
+import com.almaengi.be.global.error.BusinessException;
+import com.almaengi.be.global.error.ErrorCode;
 import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import jakarta.validation.Valid;
@@ -15,6 +19,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 
 /**
  * 출퇴근 API 컨트롤러입니다.
@@ -35,6 +41,17 @@ public class AttendanceController implements AttendanceControllerDocs {
             @AuthUser Long userId,
             @Valid @RequestBody AttendanceRequestDto request) {
         AttendanceResponseDto response = attendanceService.recordAttendance(userId, request);
+        return ApiResponse.success(response);
+    }
+
+    // ===== 알바생 본인 출퇴근 현황 =====
+
+    @Override
+    @GetMapping("/me/today")
+    public ApiResponse<MyAttendanceResponseDto> getMyTodayAttendance(
+            @AuthUser Long userId,
+            @RequestParam Long storeId) {
+        MyAttendanceResponseDto response = attendanceService.getMyTodayAttendance(userId, storeId);
         return ApiResponse.success(response);
     }
 
@@ -70,4 +87,27 @@ public class AttendanceController implements AttendanceControllerDocs {
         return ApiResponse.success(response);
     }
 
+    // ===== 월별 근태 리포트 API =====
+
+    @Override
+    @GetMapping("/report/{storeId}")
+    public ApiResponse<MonthlyAttendanceReportResponseDto> getMonthlyReport(
+            @AuthUser Long userId,
+            @PathVariable Long storeId,
+            @RequestParam String targetMonth) {
+        LocalDate month = parseTargetMonth(targetMonth);
+        MonthlyAttendanceReportResponseDto response = attendanceService.getMonthlyReport(userId, storeId, month);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * "yyyy-MM" 문자열을 LocalDate(1일)로 파싱합니다.
+     */
+    private LocalDate parseTargetMonth(String targetMonth) {
+        try {
+            return YearMonth.parse(targetMonth).atDay(1);
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ErrorCode.INVALID_TARGET_MONTH);
+        }
+    }
 }

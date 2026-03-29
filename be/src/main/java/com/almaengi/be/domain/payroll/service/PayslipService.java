@@ -300,7 +300,7 @@ public class PayslipService {
             return filePath;
         } catch (Exception e) {
             log.error("[PayslipService] PDF 생성/저장 실패 - path: {}", filePath, e);
-            throw new RuntimeException("급여명세서 PDF 생성 실패", e);
+            throw new BusinessException(ErrorCode.PAYSLIP_GENERATION_FAILED);
         }
     }
 
