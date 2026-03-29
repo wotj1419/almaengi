@@ -11,6 +11,7 @@ import com.almaengi.be.domain.chat.repository.ChatRoomMemberRepository;
 import com.almaengi.be.domain.chat.repository.ChatRoomRepository;
 import com.almaengi.be.domain.chat.type.ChatMessageType;
 import com.almaengi.be.domain.chat.type.ChatRoomType;
+import com.almaengi.be.domain.chat.ws.pubsub.ChatRedisPublisher;
 import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.user.entity.User;
 import com.almaengi.be.domain.user.type.Role;
@@ -27,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
@@ -57,6 +59,10 @@ class ChatMessageServiceTest {
     private ChatBotAsyncService chatBotAsyncService;
     @Mock
     private ChatIntegrityValidator chatIntegrityValidator;
+
+    @Mock
+    private ChatRedisPublisher chatRedisPublisher;
+
     @Nested
     @DisplayName("메시지 전송")
     class SendMessageTest {
@@ -83,6 +89,11 @@ class ChatMessageServiceTest {
             ChatMessageResponseDto.MessageItem result;
             try {
                 result = chatMessageService.sendMessage(userId, roomId, request);
+
+                for (TransactionSynchronization synchronization : TransactionSynchronizationManager.getSynchronizations()) {
+                    synchronization.afterCommit();
+                }
+                verify(chatRedisPublisher, times(1)).publishMessageCreated(eq(roomId), any(ChatMessageResponseDto.MessageItem.class));
             } finally {
                 TransactionSynchronizationManager.clearSynchronization();
             }
