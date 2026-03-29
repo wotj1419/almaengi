@@ -257,18 +257,18 @@ export default function ChatRoomPage() {
           <Plus size={20} color="var(--color-text-muted)" strokeWidth={2} />
         </button>
 
-        <div className="flex-1 flex items-center bg-[var(--color-bg-surface)] rounded-[var(--radius-xl)] pl-[var(--space-5)] pr-[4px] py-[4px]">
+        <div className="flex-1 min-w-0 flex items-center bg-[var(--color-bg-surface)] rounded-[var(--radius-xl)] pl-[var(--space-5)] pr-[4px] py-[4px]">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="메시지를 입력하세요"
-            className="flex-1 bg-transparent text-[length:var(--text-base)] text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-placeholder)] outline-none"
+            className="flex-1 min-w-0 bg-transparent text-[length:var(--text-base)] text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-placeholder)] outline-none"
           />
           <button
             onClick={handleSend}
-            className="shrink-0 px-[var(--space-7)] py-[var(--space-2)] rounded-full bg-[var(--color-primary)] text-[length:var(--text-base)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
+            className="shrink-0 px-[var(--space-5)] py-[var(--space-2)] rounded-full bg-[var(--color-primary)] text-[length:var(--text-base)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
           >
             전송
           </button>
