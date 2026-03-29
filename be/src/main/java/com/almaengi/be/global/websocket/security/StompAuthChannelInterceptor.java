@@ -1,6 +1,10 @@
-package com.almaengi.be.domain.chat.ws.security;
+package com.almaengi.be.global.websocket.security;
 
 import com.almaengi.be.domain.chat.repository.ChatRoomMemberRepository;
+import com.almaengi.be.domain.store.entity.Store;
+import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
+import com.almaengi.be.domain.store.repository.StoreRepository;
+import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
 import com.almaengi.be.global.security.jwt.JwtProvider;
 import com.almaengi.be.global.security.redis.RedisTokenRepository;
 import io.jsonwebtoken.Claims;
@@ -27,9 +31,14 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final Pattern SUB_ROOM_PATTERN = Pattern.compile("^/sub/chat/rooms/(\\d+)(?:/read)?$");
     private static final Pattern PUB_ROOM_PATTERN = Pattern.compile("^/pub/chat/rooms/(\\d+)/(?:messages|read)$");
 
+    private static final Pattern SUB_AUCTION_STORE_PATTERN = Pattern.compile("^/sub/auctions/stores/(\\d+)$");
+
     private final JwtProvider jwtProvider;
     private final RedisTokenRepository redisTokenRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+
+    private final StoreRepository storeRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -73,18 +82,30 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         Long userId = jwtProvider.getUserId(claims);
         accessor.setUser(new StompPrincipal(userId));
     }
+
     private void authorizeSubscribe(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
         if(destination == null) return;
 
-        if(!destination.startsWith("/sub/chat/rooms/")) return;
-
         Long userId = extractUserId(accessor);
-        Long roomId = extractRoomId(destination, SUB_ROOM_PATTERN);
 
-        if(!chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId))
-            throw new AccessDeniedException("채팅방 구독 권한이 없습니다.");
+        // 채팅방 구독 권한 체크
+        if(destination.startsWith("/sub/chat/rooms/")) {
+            Long roomId = extractRoomId(destination, SUB_ROOM_PATTERN);
+            if(!chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, userId))
+                throw new AccessDeniedException("채팅방 구독 권한이 없습니다.");
+
+            return;
+        }
+
+        // 경매 매장 채널 구독 권한 체크
+        if(destination.startsWith("/sub/auctions/stores")) {
+            Long storeId = extractRoomId(destination, SUB_AUCTION_STORE_PATTERN);
+            if(!canSubscribeAuctionStore(userId, storeId))
+                throw new AccessDeniedException("경매 채널 구독 권한이 없습니다.");
+        }
     }
+
     private void authorizeSend(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
         if(destination == null) return;
@@ -137,5 +158,21 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         } catch (NumberFormatException e) {
             throw new AccessDeniedException("유효하지 않은 채팅방 식별자입니다.");
         }
+    }
+
+    /**
+     * 경매 매장 채널 구독 가능 여부
+     * - 매장 owner이거나
+     * - 해당 매장 소속 직원(퇴사 제외)인 경우 허용
+     */
+    private boolean canSubscribeAuctionStore(Long userId, Long storeId) {
+        Store store = storeRepository.findByIdAndIsClosedFalse(storeId)
+                .orElseThrow(() -> new AccessDeniedException("유효하지 않은 매장입니다."));
+        if (store.getOwner().getId().equals(userId)) {
+            return true;
+        }
+        return storeEmployeeRepository.findByStoreIdAndUserId(storeId, userId)
+                .filter(se -> se.getStatus() != StoreEmployeeStatus.RESIGNED)
+                .isPresent();
     }
 }

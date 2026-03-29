@@ -1,4 +1,4 @@
-package com.almaengi.be.domain.chat.ws.security;
+package com.almaengi.be.global.websocket.security;
 
 import java.security.Principal;
 
