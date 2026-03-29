@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
+import java.util.Map;
 
 public class PayrollResponseDto {
 
@@ -29,12 +30,6 @@ public class PayrollResponseDto {
         @Schema(description = "승인 여부")
         private Boolean isApproved;
 
-        @Schema(description = "이체 완료 여부")
-        private Boolean isTransferred;
-
-        @Schema(description = "이체 완료 일시")
-        private String transferredAt;
-
         @Schema(description = "총 근무 시간(분)")
         private Integer totalWorkMinutes;
 
@@ -53,6 +48,12 @@ public class PayrollResponseDto {
         @Schema(description = "실수령액")
         private Long netPay;
 
+        @Schema(description = "이체 완료 여부")
+        private Boolean isTransferred;
+
+        @Schema(description = "이체 완료 시각")
+        private java.time.OffsetDateTime transferredAt;
+
         @Schema(description = "급여 상세 항목 목록")
         private List<DetailItem> details;
 
@@ -62,14 +63,14 @@ public class PayrollResponseDto {
                     .targetMonth(payroll.getTargetMonth().toString().substring(0, 7))
                     .isEstimated(isEstimated)
                     .isApproved(payroll.getIsApproved())
-                    .isTransferred(payroll.getIsTransferred())
-                    .transferredAt(payroll.getTransferredAt() != null ? payroll.getTransferredAt().toLocalDate().toString() : null)
                     .totalWorkMinutes(payroll.getTotalWorkMinutes())
                     .nightWorkMinutes(payroll.getNightWorkMinutes())
                     .basicPay(payroll.getBasicPay())
                     .totalAllowance(payroll.getTotalAllowance())
                     .totalDeduction(payroll.getTotalDeduction())
                     .netPay(payroll.getNetPay())
+                    .isTransferred(payroll.getIsTransferred())
+                    .transferredAt(payroll.getTransferredAt())
                     .details(details.stream().map(DetailItem::from).toList())
                     .build();
         }
@@ -86,11 +87,14 @@ public class PayrollResponseDto {
         @Schema(description = "총 인건비 (실수령액 합계)")
         private Long totalLaborCost;
 
-        @Schema(description = "총 지급액 (기본급 + 수당 합계)")
-        private Long totalGrossPay;
+        @Schema(description = "총 근무 시간 합계(분)")
+        private Integer totalWorkMinutes;
 
-        @Schema(description = "총 공제액 합계")
-        private Long totalDeduction;
+        @Schema(description = "총 연장근무 시간 합계(분)")
+        private Integer totalOvertimeMinutes;
+
+        @Schema(description = "총 야간근무 시간 합계(분)")
+        private Integer totalNightWorkMinutes;
 
         @Schema(description = "급여 대상 직원 수")
         private Integer employeeCount;
@@ -98,21 +102,32 @@ public class PayrollResponseDto {
         @Schema(description = "직원별 급여 목록")
         private List<EmployeePayrollSummary> employees;
 
-        public static StorePayrollSummary from(List<Payroll> payrolls, String targetMonth) {
+        /**
+         * Payroll 목록과 직원별 연장근무시간 Map으로 StorePayrollSummary를 생성합니다.
+         *
+         * @param payrolls           해당 월 급여 목록
+         * @param targetMonth        정산 대상 월 문자열 (yyyy-MM)
+         * @param overtimeMinutesMap 직원 ID → 연장근무시간(분) 매핑
+         */
+        public static StorePayrollSummary from(List<Payroll> payrolls, String targetMonth,
+                                                Map<Long, Integer> overtimeMinutesMap) {
             long totalLaborCost = payrolls.stream().mapToLong(Payroll::getNetPay).sum();
-            long totalGrossPay = payrolls.stream()
-                    .mapToLong(p -> p.getBasicPay() + p.getTotalAllowance()).sum();
-            long totalDeduction = payrolls.stream().mapToLong(Payroll::getTotalDeduction).sum();
 
             List<EmployeePayrollSummary> employees = payrolls.stream()
-                    .map(EmployeePayrollSummary::from)
+                    .map(p -> EmployeePayrollSummary.from(p, overtimeMinutesMap.getOrDefault(p.getEmployee().getId(), 0)))
                     .toList();
+
+            // 직원별 합계 집계
+            int totalWork = payrolls.stream().mapToInt(Payroll::getTotalWorkMinutes).sum();
+            int totalOvertime = overtimeMinutesMap.values().stream().mapToInt(Integer::intValue).sum();
+            int totalNight = payrolls.stream().mapToInt(Payroll::getNightWorkMinutes).sum();
 
             return StorePayrollSummary.builder()
                     .targetMonth(targetMonth)
                     .totalLaborCost(totalLaborCost)
-                    .totalGrossPay(totalGrossPay)
-                    .totalDeduction(totalDeduction)
+                    .totalWorkMinutes(totalWork)
+                    .totalOvertimeMinutes(totalOvertime)
+                    .totalNightWorkMinutes(totalNight)
                     .employeeCount(payrolls.size())
                     .employees(employees)
                     .build();
@@ -134,17 +149,17 @@ public class PayrollResponseDto {
         @Schema(description = "직책")
         private String position;
 
+        @Schema(description = "계약 시급 (원)")
+        private Integer hourlyWage;
+
         @Schema(description = "총 근무 시간(분)")
         private Integer totalWorkMinutes;
 
-        @Schema(description = "기본급")
-        private Long basicPay;
+        @Schema(description = "야간근무 시간(분, 22:00~06:00)")
+        private Integer nightWorkMinutes;
 
-        @Schema(description = "총 수당")
-        private Long totalAllowance;
-
-        @Schema(description = "총 공제")
-        private Long totalDeduction;
+        @Schema(description = "연장근무 시간(분, 일 8h/주 40h 초과)")
+        private Integer overtimeMinutes;
 
         @Schema(description = "실수령액")
         private Long netPay;
@@ -155,23 +170,29 @@ public class PayrollResponseDto {
         @Schema(description = "이체 완료 여부")
         private Boolean isTransferred;
 
-        @Schema(description = "이체 완료 일시")
-        private String transferredAt;
+        @Schema(description = "이체 완료 시각")
+        private java.time.OffsetDateTime transferredAt;
 
-        public static EmployeePayrollSummary from(Payroll payroll) {
+        /**
+         * Payroll 엔티티와 동적 계산된 연장근무시간으로 EmployeePayrollSummary를 생성합니다.
+         *
+         * @param payroll         급여 엔티티
+         * @param overtimeMinutes 연장근무시간 (분, Attendance 기반 동적 계산값)
+         */
+        public static EmployeePayrollSummary from(Payroll payroll, int overtimeMinutes) {
             return EmployeePayrollSummary.builder()
                     .payrollId(payroll.getId())
                     .employeeId(payroll.getEmployee().getId())
                     .employeeName(payroll.getEmployee().getUser().getName())
                     .position(payroll.getEmployee().getPosition())
+                    .hourlyWage(payroll.getEmployee().getHourlyWage())
                     .totalWorkMinutes(payroll.getTotalWorkMinutes())
-                    .basicPay(payroll.getBasicPay())
-                    .totalAllowance(payroll.getTotalAllowance())
-                    .totalDeduction(payroll.getTotalDeduction())
+                    .nightWorkMinutes(payroll.getNightWorkMinutes())
+                    .overtimeMinutes(overtimeMinutes)
                     .netPay(payroll.getNetPay())
                     .isApproved(payroll.getIsApproved())
                     .isTransferred(payroll.getIsTransferred())
-                    .transferredAt(payroll.getTransferredAt() != null ? payroll.getTransferredAt().toLocalDate().toString() : null)
+                    .transferredAt(payroll.getTransferredAt())
                     .build();
         }
     }
@@ -337,10 +358,27 @@ public class PayrollResponseDto {
         @Schema(description = "정산 대상 월", example = "2026-03")
         private String targetMonth;
 
+        @Schema(description = "진행 중인 월 여부 (true면 부분 기간 비교)")
+        private Boolean isPartialMonth;
+
+        @Schema(description = "이번 달 비교 시작일")
+        private java.time.LocalDate thisMonthStart;
+
+        @Schema(description = "이번 달 비교 종료일")
+        private java.time.LocalDate thisMonthEnd;
+
+        @Schema(description = "이전 달 비교 시작일")
+        private java.time.LocalDate lastMonthStart;
+
+        @Schema(description = "이전 달 비교 종료일 (이전 달 말일로 cap)")
+        private java.time.LocalDate lastMonthEnd;
+
+        // ── 총액 비교 ──
+
         @Schema(description = "이번 달 총 급여 지출 (netPay 합계)")
         private Long thisMonthTotal;
 
-        @Schema(description = "지난 달 총 급여 지출")
+        @Schema(description = "이전 달 총 급여 지출")
         private Long lastMonthTotal;
 
         @Schema(description = "전월 대비 증감률 (%, 소수점 첫째 자리)", example = "12.5")
@@ -349,7 +387,51 @@ public class PayrollResponseDto {
         @Schema(description = "증감 방향 (UP, DOWN, UNCHANGED)")
         private String changeDirection;
 
+        // ── 수당 비교 ──
+
+        @Schema(description = "이번 달 주휴수당 합계")
+        private Long thisMonthWeeklyHolidayPay;
+
+        @Schema(description = "이전 달 주휴수당 합계")
+        private Long lastMonthWeeklyHolidayPay;
+
+        @Schema(description = "이번 달 연장수당 합계")
+        private Long thisMonthOvertimePay;
+
+        @Schema(description = "이전 달 연장수당 합계")
+        private Long lastMonthOvertimePay;
+
+        @Schema(description = "이번 달 야간수당 합계")
+        private Long thisMonthNightPay;
+
+        @Schema(description = "이전 달 야간수당 합계")
+        private Long lastMonthNightPay;
+
+        // ── 직원 목록 ──
+
         @Schema(description = "이번 달 급여 대상 직원 수")
         private Integer employeeCount;
+
+        @Schema(description = "직원별 급여 요약 (netPay 내림차순)")
+        private List<SummaryEmployee> employees;
+
+        @Schema(description = "최고 급여자 리스트 (동점 시 복수)")
+        private List<SummaryEmployee> topEarners;
+    }
+
+    /**
+     * 급여 지출 요약의 직원별 급여 정보입니다.
+     */
+    @Getter
+    @Builder
+    public static class SummaryEmployee {
+        @Schema(description = "직원 ID")
+        private Long employeeId;
+
+        @Schema(description = "직원 이름")
+        private String employeeName;
+
+        @Schema(description = "실수령액")
+        private Long netPay;
     }
 }

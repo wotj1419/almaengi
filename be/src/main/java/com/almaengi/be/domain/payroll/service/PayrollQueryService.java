@@ -14,6 +14,7 @@ import com.almaengi.be.domain.store.entity.StoreEmployee;
 import com.almaengi.be.domain.store.repository.StoreEmployeeRepository;
 import com.almaengi.be.domain.store.repository.StoreRepository;
 import com.almaengi.be.domain.store.type.StoreEmployeeStatus;
+import com.almaengi.be.domain.store.type.TaxType;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 급여 조회 전용 서비스입니다.
@@ -77,18 +80,80 @@ public class  PayrollQueryService {
     /**
      * API 2: 사장님 매장 급여 목록 조회 (FR-PY-005)
      * 해당 월 전 직원의 급여 요약을 한눈에 확인합니다.
+     * 연장근무시간은 Attendance 기록에서 동적으로 계산합니다.
      */
     public PayrollResponseDto.StorePayrollSummary getStorePayrolls(Long userId, Long storeId, LocalDate targetMonth) {
-        validateStoreOwnership(userId, storeId);
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.PAYROLL_STORE_NOT_OWNED);
+        }
 
         LocalDate normalizedMonth = targetMonth.withDayOfMonth(1);
+        LocalDate endDate = normalizedMonth.plusMonths(1).minusDays(1);
         String targetMonthStr = normalizedMonth.toString().substring(0, 7);
 
         // fetch-join으로 Payroll + StoreEmployee + User를 한 번에 조회 (N+1 방지)
         List<Payroll> payrolls = payrollRepository
                 .findAllByStoreIdAndTargetMonthWithEmployee(storeId, normalizedMonth);
 
-        return PayrollResponseDto.StorePayrollSummary.from(payrolls, targetMonthStr);
+        // 연장근무시간 동적 계산: 직원별 Attendance를 배치 조회 후 계산
+        Map<Long, Integer> overtimeMinutesMap = calculateOvertimeMinutesForPayrolls(
+                payrolls, store, normalizedMonth, endDate);
+
+        return PayrollResponseDto.StorePayrollSummary.from(payrolls, targetMonthStr, overtimeMinutesMap);
+    }
+
+    /**
+     * 급여 목록의 직원들에 대해 연장근무시간(분)을 배치 계산합니다.
+     * 주차 경계 보정을 위해 확장 범위(ISO 주 시작~끝)의 Attendance를 조회합니다.
+     *
+     * @param payrolls        급여 목록
+     * @param store           매장 엔티티 (5인 이상 여부 참조)
+     * @param normalizedMonth 정산 대상 월 1일
+     * @param endDate         정산 대상 월 말일
+     * @return 직원 ID → 연장근무시간(분) 매핑
+     */
+    private Map<Long, Integer> calculateOvertimeMinutesForPayrolls(
+            List<Payroll> payrolls, Store store, LocalDate normalizedMonth, LocalDate endDate) {
+
+        List<Long> employeeIds = payrolls.stream()
+                .map(p -> p.getEmployee().getId())
+                .toList();
+
+        if (employeeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        // 주차 경계 보정: ISO 주의 월요일~일요일까지 확장 범위 조회
+        WeekFields weekFields = WeekFields.ISO;
+        LocalDate extendedStart = normalizedMonth.with(weekFields.dayOfWeek(), 1);
+        LocalDate extendedEnd = endDate.with(weekFields.dayOfWeek(), 7);
+
+        List<Attendance> allAttendances = attendanceRepository
+                .findAllByEmployeeIdInAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
+                        employeeIds, extendedStart, extendedEnd);
+
+        // 직원별로 그룹핑
+        Map<Long, List<Attendance>> attendanceByEmployee = allAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId()));
+
+        // 직원별 연장근무시간 계산
+        Map<Long, Integer> overtimeMinutesMap = new HashMap<>();
+        for (Payroll payroll : payrolls) {
+            Long empId = payroll.getEmployee().getId();
+            List<Attendance> empAttendances = attendanceByEmployee.getOrDefault(empId, List.of());
+
+            int overtimeMinutes = calculationService.calculateOvertimeMinutes(
+                    empAttendances,
+                    store.getIsOver5Employees(),
+                    payroll.getEmployee().getIncludeHolidayPay(),
+                    normalizedMonth);
+
+            overtimeMinutesMap.put(empId, overtimeMinutes);
+        }
+
+        return overtimeMinutesMap;
     }
 
     /**
@@ -128,31 +193,308 @@ public class  PayrollQueryService {
     }
 
     /**
-     * API 6: 급여 지출 요약 (전월 대비 증감률)
-     * 사장님 홈 대시보드에서 이번 달 총 급여 지출과 지난 달 대비 증감률을 확인합니다.
+     * API 6: 급여 지출 요약 (전월 대비 증감률 + 수당 비교 + 직원 리스트 + 최고급여자)
+     *
+     * 진행 중인 월(현재 월)이면 Attendance 기반으로 부분 기간 비교를 수행하고,
+     * 완료된 월이면 Payroll/PayrollDetail 레코드를 사용합니다.
+     *
+     * 부분 기간 비교 예시 (오늘=3/30, targetMonth=3월):
+     *   이번 달: 3/1 ~ 3/29(어제)
+     *   이전 달: 2/1 ~ min(29, 2월 말일=28) = 2/1 ~ 2/28
      */
     public PayrollResponseDto.MonthlySummary getMonthlySummary(Long userId, Long storeId, LocalDate targetMonth) {
-        validateStoreOwnership(userId, storeId);
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
+        if (!store.getOwner().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.PAYROLL_STORE_NOT_OWNED);
+        }
 
         LocalDate normalizedMonth = targetMonth.withDayOfMonth(1);
         LocalDate lastMonth = normalizedMonth.minusMonths(1);
+        LocalDate today = LocalDate.now();
 
-        // 이번 달, 지난 달 급여를 각각 조회
-        List<Payroll> thisMonthPayrolls = payrollRepository
-                .findAllByEmployeeStoreIdAndTargetMonth(storeId, normalizedMonth);
-        List<Payroll> lastMonthPayrolls = payrollRepository
+        // 진행 중인 월인지 판별 (targetMonth의 연월이 오늘과 같으면 진행 중)
+        boolean isPartialMonth = normalizedMonth.getYear() == today.getYear()
+                && normalizedMonth.getMonth() == today.getMonth();
+
+        if (isPartialMonth) {
+            return buildPartialMonthSummary(store, storeId, normalizedMonth, lastMonth, today);
+        } else {
+            return buildCompleteMonthSummary(storeId, normalizedMonth, lastMonth);
+        }
+    }
+
+    // ─── 완료된 월 요약: Payroll/PayrollDetail 기반 (가벼움) ───
+
+    /**
+     * 완료된 월끼리 비교합니다.
+     * Payroll 레코드에서 총액·직원 리스트를, PayrollDetail에서 수당 합계를 조회합니다.
+     */
+    private PayrollResponseDto.MonthlySummary buildCompleteMonthSummary(
+            Long storeId, LocalDate thisMonth, LocalDate lastMonth) {
+
+        LocalDate thisEnd = thisMonth.plusMonths(1).minusDays(1);  // 이번 달 말일
+        LocalDate lastEnd = lastMonth.plusMonths(1).minusDays(1);  // 이전 달 말일
+
+        // Payroll에서 총액 + 직원 정보 조회
+        List<Payroll> thisPayrolls = payrollRepository
+                .findAllByStoreIdAndTargetMonthWithEmployee(storeId, thisMonth);
+        List<Payroll> lastPayrolls = payrollRepository
                 .findAllByEmployeeStoreIdAndTargetMonth(storeId, lastMonth);
 
-        long thisMonthTotal = thisMonthPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
-        long lastMonthTotal = lastMonthPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
+        long thisTotal = thisPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
+        long lastTotal = lastPayrolls.stream().mapToLong(Payroll::getNetPay).sum();
+
+        // PayrollDetail에서 수당 항목별 합계 조회
+        AllowanceSums thisAllowances = sumAllowances(
+                payrollDetailRepository.findAllowancesByStoreIdAndTargetMonth(storeId, thisMonth));
+        AllowanceSums lastAllowances = sumAllowances(
+                payrollDetailRepository.findAllowancesByStoreIdAndTargetMonth(storeId, lastMonth));
+
+        // 직원 리스트 (netPay 내림차순)
+        List<PayrollResponseDto.SummaryEmployee> employees = buildEmployeeList(thisPayrolls);
+        List<PayrollResponseDto.SummaryEmployee> topEarners = extractTopEarners(employees);
+
+        return buildMonthlySummaryResponse(
+                thisMonth, false,
+                thisMonth, thisEnd, lastMonth, lastEnd,
+                thisTotal, lastTotal,
+                thisAllowances, lastAllowances,
+                employees, topEarners);
+    }
+
+    // ─── 진행 중인 월 요약: Attendance 기반 재계산 (무거움) ───
+
+    /**
+     * 진행 중인 월의 부분 기간 비교를 수행합니다.
+     * 어제까지의 Attendance 기록으로 두 달 모두 급여를 재계산합니다.
+     */
+    private PayrollResponseDto.MonthlySummary buildPartialMonthSummary(
+            Store store, Long storeId, LocalDate thisMonth, LocalDate lastMonth, LocalDate today) {
+
+        // 비교 기간 계산: 이번 달 1일 ~ 어제
+        LocalDate thisStart = thisMonth;
+        LocalDate thisEnd = today.minusDays(1);
+
+        // 이전 달 끝: min(어제 일자, 이전 달 말일)
+        int lastMonthLastDay = lastMonth.plusMonths(1).minusDays(1).getDayOfMonth();
+        LocalDate lastStart = lastMonth;
+        LocalDate lastEnd = lastMonth.withDayOfMonth(Math.min(thisEnd.getDayOfMonth(), lastMonthLastDay));
+
+        // 매장 활성 직원 조회
+        List<StoreEmployee> activeEmployees = storeEmployeeRepository
+                .findAllByStoreIdAndStatus(storeId, StoreEmployeeStatus.WORKING);
+
+        if (activeEmployees.isEmpty()) {
+            return buildMonthlySummaryResponse(
+                    thisMonth, true,
+                    thisStart, thisEnd, lastStart, lastEnd,
+                    0L, 0L,
+                    AllowanceSums.ZERO, AllowanceSums.ZERO,
+                    List.of(), List.of());
+        }
+
+        List<Long> employeeIds = activeEmployees.stream().map(StoreEmployee::getId).toList();
+
+        // 두 달의 Attendance를 배치 조회 (확장 범위: 주차 경계 보정)
+        WeekFields weekFields = WeekFields.ISO;
+
+        // 이번 달 Attendance (확장 범위 시작 ~ 어제)
+        LocalDate thisExtStart = thisStart.with(weekFields.dayOfWeek(), 1);
+        List<Attendance> thisAllAttendances = attendanceRepository
+                .findAllByEmployeeIdInAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
+                        employeeIds, thisExtStart, thisEnd);
+
+        // 이전 달 Attendance (확장 범위 시작 ~ 이전 달 비교 종료일)
+        LocalDate lastExtStart = lastStart.with(weekFields.dayOfWeek(), 1);
+        List<Attendance> lastAllAttendances = attendanceRepository
+                .findAllByEmployeeIdInAndTargetDateBetweenAndClockInIsNotNullAndClockOutIsNotNull(
+                        employeeIds, lastExtStart, lastEnd);
+
+        // 직원별로 그룹핑
+        Map<Long, List<Attendance>> thisAttByEmp = thisAllAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId()));
+        Map<Long, List<Attendance>> lastAttByEmp = lastAllAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId()));
+
+        // 직원별 급여 재계산 → 합계 집계
+        long thisTotal = 0;
+        long lastTotal = 0;
+        AllowanceSums thisAllowances = new AllowanceSums();
+        AllowanceSums lastAllowances = new AllowanceSums();
+        List<PayrollResponseDto.SummaryEmployee> employees = new ArrayList<>();
+
+        for (StoreEmployee emp : activeEmployees) {
+            Long empId = emp.getId();
+            int hourlyWage = emp.getHourlyWage();
+            boolean isOver5 = store.getIsOver5Employees();
+            boolean includeHolidayPay = emp.getIncludeHolidayPay();
+
+            // 이번 달 급여 계산
+            List<Attendance> thisEmpAtt = thisAttByEmp.getOrDefault(empId, List.of());
+            EmployeePayCalc thisCalc = calculateEmployeePay(thisEmpAtt, hourlyWage, isOver5, includeHolidayPay, emp.getTaxType(), thisMonth);
+            thisTotal += thisCalc.netPay;
+            thisAllowances.add(thisCalc);
+
+            // 이전 달 급여 계산
+            List<Attendance> lastEmpAtt = lastAttByEmp.getOrDefault(empId, List.of());
+            EmployeePayCalc lastCalc = calculateEmployeePay(lastEmpAtt, hourlyWage, isOver5, includeHolidayPay, emp.getTaxType(), lastMonth);
+            lastTotal += lastCalc.netPay;
+            lastAllowances.add(lastCalc);
+
+            // 직원 리스트에는 이번 달 netPay 기준
+            employees.add(PayrollResponseDto.SummaryEmployee.builder()
+                    .employeeId(empId)
+                    .employeeName(emp.getUser().getName())
+                    .netPay(thisCalc.netPay)
+                    .build());
+        }
+
+        // netPay 내림차순 정렬
+        employees.sort((a, b) -> Long.compare(b.getNetPay(), a.getNetPay()));
+        List<PayrollResponseDto.SummaryEmployee> topEarners = extractTopEarners(employees);
+
+        return buildMonthlySummaryResponse(
+                thisMonth, true,
+                thisStart, thisEnd, lastStart, lastEnd,
+                thisTotal, lastTotal,
+                thisAllowances, lastAllowances,
+                employees, topEarners);
+    }
+
+    /**
+     * 직원 한 명의 Attendance 기록에서 급여를 재계산합니다.
+     * PayrollCalculationService의 계산 파이프라인을 재사용합니다.
+     *
+     * @param attendances      해당 직원의 (확장 범위 포함) 출퇴근 기록
+     * @param hourlyWage       시급
+     * @param isOver5          5인 이상 사업장 여부
+     * @param includeHolidayPay 5인 미만 가산수당 지급 여부
+     * @param taxType          직원의 세금 유형
+     * @param targetMonth      정산 대상 월
+     * @return 계산 결과 (netPay, weeklyHolidayPay, overtimePay, nightPay)
+     */
+    private EmployeePayCalc calculateEmployeePay(List<Attendance> attendances, int hourlyWage,
+                                                  boolean isOver5, boolean includeHolidayPay,
+                                                  TaxType taxType, LocalDate targetMonth) {
+        // 해당 월 범위 내 Attendance만 필터 (총 근무시간·야간시간 계산용)
+        LocalDate monthEnd = targetMonth.plusMonths(1).minusDays(1);
+        List<Attendance> monthAttendances = attendances.stream()
+                .filter(a -> !a.getTargetDate().isBefore(targetMonth) && !a.getTargetDate().isAfter(monthEnd))
+                .toList();
+
+        int totalWorkMinutes = calculationService.calculateTotalWorkMinutes(monthAttendances);
+        int nightWorkMinutes = calculationService.calculateNightWorkMinutes(monthAttendances);
+
+        long basicPay = calculationService.calculateBasicPay(totalWorkMinutes, hourlyWage);
+
+        // 주휴수당·연장수당은 확장 범위(주차 경계 포함) 데이터 사용
+        long weeklyHolidayPay = calculationService.calculateWeeklyHolidayPay(
+                attendances, hourlyWage, targetMonth);
+        long overtimePay = calculationService.calculateOvertimePay(
+                attendances, hourlyWage, isOver5, includeHolidayPay, targetMonth);
+        long nightPay = (isOver5 || includeHolidayPay)
+                ? calculationService.calculateNightPay(nightWorkMinutes, hourlyWage)
+                : 0L;
+
+        long totalAllowance = weeklyHolidayPay + overtimePay + nightPay;
+        long grossPay = basicPay + totalAllowance;
+        // 부분 기간이므로 세금 공제도 비례 적용 (동일 기준 비교를 위해 기존 로직 재사용)
+        long totalDeduction = calculationService.calculateDeduction(grossPay, taxType);
+        long netPay = grossPay - totalDeduction;
+
+        return new EmployeePayCalc(netPay, weeklyHolidayPay, overtimePay, nightPay);
+    }
+
+    // ─── Private Helpers (급여 요약) ───
+
+    /**
+     * 직원별 급여 계산 결과를 담는 내부 레코드입니다.
+     */
+    private record EmployeePayCalc(long netPay, long weeklyHolidayPay, long overtimePay, long nightPay) {}
+
+    /**
+     * 수당 합계를 누적하는 내부 클래스입니다.
+     */
+    private static class AllowanceSums {
+        static final AllowanceSums ZERO = new AllowanceSums();
+        long weeklyHolidayPay = 0;
+        long overtimePay = 0;
+        long nightPay = 0;
+
+        void add(EmployeePayCalc calc) {
+            weeklyHolidayPay += calc.weeklyHolidayPay;
+            overtimePay += calc.overtimePay;
+            nightPay += calc.nightPay;
+        }
+    }
+
+    /**
+     * PayrollDetail 수당 항목 리스트에서 항목명별로 합계를 구합니다.
+     * 완료된 월에서 Payroll 레코드 기반으로 수당을 조회할 때 사용합니다.
+     */
+    private AllowanceSums sumAllowances(List<PayrollDetail> details) {
+        AllowanceSums sums = new AllowanceSums();
+        for (PayrollDetail d : details) {
+            switch (d.getItemName()) {
+                case "주휴수당" -> sums.weeklyHolidayPay += d.getAmount();
+                case "연장근로수당" -> sums.overtimePay += d.getAmount();
+                case "야간근로수당" -> sums.nightPay += d.getAmount();
+            }
+        }
+        return sums;
+    }
+
+    /**
+     * Payroll 리스트에서 직원별 SummaryEmployee를 생성하고 netPay 내림차순으로 정렬합니다.
+     */
+    private List<PayrollResponseDto.SummaryEmployee> buildEmployeeList(List<Payroll> payrolls) {
+        return payrolls.stream()
+                .map(p -> PayrollResponseDto.SummaryEmployee.builder()
+                        .employeeId(p.getEmployee().getId())
+                        .employeeName(p.getEmployee().getUser().getName())
+                        .netPay(p.getNetPay())
+                        .build())
+                .sorted((a, b) -> Long.compare(b.getNetPay(), a.getNetPay()))
+                .toList();
+    }
+
+    /**
+     * 직원 리스트에서 최고 급여자를 추출합니다.
+     * netPay가 동일한 직원이 여럿이면 모두 포함합니다.
+     * 리스트가 비어있으면 빈 리스트를 반환합니다.
+     */
+    private List<PayrollResponseDto.SummaryEmployee> extractTopEarners(
+            List<PayrollResponseDto.SummaryEmployee> sortedEmployees) {
+        if (sortedEmployees.isEmpty()) {
+            return List.of();
+        }
+        long maxNetPay = sortedEmployees.get(0).getNetPay();
+        return sortedEmployees.stream()
+                .filter(e -> e.getNetPay() == maxNetPay)
+                .toList();
+    }
+
+    /**
+     * 증감률을 계산하고 MonthlySummary 응답을 빌드합니다.
+     * 완료된 월과 진행 중인 월 모두 이 메서드로 최종 응답을 생성합니다.
+     */
+    private PayrollResponseDto.MonthlySummary buildMonthlySummaryResponse(
+            LocalDate targetMonth, boolean isPartialMonth,
+            LocalDate thisStart, LocalDate thisEnd,
+            LocalDate lastStart, LocalDate lastEnd,
+            long thisTotal, long lastTotal,
+            AllowanceSums thisAllowances, AllowanceSums lastAllowances,
+            List<PayrollResponseDto.SummaryEmployee> employees,
+            List<PayrollResponseDto.SummaryEmployee> topEarners) {
 
         // 증감률 계산
         Double changeRate = null;
         String changeDirection = "UNCHANGED";
 
-        if (lastMonthTotal > 0) {
-            double rate = (double) (thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100;
-            changeRate = Math.round(rate * 10) / 10.0;  // 소수점 첫째 자리 반올림
+        if (lastTotal > 0) {
+            double rate = (double) (thisTotal - lastTotal) / lastTotal * 100;
+            changeRate = Math.round(rate * 10) / 10.0;
 
             if (changeRate > 0) {
                 changeDirection = "UP";
@@ -162,12 +504,25 @@ public class  PayrollQueryService {
         }
 
         return PayrollResponseDto.MonthlySummary.builder()
-                .targetMonth(normalizedMonth.toString().substring(0, 7))
-                .thisMonthTotal(thisMonthTotal)
-                .lastMonthTotal(lastMonthTotal)
+                .targetMonth(targetMonth.toString().substring(0, 7))
+                .isPartialMonth(isPartialMonth)
+                .thisMonthStart(thisStart)
+                .thisMonthEnd(thisEnd)
+                .lastMonthStart(lastStart)
+                .lastMonthEnd(lastEnd)
+                .thisMonthTotal(thisTotal)
+                .lastMonthTotal(lastTotal)
                 .changeRate(changeRate)
                 .changeDirection(changeDirection)
-                .employeeCount(thisMonthPayrolls.size())
+                .thisMonthWeeklyHolidayPay(thisAllowances.weeklyHolidayPay)
+                .lastMonthWeeklyHolidayPay(lastAllowances.weeklyHolidayPay)
+                .thisMonthOvertimePay(thisAllowances.overtimePay)
+                .lastMonthOvertimePay(lastAllowances.overtimePay)
+                .thisMonthNightPay(thisAllowances.nightPay)
+                .lastMonthNightPay(lastAllowances.nightPay)
+                .employeeCount(employees.size())
+                .employees(employees)
+                .topEarners(topEarners)
                 .build();
     }
 
@@ -307,6 +662,8 @@ public class  PayrollQueryService {
                 .totalAllowance(totalAllowance)
                 .totalDeduction(totalDeduction)
                 .netPay(netPay)
+                .isTransferred(false)
+                .transferredAt(null)
                 .details(details)
                 .build();
     }
