@@ -11,6 +11,7 @@ import AuctionListCard from '../components/AuctionListCard';
 import AuctionSummaryCard from '../components/AuctionSummaryCard';
 import { useAuctions, useDeleteAuction } from '../hooks/useAuctionQueries';
 import { toAuctionItem } from '../utils/auctionMapper';
+import { useAuctionSocket } from '../hooks/useAuctionSocket';
 
 const HIDDEN_COMPLETED_AUCTION_IDS_KEY = 'hiddenCompletedAuctionIds';
 
@@ -45,6 +46,10 @@ function persistHiddenCompletedAuctionIds(auctionIds: number[]) {
 
 export default function AuctionPage() {
   const activeStoreId = useAuthStore((state) => state.activeStoreId);
+
+  // 사장 페이지에서도 경매 이벤트를 구독해 목록/상세를 즉시 동기화
+  useAuctionSocket(activeStoreId);
+
   const navigate = useNavigate();
   const location = useLocation();
   const initialTab =

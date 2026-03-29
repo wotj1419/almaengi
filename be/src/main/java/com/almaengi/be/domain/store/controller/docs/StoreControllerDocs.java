@@ -6,6 +6,7 @@ import com.almaengi.be.global.annotation.AuthUser;
 import com.almaengi.be.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,5 +44,16 @@ public interface StoreControllerDocs {
     ApiResponse<Void> deleteStore(
             @AuthUser Long userId,
             @Parameter(description = "삭제할 매장의 ID", example = "1") @PathVariable("storeId") Long storeId
+    );
+
+    @Operation(summary = "매장 급여일 조회", description = "매장의 급여일(1~31)을 조회합니다. 사장님과 알바생 모두 조회 가능합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "U004: 접근 권한이 없는 유저입니다."),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "S001: 해당 매장을 찾을 수 없습니다.")
+    })
+    ApiResponse<Integer> getPayDay(
+            @Parameter(hidden = true) @AuthUser Long userId,
+            @Parameter(description = "매장 ID", example = "1") @PathVariable("storeId") Long storeId
     );
 }

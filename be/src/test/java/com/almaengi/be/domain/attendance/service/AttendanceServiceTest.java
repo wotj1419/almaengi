@@ -32,6 +32,8 @@ import com.almaengi.be.domain.attendance.dto.AttendanceRequestDto;
 import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.entity.Attendance;
 import com.almaengi.be.domain.attendance.repository.AttendanceRepository;
 import com.almaengi.be.domain.attendance.type.AttendanceResultType;
@@ -784,6 +786,232 @@ class AttendanceServiceTest {
             BusinessException e = assertThrows(BusinessException.class,
                     () -> attendanceService.getAttendanceLog(1L, 999L, LocalDate.now().minusDays(1)));
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("알바생 본인 일별 근태 상세 (getMyAttendanceLog) 테스트")
+    class MyAttendanceLogTest {
+
+        @Test
+        @DisplayName("성공: 특정 날짜 근태 기록이 있으면 상세 정보를 반환한다")
+        void getMyAttendanceLogSuccess() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            Attendance attendance = Attendance.builder()
+                    .employee(employee)
+                    .targetDate(targetDate)
+                    .scheduledStartTime(LocalTime.of(9, 0))
+                    .scheduledEndTime(LocalTime.of(18, 0))
+                    .status(AttendanceStatus.WORKING)
+                    .overtime(false)
+                    .breakMinutes(30)
+                    .build();
+            ReflectionTestUtils.setField(attendance, "id", 501L);
+            attendance.clockIn(targetDate.atTime(9, 0));
+            attendance.clockOut(targetDate.atTime(18, 0));
+
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 100L)).thenReturn(Optional.of(employee));
+            when(attendanceRepository.findByEmployeeIdAndTargetDate(10L, targetDate)).thenReturn(Optional.of(attendance));
+
+            // when
+            MyAttendanceLogResponseDto res = attendanceService.getMyAttendanceLog(100L, 1L, targetDate);
+
+            // then
+            assertThat(res.getStoreId()).isEqualTo(1L);
+            assertThat(res.getEmployeeId()).isEqualTo(10L);
+            assertThat(res.getEmployeeName()).isEqualTo("김알바");
+            assertThat(res.getDate()).isEqualTo(targetDate);
+            assertThat(res.getStatus()).isEqualTo(AttendanceStatus.WORKING);
+            assertThat(res.getWorkedMinutes()).isEqualTo(510); // 9시간 - 휴게 30분
+            assertThat(res.getExists()).isTrue();
+        }
+
+        @Test
+        @DisplayName("성공: 특정 날짜 근태 기록이 없으면 exists=false를 반환한다")
+        void getMyAttendanceLogEmpty() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(2);
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 100L)).thenReturn(Optional.of(employee));
+            when(attendanceRepository.findByEmployeeIdAndTargetDate(10L, targetDate)).thenReturn(Optional.empty());
+
+            // when
+            MyAttendanceLogResponseDto res = attendanceService.getMyAttendanceLog(100L, 1L, targetDate);
+
+            // then
+            assertThat(res.getStoreId()).isEqualTo(1L);
+            assertThat(res.getEmployeeId()).isEqualTo(10L);
+            assertThat(res.getDate()).isEqualTo(targetDate);
+            assertThat(res.getWorkedMinutes()).isEqualTo(0);
+            assertThat(res.getExists()).isFalse();
+            assertThat(res.getClockIn()).isNull();
+            assertThat(res.getClockOut()).isNull();
+        }
+
+        @Test
+        @DisplayName("실패: 해당 매장 직원이 아니면 STORE_EMPLOYEE_NOT_FOUND")
+        void getMyAttendanceLogFailWhenEmployeeNotFound() {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            when(storeEmployeeRepository.findByStoreIdAndUserId(1L, 999L)).thenReturn(Optional.empty());
+
+            // when & then
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> attendanceService.getMyAttendanceLog(999L, 1L, targetDate));
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.STORE_EMPLOYEE_NOT_FOUND);
+        }
+    }
+
+    @Nested
+    @DisplayName("월별 근태 리포트 (getMonthlyReport) 테스트")
+    class MonthlyReportTest {
+
+        @Test
+        @DisplayName("성공: 직원별 출근수/지각수/결근수/근무시간을 집계하고 출근수 내림차순 정렬")
+        void monthlyReportSuccess() {
+            // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+
+            // 두 번째 직원 생성
+            User user2 = User.builder()
+                    .loginType(LoginType.LOCAL)
+                    .name("이알바")
+                    .email("alba2@test.com")
+                    .build();
+            ReflectionTestUtils.setField(user2, "id", 101L);
+            StoreEmployee employee2 = StoreEmployee.builder().store(store).user(user2).build();
+            ReflectionTestUtils.setField(employee2, "id", 11L);
+
+            LocalDate targetMonth = LocalDate.of(2026, 3, 1);
+
+            // 김알바: 출근 2회 (WORKING 1 + LATE 1), 결근 0
+            Attendance a1 = Attendance.builder()
+                    .employee(employee)
+                    .targetDate(LocalDate.of(2026, 3, 1))
+                    .status(AttendanceStatus.WORKING)
+                    .build();
+            ReflectionTestUtils.setField(a1, "id", 1L);
+            a1.clockIn(LocalDateTime.of(2026, 3, 1, 9, 0));
+            a1.clockOut(LocalDateTime.of(2026, 3, 1, 18, 0));
+
+            Attendance a2 = Attendance.builder()
+                    .employee(employee)
+                    .targetDate(LocalDate.of(2026, 3, 2))
+                    .status(AttendanceStatus.LATE)
+                    .build();
+            ReflectionTestUtils.setField(a2, "id", 2L);
+            a2.clockIn(LocalDateTime.of(2026, 3, 2, 9, 30));
+            a2.clockOut(LocalDateTime.of(2026, 3, 2, 18, 0));
+
+            // 이알바: 출근 1회, 결근 1회
+            Attendance a3 = Attendance.builder()
+                    .employee(employee2)
+                    .targetDate(LocalDate.of(2026, 3, 1))
+                    .status(AttendanceStatus.WORKING)
+                    .build();
+            ReflectionTestUtils.setField(a3, "id", 3L);
+            a3.clockIn(LocalDateTime.of(2026, 3, 1, 9, 0));
+            a3.clockOut(LocalDateTime.of(2026, 3, 1, 18, 0));
+
+            Attendance a4 = Attendance.builder()
+                    .employee(employee2)
+                    .targetDate(LocalDate.of(2026, 3, 2))
+                    .status(AttendanceStatus.ABSENT)
+                    .build();
+            ReflectionTestUtils.setField(a4, "id", 4L);
+
+            when(attendanceRepository.findByStoreIdAndTargetDateBetweenWithUser(
+                    eq(1L), eq(targetMonth), eq(LocalDate.of(2026, 3, 31))))
+                    .thenReturn(List.of(a1, a2, a3, a4));
+
+            // when
+            MonthlyAttendanceReportResponseDto res = attendanceService.getMonthlyReport(1L, 1L, targetMonth);
+
+            // then
+            assertThat(res.getTargetMonth()).isEqualTo("2026-03");
+            assertThat(res.getEmployees()).hasSize(2);
+
+            // 출근수 내림차순: 김알바(2) > 이알바(1)
+            MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary first = res.getEmployees().get(0);
+            assertThat(first.getEmployeeName()).isEqualTo("김알바");
+            assertThat(first.getAttendanceCount()).isEqualTo(2);
+            assertThat(first.getLateCount()).isEqualTo(1);
+            assertThat(first.getAbsentCount()).isEqualTo(0);
+            assertThat(first.getTotalWorkMinutes()).isGreaterThan(0);
+
+            MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary second = res.getEmployees().get(1);
+            assertThat(second.getEmployeeName()).isEqualTo("이알바");
+            assertThat(second.getAttendanceCount()).isEqualTo(1);
+            assertThat(second.getAbsentCount()).isEqualTo(1);
+
+            // 성실왕: 김알바만 (결근 0)
+            assertThat(res.getDiligentEmployees()).hasSize(1);
+            assertThat(res.getDiligentEmployees().get(0).getEmployeeName()).isEqualTo("김알바");
+
+            // 지각왕: 김알바 (지각 1회 > 이알바 0회)
+            assertThat(res.getLateChampions()).hasSize(1);
+            assertThat(res.getLateChampions().get(0).getEmployeeName()).isEqualTo("김알바");
+        }
+
+        @Test
+        @DisplayName("성공: 전원 지각 0이면 지각왕 빈 리스트")
+        void noLateChampionWhenAllZero() {
+            // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+
+            LocalDate targetMonth = LocalDate.of(2026, 3, 1);
+
+            Attendance a1 = Attendance.builder()
+                    .employee(employee)
+                    .targetDate(LocalDate.of(2026, 3, 1))
+                    .status(AttendanceStatus.WORKING)
+                    .build();
+            ReflectionTestUtils.setField(a1, "id", 1L);
+            a1.clockIn(LocalDateTime.of(2026, 3, 1, 9, 0));
+            a1.clockOut(LocalDateTime.of(2026, 3, 1, 18, 0));
+
+            when(attendanceRepository.findByStoreIdAndTargetDateBetweenWithUser(
+                    eq(1L), eq(targetMonth), eq(LocalDate.of(2026, 3, 31))))
+                    .thenReturn(List.of(a1));
+
+            // when
+            MonthlyAttendanceReportResponseDto res = attendanceService.getMonthlyReport(1L, 1L, targetMonth);
+
+            // then
+            assertThat(res.getLateChampions()).isEmpty();
+            assertThat(res.getDiligentEmployees()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("성공: 근태 기록이 없으면 모든 리스트가 빈 상태")
+        void emptyReport() {
+            // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+
+            LocalDate targetMonth = LocalDate.of(2026, 3, 1);
+            when(attendanceRepository.findByStoreIdAndTargetDateBetweenWithUser(
+                    eq(1L), eq(targetMonth), eq(LocalDate.of(2026, 3, 31))))
+                    .thenReturn(List.of());
+
+            // when
+            MonthlyAttendanceReportResponseDto res = attendanceService.getMonthlyReport(1L, 1L, targetMonth);
+
+            // then
+            assertThat(res.getEmployees()).isEmpty();
+            assertThat(res.getDiligentEmployees()).isEmpty();
+            assertThat(res.getLateChampions()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("실패: 매장 소유자가 아니면 ATTENDANCE_STORE_NOT_OWNED")
+        void failNotOwner() {
+            // given
+            when(storeRepository.findById(1L)).thenReturn(Optional.of(store));
+
+            // when & then (owner.id=1L이므로 999L은 권한 없음)
+            BusinessException e = assertThrows(BusinessException.class,
+                    () -> attendanceService.getMonthlyReport(999L, 1L, LocalDate.of(2026, 3, 1)));
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ATTENDANCE_STORE_NOT_OWNED);
         }
     }
 }

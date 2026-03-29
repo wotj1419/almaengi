@@ -55,4 +55,11 @@ public class StoreController implements StoreControllerDocs {
         storeService.deleteStore(userId, storeId);
         return ApiResponse.success();
     }
+
+    @Override
+    @GetMapping("/{storeId}/pay-day")
+    public ApiResponse<Integer> getPayDay(@AuthUser Long userId, @PathVariable("storeId") Long storeId) {
+        Integer payDay = storeService.getPayDay(userId, storeId);
+        return ApiResponse.success(payDay);
+    }
 }

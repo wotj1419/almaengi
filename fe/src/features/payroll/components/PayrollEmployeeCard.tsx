@@ -22,8 +22,9 @@ export default function PayrollEmployeeCard({
   payroll,
   onViewStatement,
 }: Props) {
-  const isPast = dayjs(payroll.target_month).isBefore(dayjs(), 'month');
-  const isPaid = payroll.is_approved || isPast;
+  // 배지 상태: 지급 예정 → 승인 완료 → 지급 완료
+  const isTransferred = payroll.is_transferred;
+  const isApproved = payroll.is_approved;
 
   // 하드코딩: 급여일 21일 (다음달 21일 지급)
   const PAY_DAY = 21;
@@ -31,6 +32,28 @@ export default function PayrollEmployeeCard({
     .add(1, 'month')
     .date(PAY_DAY)
     .format('M월 D일');
+
+  const transferredDateLabel = payroll.transferred_at
+    ? dayjs(payroll.transferred_at).format('M월 D일')
+    : '';
+
+  const badgeConfig = isTransferred
+    ? {
+        label: `${transferredDateLabel} 지급 완료`,
+        style:
+          'bg-[var(--color-badge-green-bg)] text-[color:var(--color-status-badge-green-text)]',
+      }
+    : isApproved
+      ? {
+          label: `${paidDateLabel} 승인 완료`,
+          style:
+            'bg-[var(--color-badge-orange-bg)] text-[color:var(--color-badge-orange-text)]',
+        }
+      : {
+          label: `${paidDateLabel} 지급 예정`,
+          style:
+            'bg-[var(--color-status-grey-bg)] text-[color:var(--color-status-grey-dot)]',
+        };
 
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] px-[var(--space-5)] py-[var(--space-5)]">
@@ -43,20 +66,16 @@ export default function PayrollEmployeeCard({
           {payroll.employee_name}
         </span>
         <span
-          className={`ml-auto px-[var(--space-1-5)] py-[var(--space-0-5)] rounded-[var(--radius-sm)] text-[length:var(--text-2xs)] font-semibold whitespace-nowrap ${
-            isPaid
-              ? 'bg-[var(--color-badge-approvable-bg)] text-[color:var(--color-badge-approvable-text)]'
-              : 'bg-[var(--color-status-grey-bg)] text-[color:var(--color-status-grey-dot)]'
-          }`}
+          className={`ml-auto px-[var(--space-1-5)] py-[var(--space-0-5)] rounded-[var(--radius-sm)] text-[length:var(--text-2xs)] font-semibold whitespace-nowrap ${badgeConfig.style}`}
         >
-          {paidDateLabel} {isPaid ? '지급 완료' : '지급 예정'}
+          {badgeConfig.label}
         </span>
       </div>
 
       {/* 급여액 */}
       <div className="flex items-center justify-between mb-[var(--space-3)]">
         <span className="text-[length:var(--text-md)] font-bold text-[color:var(--color-text-sub)]">
-          {isPaid ? '실수령액' : '예상 급여액'}
+          {isTransferred || isApproved ? '실수령액' : '예상 급여액'}
         </span>
         <span className="text-[length:var(--text-xl)] font-bold text-[color:var(--color-text-primary)]">
           {formatAmount(payroll.net_pay)}
@@ -99,7 +118,7 @@ export default function PayrollEmployeeCard({
         className="w-full py-[var(--space-4)] bg-[var(--color-badge-orange-bg)] rounded-[var(--radius-sm)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-badge-orange-text)] cursor-pointer flex items-center justify-center gap-[var(--space-2)]"
       >
         <FileText size={15} strokeWidth={2} />
-        급여 명세서 보기
+        급여명세서 보기
       </button>
     </div>
   );

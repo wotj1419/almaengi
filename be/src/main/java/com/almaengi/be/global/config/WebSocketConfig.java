@@ -1,7 +1,7 @@
 package com.almaengi.be.global.config;
 
 import com.almaengi.be.domain.chat.ws.handler.ChatStompErrorHandler;
-import com.almaengi.be.domain.chat.ws.security.StompAuthChannelInterceptor;
+import com.almaengi.be.global.websocket.security.StompAuthChannelInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

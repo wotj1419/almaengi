@@ -1,18 +1,45 @@
-// 사장님 급여 관리 (오너 전용)
+// 사장님 급여 목록 API 응답 (GET /stores/{storeId}/payrolls)
+export interface StorePayrollEmployee {
+  payrollId: number;
+  employeeId: number;
+  employeeName: string;
+  position: string;
+  totalWorkMinutes: number;
+  basicPay: number;
+  totalAllowance: number;
+  totalDeduction: number;
+  netPay: number;
+  isApproved: boolean;
+  isTransferred: boolean;
+  transferredAt: string | null;
+}
+
+export interface StorePayrollSummary {
+  targetMonth: string;
+  totalLaborCost: number;
+  totalGrossPay: number;
+  totalDeduction: number;
+  employeeCount: number;
+  employees: StorePayrollEmployee[];
+}
+
+// FE 직원 카드용 타입 (API 데이터 + 하드코딩 필드)
 export interface Payroll {
   payroll_id: number;
   employee_id: number;
   employee_name: string;
   target_month: string;
-  total_work_minutes: number; // 급여 대상 월 (YYYY-MM-DD 형식, 항상 1일)
-  night_work_minutes: number; // 해당 월 총 근무 시간 (분 단위)
-  overtime_minutes: number; // 야간 근무 시간 (분 단위, 22:00~06:00)
+  total_work_minutes: number;
+  night_work_minutes: number;
+  overtime_minutes: number;
   basic_pay: number;
-  total_allowance: number; // 총 수당 합계 (원)
-  total_deduction: number; // 총 공제 합계 (원)
-  net_pay: number; // 실수령액 = 기본급 + 수당 - 공제 (원)
-  hourly_wage: number; // 시급 (원)
+  total_allowance: number;
+  total_deduction: number;
+  net_pay: number;
+  hourly_wage: number;
   is_approved: boolean;
+  is_transferred: boolean;
+  transferred_at: string | null;
   approved_at: string | null;
   created_at: string;
   updated_at: string;
@@ -34,6 +61,8 @@ export interface MyPayrollData {
   targetMonth: string;
   isEstimated: boolean;
   isApproved: boolean;
+  isTransferred: boolean;
+  transferredAt: string | null;
   totalWorkMinutes: number;
   nightWorkMinutes: number;
   overtimeMinutes: number;

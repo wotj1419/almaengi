@@ -28,7 +28,10 @@ export default function EmployeePayslipDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentStore = useStoreStore((s) => s.currentStore);
-  const locationState = location.state as { targetMonth?: string } | null;
+  const locationState = location.state as {
+    targetMonth?: string;
+    from?: string;
+  } | null;
 
   const payrollId = useMemo(() => Number(payslipId), [payslipId]);
   const [detail, setDetail] = useState<PayrollDetailViewResponse | null>(null);
@@ -158,7 +161,14 @@ export default function EmployeePayslipDetailPage() {
   return (
     <DocumentsPageLayout
       title={PAGE_TEXT.title}
-      onBack={() => navigate(ROUTES.WORKER_DOCUMENTS)}
+      onBack={() =>
+        navigate(
+          locationState?.from === 'payroll'
+            ? ROUTES.PAYROLL
+            : ROUTES.WORKER_DOCUMENTS,
+          { replace: true }
+        )
+      }
       mainClassName="px-[var(--space-5)] pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))] pt-[var(--space-5)]"
     >
       {!isLoading && (!detail || !!errorMessage) ? (

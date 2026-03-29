@@ -5,6 +5,8 @@ import com.almaengi.be.domain.attendance.dto.AttendanceRequestDto;
 import com.almaengi.be.domain.attendance.dto.AttendanceResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardDetailResponseDto;
 import com.almaengi.be.domain.attendance.dto.DashboardSummaryResponseDto;
+import com.almaengi.be.domain.attendance.dto.MonthlyAttendanceReportResponseDto;
+import com.almaengi.be.domain.attendance.dto.MyAttendanceLogResponseDto;
 import com.almaengi.be.domain.attendance.scheduler.AttendanceScheduler;
 import com.almaengi.be.domain.attendance.service.AttendanceService;
 import com.almaengi.be.domain.attendance.type.AttendanceResultType;
@@ -311,6 +313,169 @@ class AttendanceControllerTest {
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
                     .andExpect(jsonPath("$.data.storeId").value(1))
                     .andExpect(jsonPath("$.data.attendances").isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/attendances/me/log 알바생 본인 일별 근태 상세 API")
+    class MyAttendanceLogApiTest {
+
+        @Test
+        @DisplayName("성공: 근태 기록이 있으면 상세 정보를 반환한다")
+        void getMyAttendanceLogSuccess() throws Exception {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(1);
+            MyAttendanceLogResponseDto mockResponse = MyAttendanceLogResponseDto.builder()
+                    .storeId(1L)
+                    .employeeId(10L)
+                    .employeeName("김알바")
+                    .date(targetDate)
+                    .scheduledStartTime(LocalTime.of(9, 0))
+                    .scheduledEndTime(LocalTime.of(18, 0))
+                    .clockIn(targetDate.atTime(9, 0))
+                    .clockOut(targetDate.atTime(18, 0))
+                    .status(AttendanceStatus.WORKING)
+                    .overtime(false)
+                    .breakMinutes(30)
+                    .workedMinutes(510)
+                    .exists(true)
+                    .build();
+
+            Mockito.when(attendanceService.getMyAttendanceLog(any(), eq(1L), eq(targetDate)))
+                    .thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/me/log")
+                            .param("storeId", "1")
+                            .param("date", targetDate.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.storeId").value(1))
+                    .andExpect(jsonPath("$.data.employeeId").value(10))
+                    .andExpect(jsonPath("$.data.employeeName").value("김알바"))
+                    .andExpect(jsonPath("$.data.status").value("WORKING"))
+                    .andExpect(jsonPath("$.data.workedMinutes").value(510))
+                    .andExpect(jsonPath("$.data.exists").value(true));
+
+            Mockito.verify(attendanceService, Mockito.times(1)).getMyAttendanceLog(any(), eq(1L), eq(targetDate));
+        }
+
+        @Test
+        @DisplayName("성공: 근태 기록이 없으면 exists=false를 반환한다")
+        void getMyAttendanceLogEmpty() throws Exception {
+            // given
+            LocalDate targetDate = LocalDate.now().minusDays(2);
+            MyAttendanceLogResponseDto mockResponse = MyAttendanceLogResponseDto.builder()
+                    .storeId(1L)
+                    .employeeId(10L)
+                    .employeeName("김알바")
+                    .date(targetDate)
+                    .workedMinutes(0)
+                    .exists(false)
+                    .build();
+
+            Mockito.when(attendanceService.getMyAttendanceLog(any(), eq(1L), eq(targetDate)))
+                    .thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/me/log")
+                            .param("storeId", "1")
+                            .param("date", targetDate.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.exists").value(false))
+                    .andExpect(jsonPath("$.data.workedMinutes").value(0));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/attendances/report/{storeId} 월별 근태 리포트 API")
+    class MonthlyReportApiTest {
+
+        @Test
+        @DisplayName("성공: 직원별 근태 집계와 성실왕/지각왕을 반환한다")
+        void getMonthlyReportSuccess() throws Exception {
+            // given
+            MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary emp1 =
+                    MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary.builder()
+                            .employeeId(10L)
+                            .employeeName("김알바")
+                            .attendanceCount(20)
+                            .lateCount(2)
+                            .absentCount(0)
+                            .totalWorkMinutes(9600)
+                            .build();
+
+            MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary emp2 =
+                    MonthlyAttendanceReportResponseDto.EmployeeAttendanceSummary.builder()
+                            .employeeId(11L)
+                            .employeeName("이알바")
+                            .attendanceCount(18)
+                            .lateCount(5)
+                            .absentCount(2)
+                            .totalWorkMinutes(8640)
+                            .build();
+
+            MonthlyAttendanceReportResponseDto.EmployeeInfo diligent =
+                    MonthlyAttendanceReportResponseDto.EmployeeInfo.builder()
+                            .employeeId(10L)
+                            .employeeName("김알바")
+                            .build();
+
+            MonthlyAttendanceReportResponseDto.EmployeeInfo lateChampion =
+                    MonthlyAttendanceReportResponseDto.EmployeeInfo.builder()
+                            .employeeId(11L)
+                            .employeeName("이알바")
+                            .build();
+
+            MonthlyAttendanceReportResponseDto mockResponse = MonthlyAttendanceReportResponseDto.builder()
+                    .targetMonth("2026-03")
+                    .employees(List.of(emp1, emp2))
+                    .diligentEmployees(List.of(diligent))
+                    .lateChampions(List.of(lateChampion))
+                    .build();
+
+            Mockito.when(attendanceService.getMonthlyReport(any(), eq(1L), any())).thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/report/1")
+                            .param("targetMonth", "2026-03"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.targetMonth").value("2026-03"))
+                    .andExpect(jsonPath("$.data.employees").isArray())
+                    .andExpect(jsonPath("$.data.employees[0].employeeId").value(10))
+                    .andExpect(jsonPath("$.data.employees[0].attendanceCount").value(20))
+                    .andExpect(jsonPath("$.data.employees[0].lateCount").value(2))
+                    .andExpect(jsonPath("$.data.employees[0].absentCount").value(0))
+                    .andExpect(jsonPath("$.data.employees[0].totalWorkMinutes").value(9600))
+                    .andExpect(jsonPath("$.data.diligentEmployees[0].employeeName").value("김알바"))
+                    .andExpect(jsonPath("$.data.lateChampions[0].employeeName").value("이알바"));
+
+            Mockito.verify(attendanceService, Mockito.times(1)).getMonthlyReport(any(), eq(1L), any());
+        }
+
+        @Test
+        @DisplayName("성공: 근태 기록이 없으면 빈 리스트를 반환한다")
+        void getMonthlyReportEmpty() throws Exception {
+            // given
+            MonthlyAttendanceReportResponseDto mockResponse = MonthlyAttendanceReportResponseDto.builder()
+                    .targetMonth("2026-03")
+                    .employees(List.of())
+                    .diligentEmployees(List.of())
+                    .lateChampions(List.of())
+                    .build();
+
+            Mockito.when(attendanceService.getMonthlyReport(any(), eq(1L), any())).thenReturn(mockResponse);
+
+            // when & then
+            mockMvc.perform(get("/api/v1/attendances/report/1")
+                            .param("targetMonth", "2026-03"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("SUCCESS"))
+                    .andExpect(jsonPath("$.data.employees").isEmpty())
+                    .andExpect(jsonPath("$.data.diligentEmployees").isEmpty())
+                    .andExpect(jsonPath("$.data.lateChampions").isEmpty());
         }
     }
 }

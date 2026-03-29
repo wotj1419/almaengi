@@ -11,6 +11,7 @@ import com.almaengi.be.domain.store.entity.Store;
 import com.almaengi.be.domain.store.repository.StoreRepository;
 
 import com.almaengi.be.global.annotation.AuthUser;
+import io.swagger.v3.oas.annotations.Operation;
 import com.almaengi.be.global.common.ApiResponse;
 import com.almaengi.be.global.error.BusinessException;
 import com.almaengi.be.global.error.ErrorCode;
@@ -139,6 +140,19 @@ public class PayrollController implements PayrollControllerDocs {
         }
 
         payrollTransferService.transferStorePayroll(store, month);
+        return ApiResponse.success();
+    }
+
+    @Operation(summary = "급여명세서 PDF 수동 생성", description = "스케줄러(매월 1일 04:00)와 동일한 급여 정산 + PDF 생성을 즉시 실행합니다.")
+    @PostMapping("/payslips/generate")
+    public ApiResponse<Void> generatePayslips(
+            @AuthUser Long userId,
+            @PathVariable Long storeId,
+            @RequestParam String targetMonth) {
+
+        LocalDate month = parseTargetMonth(targetMonth);
+        payrollService.generateStorePayrolls(userId, storeId, month);
+        payslipService.generateStorePayslips(storeId, month);
         return ApiResponse.success();
     }
 

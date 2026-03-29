@@ -145,13 +145,13 @@ public class PayslipService {
 
     /**
      * 급여명세서 PDF 파일의 경로를 구성합니다.
-     * 경로: {basePath}/stores/{storeId}/payslip/{yyyy}/{MM}/{이름}_{employeeId}.pdf
+     * 경로: {basePath}/stores/{storeId}/payslip/{yyyy}/{MM}/{employeeId}/{이름}_{yyyy-MM}_급여명세서.pdf
      */
     public String buildFilePath(Payroll payroll) {
         Store store = payroll.getEmployee().getStore();
         User user = payroll.getEmployee().getUser();
         LocalDate month = payroll.getTargetMonth();
-        String fileName = user.getName() + "_" + payroll.getEmployee().getId() + ".pdf";
+        String fileName = user.getName() + "_" + month.toString().substring(0, 7) + "_급여명세서.pdf";
 
         return Paths.get(
                 payslipProperties.getStoragePath(),
@@ -159,6 +159,7 @@ public class PayslipService {
                 "payslip",
                 String.valueOf(month.getYear()),
                 String.format("%02d", month.getMonthValue()),
+                String.valueOf(payroll.getEmployee().getId()),
                 fileName
         ).toString();
     }
@@ -300,7 +301,7 @@ public class PayslipService {
             return filePath;
         } catch (Exception e) {
             log.error("[PayslipService] PDF 생성/저장 실패 - path: {}", filePath, e);
-            throw new RuntimeException("급여명세서 PDF 생성 실패", e);
+            throw new BusinessException(ErrorCode.PAYSLIP_GENERATION_FAILED);
         }
     }
 

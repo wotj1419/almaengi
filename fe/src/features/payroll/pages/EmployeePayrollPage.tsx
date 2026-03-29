@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { FileText } from 'lucide-react';
 import stampPaid from '@/assets/images/stamp-paid.png';
 import DetailHeader from '@/components/layout/DetailHeader';
@@ -8,7 +9,6 @@ import MonthNavigator from '../components/MonthNavigator';
 import useAuthStore from '@/stores/useAuthStore';
 import { useMyPayroll } from '../hooks/usePayrollQueries';
 import { ROUTES } from '@/constants/routes';
-import { mockMyPayroll } from '../data/mockPayroll';
 
 function formatAmount(amount: number): string {
   return amount.toLocaleString('ko-KR') + '원';
@@ -69,7 +69,7 @@ export default function EmployeePayrollPage() {
     isLoading,
     error,
   } = useMyPayroll(activeStoreId, targetMonth);
-  const payroll = apiPayroll?.payrollId ? apiPayroll : mockMyPayroll;
+  const payroll = apiPayroll ?? null;
 
   const groupedDetails = useMemo(() => {
     const details = payroll?.details;
@@ -169,10 +169,10 @@ export default function EmployeePayrollPage() {
     payroll.overtimeMinutes
   );
 
-  // 지급일 D-Day (하드코딩: 다음달 21일)
+  // 지급 완료: BE isTransferred 기반, 날짜는 D-Day 표시용
+  const isPaid = payroll.isTransferred;
   const PAY_DAY = 21;
   const payDate = new Date(year, month, PAY_DAY);
-  const isPaid = today >= payDate;
   const dDay = Math.ceil(
     (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -194,7 +194,9 @@ export default function EmployeePayrollPage() {
             }}
           />
           <span className="text-[length:var(--text-xs)] font-semibold text-[color:var(--color-text-sub)] whitespace-nowrap">
-            {isPaid ? `${payDateLabel} 지급 완료` : `${payDateLabel} 지급 예정`}
+            {isPaid
+              ? `${payroll.transferredAt ? dayjs(payroll.transferredAt).format('M월 D일') : payDateLabel} 지급 완료`
+              : `${payDateLabel} 지급 예정`}
           </span>
         </div>
 
@@ -274,6 +276,7 @@ export default function EmployeePayrollPage() {
                   {
                     state: {
                       targetMonth,
+                      from: 'payroll',
                     },
                   }
                 );
