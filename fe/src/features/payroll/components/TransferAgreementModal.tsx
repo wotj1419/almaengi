@@ -97,8 +97,12 @@ export default function TransferAgreementModal({
             <li className="flex gap-[var(--space-1)]">
               <span className="shrink-0">•</span>
               <span>
-                이체 후 취소가 불가하며, 잔액 부족 시 이체가 실패할 수 있습니다.
+                잔액 부족 또는 급여명세서 미승인 시 이체가 실패할 수 있습니다.
               </span>
+            </li>
+            <li className="flex gap-[var(--space-1)]">
+              <span className="shrink-0">•</span>
+              <span>이체 후 취소가 불가합니다.</span>
             </li>
             {isAuto ? (
               <>
@@ -108,7 +112,7 @@ export default function TransferAgreementModal({
                 </li>
                 <li className="flex gap-[var(--space-1)]">
                   <span className="shrink-0">•</span>
-                  <span>예약 이체는 설정에서 언제든지 해제할 수 있습니다.</span>
+                  <span>예약 이체는 언제든지 해제할 수 있습니다.</span>
                 </li>
                 <li className="flex gap-[var(--space-1)]">
                   <span className="shrink-0">•</span>

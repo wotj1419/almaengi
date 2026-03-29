@@ -29,6 +29,12 @@ public class PayrollResponseDto {
         @Schema(description = "승인 여부")
         private Boolean isApproved;
 
+        @Schema(description = "이체 완료 여부")
+        private Boolean isTransferred;
+
+        @Schema(description = "이체 완료 일시")
+        private String transferredAt;
+
         @Schema(description = "총 근무 시간(분)")
         private Integer totalWorkMinutes;
 
@@ -56,6 +62,8 @@ public class PayrollResponseDto {
                     .targetMonth(payroll.getTargetMonth().toString().substring(0, 7))
                     .isEstimated(isEstimated)
                     .isApproved(payroll.getIsApproved())
+                    .isTransferred(payroll.getIsTransferred())
+                    .transferredAt(payroll.getTransferredAt() != null ? payroll.getTransferredAt().toLocalDate().toString() : null)
                     .totalWorkMinutes(payroll.getTotalWorkMinutes())
                     .nightWorkMinutes(payroll.getNightWorkMinutes())
                     .basicPay(payroll.getBasicPay())
@@ -144,6 +152,12 @@ public class PayrollResponseDto {
         @Schema(description = "승인 여부")
         private Boolean isApproved;
 
+        @Schema(description = "이체 완료 여부")
+        private Boolean isTransferred;
+
+        @Schema(description = "이체 완료 일시")
+        private String transferredAt;
+
         public static EmployeePayrollSummary from(Payroll payroll) {
             return EmployeePayrollSummary.builder()
                     .payrollId(payroll.getId())
@@ -156,6 +170,8 @@ public class PayrollResponseDto {
                     .totalDeduction(payroll.getTotalDeduction())
                     .netPay(payroll.getNetPay())
                     .isApproved(payroll.getIsApproved())
+                    .isTransferred(payroll.getIsTransferred())
+                    .transferredAt(payroll.getTransferredAt() != null ? payroll.getTransferredAt().toLocalDate().toString() : null)
                     .build();
         }
     }

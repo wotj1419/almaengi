@@ -155,7 +155,8 @@ class PayslipServiceTest {
             assertThat(path).contains("payslip");
             assertThat(path).contains("2026");
             assertThat(path).contains("02");
-            assertThat(path).endsWith("최진서_10.pdf");
+            assertThat(path).contains("10"); // employeeId 폴더
+            assertThat(path).endsWith("최진서_2026-02_급여명세서.pdf");
         }
     }
 
