@@ -48,4 +48,13 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
      */
     @Query("SELECT s FROM Store s JOIN FETCH s.owner WHERE s.isClosed = false")
     List<Store> findAllActiveWithOwner();
+
+    /**
+     * 매장을 owner와 함께 단건 조회합니다.
+     * JOIN FETCH로 owner를 즉시 로딩하여 트랜잭션 외부에서도
+     * owner 필드 접근 시 LazyInitializationException을 방지합니다.
+     * (예: 수동 급여 이체 API에서 owner.getEmail() 접근)
+     */
+    @Query("SELECT s FROM Store s JOIN FETCH s.owner WHERE s.id = :storeId")
+    Optional<Store> findByIdWithOwner(@Param("storeId") Long storeId);
 }

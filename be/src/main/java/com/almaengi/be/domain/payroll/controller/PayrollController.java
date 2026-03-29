@@ -130,7 +130,8 @@ public class PayrollController implements PayrollControllerDocs {
             @RequestParam String targetMonth) {
 
         LocalDate month = parseTargetMonth(targetMonth);
-        Store store = storeRepository.findById(storeId)
+        // owner를 JOIN FETCH하여 이체 시 owner.getEmail() 접근 시 LazyInitializationException 방지
+        Store store = storeRepository.findByIdWithOwner(storeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STORE_NOT_FOUND));
 
         if (!store.getOwner().getId().equals(userId)) {
