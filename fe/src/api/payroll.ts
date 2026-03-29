@@ -11,6 +11,79 @@ export interface PayrollSummary {
   employeeCount: number;
 }
 
+export interface StorePayrollEmployeeSummary {
+  payrollId: number;
+  employeeId: number;
+  employeeName: string;
+  position: string | null;
+  totalWorkMinutes: number;
+  basicPay: number;
+  totalAllowance: number;
+  totalDeduction: number;
+  netPay: number;
+  isApproved: boolean;
+}
+
+export interface StorePayrollSummaryResponse {
+  targetMonth: string;
+  totalLaborCost: number;
+  totalGrossPay: number;
+  totalDeduction: number;
+  employeeCount: number;
+  employees: StorePayrollEmployeeSummary[];
+}
+
+export interface PayrollDetailItemResponse {
+  detailId: number;
+  detailType: 'BASE' | 'ALLOWANCE' | 'DEDUCTION' | 'OTHER';
+  itemName: string;
+  amount: number;
+  calculationFormula: string | null;
+  workMinutes: number | null;
+}
+
+export interface PayrollDetailViewResponse {
+  payrollId: number;
+  employeeName: string;
+  targetMonth: string;
+  totalWorkMinutes: number;
+  nightWorkMinutes: number;
+  basicPay: number;
+  totalAllowance: number;
+  totalDeduction: number;
+  netPay: number;
+  isApproved: boolean;
+  baseItems: PayrollDetailItemResponse[];
+  allowanceItems: PayrollDetailItemResponse[];
+  deductionItems: PayrollDetailItemResponse[];
+}
+
+export interface PayslipPdfResult {
+  blob: Blob;
+  fileName: string;
+}
+
+function parseFileNameFromContentDisposition(
+  contentDisposition: string | undefined,
+  fallback: string
+) {
+  if (!contentDisposition) return fallback;
+
+  const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1]);
+    } catch {
+      return encodedMatch[1];
+    }
+  }
+
+  const plainMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  if (plainMatch?.[1]) return plainMatch[1];
+
+  return fallback;
+}
+
 export async function getPayrollSummary(
   storeId: number
 ): Promise<PayrollSummary> {
@@ -20,6 +93,52 @@ export async function getPayrollSummary(
     { params: { targetMonth } }
   );
   return data.data;
+}
+
+export async function getStorePayrolls(
+  storeId: number,
+  targetMonth: string
+): Promise<StorePayrollSummaryResponse> {
+  const { data } = await instance.get<ApiResponse<StorePayrollSummaryResponse>>(
+    `/api/v1/stores/${storeId}/payrolls`,
+    { params: { targetMonth } }
+  );
+  return data.data;
+}
+
+export async function getPayrollDetail(
+  storeId: number,
+  payrollId: number
+): Promise<PayrollDetailViewResponse> {
+  const { data } = await instance.get<ApiResponse<PayrollDetailViewResponse>>(
+    `/api/v1/stores/${storeId}/payrolls/${payrollId}`
+  );
+  return data.data;
+}
+
+export async function getPayslipPdfBlob(
+  storeId: number,
+  payrollId: number,
+  download = false
+): Promise<PayslipPdfResult> {
+  const fallbackName = `payslip-${payrollId}.pdf`;
+  const response = await instance.get<Blob>(
+    `/api/v1/stores/${storeId}/payrolls/${payrollId}/payslip`,
+    {
+      params: { download },
+      responseType: 'blob',
+    }
+  );
+
+  const rawContentDisposition = response.headers['content-disposition'] as
+    | string
+    | undefined;
+  const fileName = parseFileNameFromContentDisposition(
+    rawContentDisposition,
+    fallbackName
+  );
+
+  return { blob: response.data, fileName };
 }
 
 /**

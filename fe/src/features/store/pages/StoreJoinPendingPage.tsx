@@ -1,9 +1,7 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
 import DetailHeader from '@/components/common/DetailHeader';
-import { getMyEmployeeStores } from '@/api/store';
 import { logout } from '@/api/auth';
 import useStoreStore from '@/stores/useStoreStore';
 import useAuthStore from '@/stores/useAuthStore';
@@ -11,10 +9,7 @@ import useAuthStore from '@/stores/useAuthStore';
 export default function StoreJoinPendingPage() {
   const navigate = useNavigate();
   const setStores = useStoreStore((s) => s.setStores);
-  const setActiveStoreId = useAuthStore((s) => s.setActiveStoreId);
   const authLogout = useAuthStore((s) => s.logout);
-
-  const [isChecking, setIsChecking] = useState(false);
 
   const handleBackToLogin = useCallback(async () => {
     try {
@@ -28,35 +23,6 @@ export default function StoreJoinPendingPage() {
       navigate(ROUTES.LOGIN, { replace: true });
     }
   }, [authLogout, setStores, navigate]);
-
-  const handleCheckApprovalStatus = async () => {
-    if (isChecking) return;
-
-    setIsChecking(true);
-    try {
-      const stores = await getMyEmployeeStores();
-
-      if (stores.length > 0) {
-        localStorage.removeItem('pendingJoin');
-        setStores(stores);
-
-        const nextActiveId =
-          stores.length === 1
-            ? stores[0].storeId
-            : Math.min(...stores.map((s) => s.storeId));
-        setActiveStoreId(nextActiveId);
-
-        toast.success('승인되었어요. 홈으로 이동합니다.');
-        navigate(ROUTES.HOME, { replace: true });
-      } else {
-        toast('아직 승인되지 않았어요. 잠시 후 다시 확인해주세요.');
-      }
-    } catch {
-      toast.error('승인 상태 확인 중 오류가 발생했어요.');
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   const handleRetryCode = () => {
     localStorage.removeItem('pendingJoin');
@@ -119,29 +85,15 @@ export default function StoreJoinPendingPage() {
           <div className="flex flex-col gap-[var(--space-3)]">
             <button
               type="button"
-              onClick={() => void handleCheckApprovalStatus()}
-              disabled={isChecking}
-              className={`w-full h-14 rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] text-[length:var(--text-md2)] font-bold transition-colors ${
-                isChecking
-                  ? 'bg-[var(--color-bg-surface)] text-[var(--color-text-placeholder)] cursor-not-allowed'
-                  : 'bg-[var(--color-primary)] text-[var(--color-text-primary)] cursor-pointer'
-              }`}
-            >
-              {isChecking ? '확인 중...' : '승인 상태 확인'}
-            </button>
-            <button
-              type="button"
               onClick={() => void handleRetryCode()}
-              disabled={isChecking}
-              className="w-full h-14 rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] text-[length:var(--text-md2)] font-bold text-[var(--color-primary)] bg-[var(--color-bg-white)] border border-[var(--color-primary)] transition-colors hover:bg-[var(--color-bg-base)] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-14 rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] text-[length:var(--text-md2)] font-bold text-[var(--color-primary)] bg-[var(--color-bg-white)] border border-[var(--color-primary)] transition-colors hover:bg-[var(--color-bg-base)]"
             >
               코드 다시 입력
             </button>
             <button
               type="button"
               onClick={() => void handleLogout()}
-              disabled={isChecking}
-              className="w-full py-3 text-[length:var(--text-md)] font-medium text-[var(--color-text-placeholder)] transition-colors hover:text-[var(--color-text-secondary)] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-3 text-[length:var(--text-md)] font-medium text-[var(--color-text-placeholder)] transition-colors hover:text-[var(--color-text-secondary)]"
             >
               로그아웃
             </button>
