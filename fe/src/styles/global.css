@@ -284,6 +284,22 @@ body {
   animation: slide-up 0.3s ease-out;
 }
 
+/* 위에서 아래로 슬라이드 인 */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
 /* 스크롤바 숨김 (WebKit) */
 .overflow-y-auto::-webkit-scrollbar {
   display: none;

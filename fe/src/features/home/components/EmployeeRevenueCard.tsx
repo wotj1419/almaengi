@@ -4,18 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import imgCharacter from '@/assets/images/character.png';
 import useStoreStore from '@/stores/useStoreStore';
-import { fetchMyPayroll } from '@/api/payroll';
+import { fetchMyPayroll, getPayDay } from '@/api/payroll';
 import type { MyPayrollData } from '@/features/payroll/types';
 
 export default function EmployeeRevenueCard() {
   const navigate = useNavigate();
   const currentStore = useStoreStore((s) => s.currentStore);
   const [payroll, setPayroll] = useState<MyPayrollData | null>(null);
+  const [payDay, setPayDay] = useState<number | null>(null);
 
   useEffect(() => {
     if (!currentStore) return;
     fetchMyPayroll(currentStore.storeId)
       .then(setPayroll)
+      .catch(() => {});
+    getPayDay(currentStore.storeId)
+      .then(setPayDay)
       .catch(() => {});
   }, [currentStore]);
 
@@ -28,18 +32,18 @@ export default function EmployeeRevenueCard() {
 
   const totalAmount = payroll ? payroll.netPay.toLocaleString() : '-';
 
-  // D-Day 계산 (하드코딩: 급여일 25일)
-  const PAY_DAY = 25;
+  // D-Day 계산 (BE API에서 급여일 조회)
+  const effectivePayDay = payDay ?? 25;
   const today = new Date();
   const thisMonthPayDate = new Date(
     today.getFullYear(),
     today.getMonth(),
-    PAY_DAY
+    effectivePayDay
   );
   const nextMonthPayDate = new Date(
     today.getFullYear(),
     today.getMonth() + 1,
-    PAY_DAY
+    effectivePayDay
   );
   const payDate =
     today <= thisMonthPayDate ? thisMonthPayDate : nextMonthPayDate;

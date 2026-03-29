@@ -1,4 +1,10 @@
-import { FileText, BarChart2, Pin, RefreshCw } from 'lucide-react';
+import {
+  FileText,
+  BarChart2,
+  MessageCircle,
+  Pin,
+  RefreshCw,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ActionCardProps {
@@ -6,7 +12,7 @@ interface ActionCardProps {
   bgColor: string;
   textColor?: string;
   iconColor: string;
-  icon: 'todo' | 'schedule' | 'board' | 'clock';
+  icon: 'todo' | 'schedule' | 'board' | 'clock' | 'chat';
   showNewBadge?: boolean;
   path: string;
   state?: Record<string, string>;
@@ -33,6 +39,8 @@ export default function ActionCard({
         return <Pin size={24} color={iconColor} strokeWidth={2} />;
       case 'clock':
         return <RefreshCw size={24} color={iconColor} strokeWidth={2} />;
+      case 'chat':
+        return <MessageCircle size={24} color={iconColor} strokeWidth={2} />;
     }
   };
 
