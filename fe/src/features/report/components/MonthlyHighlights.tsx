@@ -1,6 +1,5 @@
 import { Banknote, BadgeCheck, AlarmClockOff } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { mockMonthlyHighlights } from '../data/mockReport';
 import type { MonthlyHighlightItem } from '../types';
 
 const ICON_MAP: Record<
@@ -12,7 +11,11 @@ const ICON_MAP: Record<
   late: (color) => <AlarmClockOff size={22} color={color} strokeWidth={2} />,
 };
 
-export default function MonthlyHighlights() {
+interface Props {
+  highlights: MonthlyHighlightItem[];
+}
+
+export default function MonthlyHighlights({ highlights }: Props) {
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-6)]">
       <p className="text-[length:var(--text-ml)] text-[color:var(--color-text-primary)] font-bold mb-[var(--space-5)]">
@@ -20,7 +23,7 @@ export default function MonthlyHighlights() {
       </p>
 
       <div className="flex gap-[var(--space-3)]">
-        {mockMonthlyHighlights.map((item) => (
+        {highlights.map((item) => (
           <div
             key={item.id}
             className="flex-1 flex flex-col gap-[var(--space-3)] rounded-[var(--radius-highlight)] px-[var(--space-4)] py-[var(--space-4)]"

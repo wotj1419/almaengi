@@ -7,11 +7,32 @@ import type {
 
 export interface PayrollSummary {
   targetMonth: string;
+  isPartialMonth: boolean;
+  thisMonthStart: string;
+  thisMonthEnd: string;
+  lastMonthStart: string;
+  lastMonthEnd: string;
   thisMonthTotal: number;
   lastMonthTotal: number;
-  changeRate: number;
+  changeRate: number | null;
   changeDirection: string;
+  thisMonthBasicPay: number;
+  lastMonthBasicPay: number;
+  thisMonthWeeklyHolidayPay: number;
+  lastMonthWeeklyHolidayPay: number;
+  thisMonthOvertimePay: number;
+  lastMonthOvertimePay: number;
+  thisMonthNightPay: number;
+  lastMonthNightPay: number;
   employeeCount: number;
+  employees: PayrollSummaryEmployee[];
+  topEarners: PayrollSummaryEmployee[];
+}
+
+export interface PayrollSummaryEmployee {
+  employeeId: number;
+  employeeName: string;
+  netPay: number;
 }
 
 export interface StorePayrollEmployeeSummary {
@@ -88,13 +109,17 @@ function parseFileNameFromContentDisposition(
 }
 
 export async function getPayrollSummary(
-  storeId: number
+  storeId: number,
+  targetMonth?: string
 ): Promise<PayrollSummary> {
-  const targetMonth = new Date().toISOString().slice(0, 7); // "2026-03"
+  const resolvedTargetMonth =
+    targetMonth ?? new Date().toISOString().slice(0, 7); // "2026-03"
+
   const { data } = await instance.get<ApiResponse<PayrollSummary>>(
     `/api/v1/stores/${storeId}/payrolls/summary`,
-    { params: { targetMonth } }
+    { params: { targetMonth: resolvedTargetMonth } }
   );
+
   return data.data;
 }
 

@@ -209,7 +209,16 @@ export default function AppRouter() {
       <Route path={ROUTES.ATTENDANCE} element={<AttendancePage />} />
       <Route path={ROUTES.ATTENDANCE_CHECK} element={<AttendanceCheckPage />} />
       <Route path={ROUTES.CHATBOT} element={<ChatbotPage />} />
-      <Route path={ROUTES.REPORT} element={<ReportPage />} />
+      <Route
+        path={ROUTES.REPORT}
+        element={
+          role === 'OWNER' ? (
+            <ReportPage />
+          ) : (
+            <Navigate replace to={ROUTES.PAYROLL} />
+          )
+        }
+      />
       <Route path={ROUTES.NOTIFICATION} element={<NotificationPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

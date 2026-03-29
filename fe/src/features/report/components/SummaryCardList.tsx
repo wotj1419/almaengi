@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { mockSummaryCards } from '../data/mockReport';
+import type { SummaryCard as SummaryCardType } from '../types';
 import SummaryCard from './SummaryCard';
 
-export default function SummaryCardList() {
+interface Props {
+  cards: SummaryCardType[];
+}
+
+export default function SummaryCardList({ cards }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export default function SummaryCardList() {
       ref={ref}
       className="flex gap-[var(--space-3)] overflow-x-auto scrollbar-hide px-[var(--space-5)] pt-[var(--space-6)] pb-[var(--space-2)]"
     >
-      {mockSummaryCards.map((card) => (
+      {cards.map((card) => (
         <SummaryCard key={card.id} card={card} />
       ))}
     </div>

@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   AuctionDto,
   AuctionDetailDto,
+  AuctionInsightsReportDto,
   BidAuctionRequest,
   CloseAuctionRequest,
   CloseAuctionResponse,
@@ -73,6 +74,26 @@ export const closeAuction = async (
   const { data } = await instance.post<ApiResponse<CloseAuctionResponse>>(
     `/api/v1/auctions/${auctionId}/close`,
     body
+  );
+
+  return data.data;
+};
+
+export const fetchAuctionInsightsReport = async (
+  storeId: number,
+  yearMonth: string,
+  page = 0,
+  size = 6
+) => {
+  const { data } = await instance.get<ApiResponse<AuctionInsightsReportDto>>(
+    `/api/v1/auctions/store/${storeId}/insights-report`,
+    {
+      params: {
+        yearMonth,
+        page,
+        size,
+      },
+    }
   );
 
   return data.data;

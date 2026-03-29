@@ -1,6 +1,10 @@
-import { mockPeakTimes } from '../data/mockReport';
+import type { PeakTimeItem } from '../types';
 
-export default function PeakTimeCard() {
+interface Props {
+  peakTimes: PeakTimeItem[];
+}
+
+export default function PeakTimeCard({ peakTimes }: Props) {
   return (
     <div className="bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)]">
       <div className="flex items-center justify-between px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-4)]">
@@ -13,7 +17,7 @@ export default function PeakTimeCard() {
       </div>
 
       <div className="flex flex-col gap-[var(--space-3)] px-[var(--space-5)] pb-[var(--space-5)]">
-        {mockPeakTimes.map((item) => (
+        {peakTimes.map((item) => (
           <div
             key={item.id}
             className="flex items-stretch rounded-[var(--radius-2xl)] bg-[var(--color-bg-white)] overflow-hidden"

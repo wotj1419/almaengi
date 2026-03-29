@@ -59,3 +59,38 @@ export async function getDashboardDetail(storeId: number, status: string) {
   );
   return data.data;
 }
+
+export interface MonthlyAttendanceEmployeeSummary {
+  employeeId: number;
+  employeeName: string;
+  attendanceCount: number;
+  lateCount: number;
+  absentCount: number;
+  totalWorkMinutes: number;
+}
+
+export interface MonthlyAttendanceEmployeeInfo {
+  employeeId: number;
+  employeeName: string;
+}
+
+export interface MonthlyAttendanceReport {
+  targetMonth: string;
+  employees: MonthlyAttendanceEmployeeSummary[];
+  diligentEmployees: MonthlyAttendanceEmployeeInfo[];
+  lateChampions: MonthlyAttendanceEmployeeInfo[];
+}
+
+export async function getMonthlyAttendanceReport(
+  storeId: number,
+  targetMonth: string
+) {
+  const { data } = await instance.get<ApiResponse<MonthlyAttendanceReport>>(
+    `/api/v1/attendances/report/${storeId}`,
+    {
+      params: { targetMonth },
+    }
+  );
+
+  return data.data;
+}
