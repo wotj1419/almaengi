@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut } from 'lucide-react';
 import StatusBadge from './StatusBadge';
@@ -7,26 +7,28 @@ import EmployeeWorkStatus, {
 } from './EmployeeWorkStatus';
 import { ROUTES } from '@/constants/routes';
 import { ATTENDANCE_STORAGE_KEY } from '@/features/attendance/pages/AttendanceCheckPage';
+import { getMyTodayAttendance } from '@/api/attendance';
+import useStoreStore from '@/stores/useStoreStore';
 
-function getStoredAttendance(): {
+interface StoredAttendance {
   status: AttendanceStatus;
   clockInTime: Date | null;
   scheduledEndTime: string | null;
-} {
+}
+
+function getStoredAttendance(): StoredAttendance | null {
   try {
     const stored = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
-    if (!stored)
-      return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+    if (!stored) return null;
     const { status, date, clockInTime, scheduledEndTime } = JSON.parse(stored);
-    if (date !== new Date().toDateString())
-      return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+    if (date !== new Date().toDateString()) return null;
     return {
       status: (status as AttendanceStatus) ?? 'WAITING',
       clockInTime: clockInTime ? new Date(clockInTime) : null,
       scheduledEndTime: scheduledEndTime ?? null,
     };
   } catch {
-    return { status: 'WAITING', clockInTime: null, scheduledEndTime: null };
+    return null;
   }
 }
 
@@ -42,10 +44,30 @@ const buttonConfig: Record<
 };
 
 export default function EmployeeWorkStatusCard() {
+  const currentStore = useStoreStore((s) => s.currentStore);
   const stored = getStoredAttendance();
-  const [attendanceStatus] = useState<AttendanceStatus>(stored.status);
-  const [clockInTime] = useState<Date | null>(stored.clockInTime);
-  const [scheduledEndTime] = useState<string | null>(stored.scheduledEndTime);
+  const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>(
+    stored?.status ?? 'WAITING'
+  );
+  const clockInTime = stored?.clockInTime ?? null;
+  const [scheduledEndTime, setScheduledEndTime] = useState<string | null>(
+    stored?.scheduledEndTime ?? null
+  );
+
+  // localStorage에 없을 때만 API 폴백
+  useEffect(() => {
+    if (getStoredAttendance()) return;
+    if (!currentStore) return;
+    getMyTodayAttendance(currentStore.storeId)
+      .then((res) => {
+        const status: AttendanceStatus = res.currentStatus
+          ? (res.currentStatus as AttendanceStatus)
+          : 'WAITING';
+        setAttendanceStatus(status);
+        setScheduledEndTime(res.scheduledEndTime ?? null);
+      })
+      .catch(() => {});
+  }, [currentStore]);
 
   const navigate = useNavigate();
 

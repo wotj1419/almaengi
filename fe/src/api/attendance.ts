@@ -46,6 +46,21 @@ export interface DashboardDetail {
   employees: DashboardEmployee[];
 }
 
+export interface MyTodayAttendance {
+  currentStatus: string | null; // WAITING | WORKING | LATE | ABSENT | null
+  scheduledEndTime: string | null; // "HH:mm:ss"
+}
+
+export async function getMyTodayAttendance(
+  storeId: number
+): Promise<MyTodayAttendance> {
+  const { data } = await instance.get<ApiResponse<MyTodayAttendance>>(
+    '/api/v1/attendances/me/today',
+    { params: { storeId } }
+  );
+  return data.data;
+}
+
 export async function getDashboardSummary(storeId: number) {
   const { data } = await instance.get<ApiResponse<DashboardSummary>>(
     `/api/v1/attendances/dashboard/${storeId}`
