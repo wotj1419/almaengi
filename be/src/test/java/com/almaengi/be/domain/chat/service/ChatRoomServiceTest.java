@@ -114,6 +114,7 @@ class ChatRoomServiceTest {
 
             assertThat(response.getRoomId()).isEqualTo(100L);
             assertThat(response.getRoomType()).isEqualTo(ChatRoomType.DM);
+            assertThat(response.getName()).isEqualTo("직원과의 채팅방");
             verify(chatRoomRepository, times(1)).save(any(ChatRoom.class));
             verify(chatRoomMemberRepository, times(2)).save(any(ChatRoomMember.class));
             verify(chatDirectPairRepository, times(1)).save(any(ChatDirectPair.class));
@@ -159,6 +160,7 @@ class ChatRoomServiceTest {
             ChatRoomResponseDto.RoomDetail response = chatRoomService.createOrGetDirectRoom(requesterId, storeId, request);
 
             assertThat(response.getRoomId()).isEqualTo(101L);
+            assertThat(response.getName()).isEqualTo("직원과의 채팅방");
             verify(chatRoomRepository, never()).save(any(ChatRoom.class));
             verify(chatRoomMemberRepository, never()).save(any(ChatRoomMember.class));
             verify(chatDirectPairRepository, never()).save(any(ChatDirectPair.class));
@@ -597,6 +599,46 @@ class ChatRoomServiceTest {
         }
 
         @Test
+        @DisplayName("방 목록 조회 성공: DM 방 이름은 상대방 이름 기반으로 반환")
+        void getRooms_resolvesDmRoomNameByRequester() {
+            Long storeId = 1L;
+            Long requesterId = 10L;
+            Long targetId = 11L;
+
+            User owner = user(requesterId, "사장");
+            User target = user(targetId, "김알바");
+            Store store = store(storeId, owner);
+            ChatRoom dmRoom = chatRoom(170L, store, owner, ChatRoomType.DM, null, 0);
+
+            ChatRoomMember ownerMembership = ChatRoomMember.builder()
+                    .room(dmRoom)
+                    .user(owner)
+                    .memberRole(ChatMemberRole.OWNER)
+                    .build();
+
+            ChatRoomMember targetMember = ChatRoomMember.builder()
+                    .room(dmRoom)
+                    .user(target)
+                    .memberRole(ChatMemberRole.MEMBER)
+                    .build();
+
+            given(storeRepository.findByIdAndIsClosedFalse(storeId)).willReturn(Optional.of(store));
+            given(chatRoomMemberRepository.findActiveMembersWithRoomByUserIdAndStoreId(requesterId, storeId))
+                    .willReturn(List.of(ownerMembership));
+            given(chatMessageRepository.findTopByRoomIdOrderByIdDesc(170L))
+                    .willReturn(Optional.empty());
+            given(chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(170L))
+                    .willReturn(List.of(ownerMembership, targetMember));
+            given(chatMessageRepository.countByRoomId(170L)).willReturn(0L);
+
+            List<ChatRoomResponseDto.RoomSummary> result = chatRoomService.getRooms(requesterId, storeId);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getRoomType()).isEqualTo(ChatRoomType.DM);
+            assertThat(result.get(0).getName()).isEqualTo("김알바과의 채팅방");
+        }
+
+        @Test
         @DisplayName("방 상세 조회 실패: 활성 멤버가 아니면 CHAT_MEMBER_NOT_ACTIVE")
         void getRoom_failWhenRequesterNotActiveMember() {
             Long roomId = 150L;
@@ -608,6 +650,41 @@ class ChatRoomServiceTest {
                     () -> chatRoomService.getRoom(requesterId, roomId));
 
             assertThat(e.getErrorCode()).isEqualTo(ErrorCode.CHAT_MEMBER_NOT_ACTIVE);
+        }
+
+        @Test
+        @DisplayName("방 상세 조회 성공: DM 방 이름은 상대방 이름 기반으로 반환")
+        void getRoom_successWithResolvedDmName() {
+            Long roomId = 152L;
+            Long requesterId = 10L;
+            Long targetId = 11L;
+
+            User requester = user(requesterId, "사장");
+            User target = user(targetId, "민지");
+            Store store = store(1L, requester);
+            ChatRoom room = chatRoom(roomId, store, requester, ChatRoomType.DM, null, 0);
+
+            ChatRoomMember requesterMember = ChatRoomMember.builder()
+                    .room(room)
+                    .user(requester)
+                    .memberRole(ChatMemberRole.OWNER)
+                    .build();
+            ChatRoomMember targetMember = ChatRoomMember.builder()
+                    .room(room)
+                    .user(target)
+                    .memberRole(ChatMemberRole.MEMBER)
+                    .build();
+
+            given(chatRoomMemberRepository.existsByRoomIdAndUserIdAndLeftAtIsNull(roomId, requesterId)).willReturn(true);
+            given(chatRoomRepository.findById(roomId)).willReturn(Optional.of(room));
+            given(chatRoomMemberRepository.findByRoomIdAndLeftAtIsNull(roomId))
+                    .willReturn(List.of(requesterMember, targetMember));
+
+            ChatRoomResponseDto.RoomDetail response = chatRoomService.getRoom(requesterId, roomId);
+
+            assertThat(response.getRoomId()).isEqualTo(roomId);
+            assertThat(response.getRoomType()).isEqualTo(ChatRoomType.DM);
+            assertThat(response.getName()).isEqualTo("민지과의 채팅방");
         }
 
         @Test
