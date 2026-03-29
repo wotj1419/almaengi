@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -255,6 +256,17 @@ public class AttendanceService {
         List<Attendance> attendances = attendanceRepository
                 .findByStoreIdAndTargetDateWithUser(storeId, date);
 
+        // 1. 상태별 인원수 카운트 (Map 형태로 추출)
+        Map<AttendanceStatus, Long> statusCounts = attendances.stream()
+                .filter(a -> a.getStatus() != null)
+                .collect(Collectors.groupingBy(Attendance::getStatus, Collectors.counting()));
+
+        long workingCount = statusCounts.getOrDefault(AttendanceStatus.WORKING, 0L);
+        long lateCount = statusCounts.getOrDefault(AttendanceStatus.LATE, 0L);
+        long absentCount = statusCounts.getOrDefault(AttendanceStatus.ABSENT, 0L);
+        long allCount = workingCount + lateCount + absentCount; // 전체 인원수는 리스트의 사이즈
+
+        // 2. DTO 매핑 로직 (기존과 동일)
         List<AttendanceLogResponseDto.AttendanceLogDto> logs = attendances.stream()
                 .map(a -> AttendanceLogResponseDto.AttendanceLogDto.builder()
                         .employeeId(a.getEmployee().getId())
@@ -270,6 +282,10 @@ public class AttendanceService {
 
         return AttendanceLogResponseDto.builder()
                 .storeId(storeId)
+                .all(allCount)
+                .working(workingCount)
+                .late(lateCount)
+                .absent(absentCount)
                 .date(date)
                 .attendances(logs)
                 .build();

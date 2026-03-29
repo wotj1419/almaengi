@@ -35,6 +35,14 @@ interface ChatStore {
   markAsRead: (roomId: number) => Promise<void>;
 }
 
+const appendUniqueMessage = (
+  prev: MessageItem[],
+  incoming: MessageItem
+): MessageItem[] => {
+  const exists = prev.some((m) => m.messageId === incoming.messageId);
+  return exists ? prev : [...prev, incoming];
+};
+
 export const useChatStore = create<ChatStore>()((set, get) => ({
   rooms: [],
   messages: {},
@@ -84,18 +92,33 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }));
   },
 
+  // sendMessage: async (roomId, content) => {
+  //   const sent = await chatApi.sendMessage(roomId, {
+  //     messageType: 'TEXT',
+  //     content,
+  //   });
+  //   // BE 응답(저장된 메시지)을 store에 추가
+  //   set((state) => ({
+  //     messages: {
+  //       ...state.messages,
+  //       [roomId]: [...(state.messages[roomId] ?? []), sent],
+  //     },
+  //   }));
   sendMessage: async (roomId, content) => {
     const sent = await chatApi.sendMessage(roomId, {
       messageType: 'TEXT',
       content,
     });
-    // BE 응답(저장된 메시지)을 store에 추가
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [roomId]: [...(state.messages[roomId] ?? []), sent],
-      },
-    }));
+    // REST 응답이 WS 수신보다 늦게 들어오는 경우를 포함해 messageId 기준 중복 방지
+    set((state) => {
+      const prev = state.messages[roomId] ?? [];
+      return {
+        messages: {
+          ...state.messages,
+          [roomId]: appendUniqueMessage(prev, sent),
+        },
+      };
+    });
     // 내가 보낸 메시지도 읽음 처리 (채팅 목록 unreadCount 배지 방지)
     chatApi
       .markAsRead(roomId, { lastReadMessageId: sent.messageId })
@@ -181,13 +204,24 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     return room.roomId;
   },
 
+  // receiveMessage: (roomId, message) => {
+  //   set((state) => ({
+  //     messages: {
+  //       ...state.messages,
+  //       [roomId]: [...(state.messages[roomId] ?? []), message],
+  //     },
+  //   }));
+  // },
   receiveMessage: (roomId, message) => {
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [roomId]: [...(state.messages[roomId] ?? []), message],
-      },
-    }));
+    set((state) => {
+      const prev = state.messages[roomId] ?? [];
+      return {
+        messages: {
+          ...state.messages,
+          [roomId]: appendUniqueMessage(prev, message),
+        },
+      };
+    });
   },
 
   markAsRead: async (roomId) => {

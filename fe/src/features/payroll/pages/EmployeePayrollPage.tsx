@@ -265,12 +265,17 @@ export default function EmployeePayrollPage() {
             </button>
             <button
               onClick={() => {
-                const payslipId = `employee-payslip-${year}-${String(month).padStart(2, '0')}`;
+                if (!apiPayroll?.payrollId) return;
                 navigate(
                   ROUTES.WORKER_DOCUMENTS_PAYSLIP_DETAIL.replace(
                     ':payslipId',
-                    payslipId
-                  )
+                    String(apiPayroll.payrollId)
+                  ),
+                  {
+                    state: {
+                      targetMonth,
+                    },
+                  }
                 );
               }}
               className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-badge-green-bg)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
