@@ -144,8 +144,8 @@ export default function StoreRegisterPage() {
   };
 
   return (
-    <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
-      <div className="w-full md:max-w-[600px] min-h-screen flex flex-col bg-[var(--color-bg-base)]">
+    <div className="bg-[var(--color-bg-base)] min-h-screen">
+      <div className="w-full max-w-[var(--max-w-app)] mx-auto min-h-screen flex flex-col bg-[var(--color-bg-base)]">
         <DetailHeader
           title={
             isEditMode
@@ -232,7 +232,7 @@ export default function StoreRegisterPage() {
         </main>
 
         <div
-          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full md:max-w-[600px] bg-[var(--color-bg-base)] px-[var(--space-5)] pt-[var(--space-4)]"
+          className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[var(--max-w-app)] bg-[var(--color-bg-base)] px-[var(--space-5)] pt-[var(--space-4)]"
           style={{
             paddingBottom:
               'calc(var(--space-7) + env(safe-area-inset-bottom, 0px))',

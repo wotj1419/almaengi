@@ -104,7 +104,7 @@ export default function AuctionDetailPage() {
 
   if (!auction) {
     return (
-      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
         <div className="flex-1 flex items-center justify-center">
           <span className="text-[var(--color-text-muted)]">로딩 중...</span>
         </div>
@@ -126,7 +126,7 @@ export default function AuctionDetailPage() {
   const isInProgress = auction.status === 'IN_PROGRESS';
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader title="경매 현황" onBack={() => navigate(-1)} />
 
       <div className="px-3.5 pt-3.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-3.5">

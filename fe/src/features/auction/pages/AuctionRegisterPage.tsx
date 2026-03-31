@@ -115,7 +115,7 @@ export default function AuctionRegisterPage() {
   };
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader title="새 경매 등록" onBack={handleCancel} />
 
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">

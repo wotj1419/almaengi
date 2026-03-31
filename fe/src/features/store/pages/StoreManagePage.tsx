@@ -110,8 +110,8 @@ export default function StoreManagePage() {
   };
 
   return (
-    <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
-      <div className="w-full md:max-w-[600px] min-h-screen flex flex-col bg-[var(--color-bg-base)]">
+    <div className="bg-[var(--color-bg-base)] min-h-screen">
+      <div className="w-full max-w-[var(--max-w-app)] mx-auto min-h-screen flex flex-col bg-[var(--color-bg-base)]">
         <DetailHeader title="매장 관리" onBack={() => navigate(ROUTES.HOME)} />
 
         <main className="flex-1 pt-[var(--space-7)] pb-[calc(var(--height-bottom-nav)+40px+env(safe-area-inset-bottom,0px))]">

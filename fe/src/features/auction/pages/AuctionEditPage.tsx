@@ -30,7 +30,7 @@ export default function AuctionEditPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg-body)]">
+      <div className="min-h-dvh flex items-center justify-center bg-[var(--color-bg-base)]">
         <p className="text-[var(--color-text-muted)] text-lg">로딩 중..</p>
       </div>
     );
@@ -38,7 +38,7 @@ export default function AuctionEditPage() {
 
   if (!auction) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-[var(--color-bg-body)]">
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-[var(--color-bg-base)]">
         <p className="text-[var(--color-text-muted)] text-lg">
           경매를 찾을 수 없습니다.
         </p>
@@ -145,7 +145,7 @@ function AuctionEditForm({
   };
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader title="경매 수정" onBack={() => navigate(-1)} />
 
       <main className="px-[15px] pt-[20px] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[15px]">
