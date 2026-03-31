@@ -60,8 +60,8 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
-        <div className="flex flex-col items-center w-full md:max-w-[600px] relative [overflow-x:clip]">
+      <div className="bg-[var(--color-bg-base)] min-h-screen">
+        <div className="flex flex-col items-center w-full max-w-[var(--max-w-app)] mx-auto relative [overflow-x:clip]">
           {/* 배경 레이어 */}
           <div className="absolute left-0 top-0 w-full h-full min-h-[935px] pointer-events-none">
             <div className="absolute top-0 left-0 w-full h-[433px] bg-[var(--color-bg-dark)]" />

@@ -55,7 +55,7 @@ export default function AuctionResultPage() {
 
   if (isLoading && !state) {
     return (
-      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
         <div className="flex-1 flex items-center justify-center">
           <span className="text-[var(--color-text-muted)]">로딩 중...</span>
         </div>
@@ -65,7 +65,7 @@ export default function AuctionResultPage() {
 
   if (!auction) {
     return (
-      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+      <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
         <div className="flex-1 flex items-center justify-center">
           <span className="text-[var(--color-text-muted)]">
             결과 데이터를 찾을 수 없습니다.
@@ -87,7 +87,7 @@ export default function AuctionResultPage() {
     diffMs > 0 ? `${remainingHours}시간 ${remainingMinutes}분` : '마감됨';
 
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader
         title="경매 결과"
         onBack={() => navigate('/auction', { state: { tab: 'completed' } })}

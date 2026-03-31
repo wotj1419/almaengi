@@ -54,7 +54,7 @@ export default function QrManagePage() {
       className={`flex justify-center min-h-screen ${activeStoreId ? 'bg-[var(--color-action-todo)]' : 'bg-[var(--color-bg-base)]'}`}
     >
       <div
-        className={`w-full md:max-w-[600px] min-h-screen flex flex-col ${activeStoreId ? 'bg-[var(--color-action-todo)]' : 'bg-[var(--color-bg-base)]'}`}
+        className={`w-full max-w-[var(--max-w-app)] mx-auto min-h-screen flex flex-col ${activeStoreId ? 'bg-[var(--color-action-todo)]' : 'bg-[var(--color-bg-base)]'}`}
       >
         <DetailHeader
           title="출퇴근 QR 코드"

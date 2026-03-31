@@ -122,8 +122,8 @@ export default function PayrollPage() {
 
   return (
     <>
-      <div className="flex justify-center bg-[var(--color-bg-base)] min-h-screen">
-        <div className="flex flex-col items-center w-full md:max-w-[var(--max-w-app)] relative overflow-x-hidden">
+      <div className="bg-[var(--color-bg-base)] min-h-screen">
+        <div className="flex flex-col items-center w-full max-w-[var(--max-w-app)] mx-auto relative overflow-x-hidden">
           <DetailHeader title="급여" onBack={() => navigate(ROUTES.HOME)} />
           <div className="w-full px-[var(--space-5)] pt-[var(--space-4)] pb-[var(--pb-content)] flex flex-col gap-[var(--space-5)]">
             <div className="w-full bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] overflow-hidden">
