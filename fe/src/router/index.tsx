@@ -12,11 +12,9 @@ import { PayrollPage, EmployeePayrollPage } from '@/features/payroll';
 import {
   ContractDetailPage,
   ContractRequestPage,
-  DocumentsHomePage,
   EmployeeContractSignPage,
   EmployeeDocumentsPage,
   EmployeePayslipDetailPage,
-  EtcDocumentRequestPage,
   MyDocumentsPage,
   PayslipDetailPage,
 } from '@/features/documents';
@@ -82,15 +80,14 @@ export default function AppRouter() {
         path={ROUTES.PAYROLL}
         element={role === 'OWNER' ? <PayrollPage /> : <EmployeePayrollPage />}
       />
-      <Route path={ROUTES.DOCUMENTS} element={<DocumentsHomePage />} />
+      <Route
+        path={ROUTES.DOCUMENTS}
+        element={<Navigate replace to={ROUTES.DOCUMENTS_MY} />}
+      />
       <Route path={ROUTES.DOCUMENTS_MY} element={<MyDocumentsPage />} />
       <Route
         path={ROUTES.DOCUMENTS_REQUEST}
         element={<ContractRequestPage />}
-      />
-      <Route
-        path={ROUTES.DOCUMENTS_REQUEST_ETC}
-        element={<EtcDocumentRequestPage />}
       />
       <Route
         path={ROUTES.DOCUMENTS_PAYSLIP_DETAIL}
@@ -106,7 +103,7 @@ export default function AppRouter() {
           role === 'EMPLOYEE' ? (
             <EmployeeDocumentsPage />
           ) : (
-            <Navigate replace to={ROUTES.DOCUMENTS} />
+            <Navigate replace to={ROUTES.DOCUMENTS_MY} />
           )
         }
       />
@@ -116,7 +113,7 @@ export default function AppRouter() {
           role === 'EMPLOYEE' ? (
             <EmployeePayslipDetailPage />
           ) : (
-            <Navigate replace to={ROUTES.DOCUMENTS} />
+            <Navigate replace to={ROUTES.DOCUMENTS_MY} />
           )
         }
       />

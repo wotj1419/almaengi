@@ -123,7 +123,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
   return (
     <div
-      className="bg-white flex items-center justify-between rounded-t-[var(--radius-lg)] shrink-0 w-full md:max-w-[600px] fixed bottom-0 left-1/2 -translate-x-1/2 z-[var(--z-nav)] border-t border-[var(--color-border-light)] shadow-[var(--shadow-nav)]"
+      className="bg-white flex items-center justify-between rounded-t-[var(--radius-lg)] shrink-0 w-full max-w-[var(--max-w-app)] fixed bottom-0 left-1/2 -translate-x-1/2 z-[var(--z-nav)] border-t border-[var(--color-border-light)] shadow-[var(--shadow-nav)]"
       style={{
         paddingTop: '5px',
         paddingBottom: 'calc(15px + env(safe-area-inset-bottom, 0px))',

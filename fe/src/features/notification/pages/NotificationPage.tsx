@@ -41,7 +41,7 @@ export default function NotificationPage() {
     }
   };
   return (
-    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-body)]">
+    <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader title="알림" />
       <main className="px-[var(--space-5)] pt-[var(--space-6)] pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-[var(--space-4)]">
         <div className="flex items-center justify-between">

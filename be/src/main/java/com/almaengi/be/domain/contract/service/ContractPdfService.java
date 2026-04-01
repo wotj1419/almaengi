@@ -87,7 +87,7 @@ public class ContractPdfService {
         context.setVariable("employerName", owner.getName());
         context.setVariable("storeName", store.getName());
         context.setVariable("storeAddress", store.getAddress());
-        context.setVariable("storePhone", store.getPhone() != null ? store.getPhone() : "");
+        context.setVariable("storePhone", store.getPhone() != null ? store.getPhone() : (owner.getPhone() != null ? owner.getPhone() : ""));
 
         // 근로자 정보
         context.setVariable("employeeName", employee.getName());
@@ -103,6 +103,7 @@ public class ContractPdfService {
         context.setVariable("workStartTime", contract.getWorkStartTime().format(TIME_FORMATTER));
         context.setVariable("workEndTime", contract.getWorkEndTime().format(TIME_FORMATTER));
         context.setVariable("hasBreakTime", contract.getBreakStartTime() != null);
+
         context.setVariable("breakStartTime",
                 contract.getBreakStartTime() != null ? contract.getBreakStartTime().format(TIME_FORMATTER) : null);
         context.setVariable("breakEndTime",
