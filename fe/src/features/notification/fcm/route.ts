@@ -21,7 +21,7 @@ export function resolveNotificationRoute(
       return ROUTES.PAYROLL;
     case 'CHAT':
       return typeof targetId === 'number'
-        ? `/chat/rooms/${targetId}`
+        ? ROUTES.STORE_CHAT_ROOM.replace(':chatRoomId', String(targetId))
         : ROUTES.NOTIFICATION;
     default:
       return ROUTES.NOTIFICATION;

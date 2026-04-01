@@ -19,11 +19,14 @@ export function startForegroundListener(queryClient: QueryClient) {
   if (unsubscribeForegroundListener) return;
   const messaging = getFirebaseMessaging();
   unsubscribeForegroundListener = onMessage(messaging, (payload) => {
-    const title = payload.notification?.title ?? '새 알림';
-    const body = payload.notification?.body ?? '알림이 도착했습니다.';
-    // 인앱 토스트 표시
+    // data-only 우선, 혹시 남아있는 notification payload도 fallback 처리
+    const title =
+      payload.data?.title ?? payload.notification?.title ?? '새 알림';
+    const body =
+      payload.data?.body ??
+      payload.notification?.body ??
+      '알림이 도착했습니다.';
     toast.success(`${title}\n${body}`, { duration: 4000 });
-    // 알림 목록/뱃지 갱신을 위해 캐시 무효화
     queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY_PREFIX });
   });
 }

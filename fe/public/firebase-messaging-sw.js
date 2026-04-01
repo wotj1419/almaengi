@@ -27,7 +27,7 @@ function resolveRoute(type, targetId) {
     case 'SALARY':
       return '/payroll';
     case 'CHAT':
-      return targetId ? `/chat/rooms/${targetId}` : '/notification';
+      return targetId ? `/store/community/chat/${targetId}` : '/notification';
     default:
       return '/notification';
   }
@@ -35,10 +35,12 @@ function resolveRoute(type, targetId) {
 
 // 앱이 백그라운드일 때 푸시 수신
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || '새 알림';
-  const body = payload.notification?.body || '알림이 도착했습니다.';
+  // data-only 메시지 우선 사용
+  const title = payload.data?.title || payload.notification?.title || '새 알림';
+  const body = payload.data?.body || payload.notification?.body || '알림이 도착했습니다.';
   const type = payload.data?.type || '';
   const targetId = payload.data?.targetId || '';
+  // 백그라운드 표시는 SW에서 단일 책임으로 처리
   self.registration.showNotification(title, {
     body,
     icon: '/almaengi.png',
@@ -54,25 +56,33 @@ self.addEventListener('notificationclick', (event) => {
   const parsedTargetId = Number(rawTargetId);
   const targetId = Number.isNaN(parsedTargetId) ? null : parsedTargetId;
   const route = resolveRoute(type, targetId);
+  const url = new URL(route, self.location.origin).href;
   event.waitUntil(
     (async () => {
       const allClients = await clients.matchAll({
         type: 'window',
         includeUncontrolled: true,
       });
-      // 열려있는 탭이 있으면 포커스 + 이동
+      // 열려있는 탭이 있으면 우선 포커스 + 이동 시도
       for (const client of allClients) {
-        if ('focus' in client) {
-          await client.focus();
+        if (!('focus' in client)) continue;
+        await client.focus();
+        try {
           if ('navigate' in client) {
-            await client.navigate(route);
+            await client.navigate(url);
+            return;
           }
+        } catch (_) {
+          // navigate 실패 시 새 창 fallback
+        }
+        if (clients.openWindow) {
+          await clients.openWindow(url);
           return;
         }
       }
-      // 없으면 새 창
+      // 열린 탭이 없으면 새 창
       if (clients.openWindow) {
-        await clients.openWindow(route);
+        await clients.openWindow(url);
       }
     })()
   );
