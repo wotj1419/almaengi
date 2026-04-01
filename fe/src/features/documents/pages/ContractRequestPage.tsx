@@ -1,13 +1,13 @@
-﻿import dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { Calendar, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { createContract } from '@/api/contract';
+import { createContract, signByOwner } from '@/api/contract';
+import { getApiErrorMessage } from '@/api/error';
 import DatePickerModal from '@/components/common/DateSheet';
 import { ROUTES } from '@/constants/routes';
 import DocumentEmployeeSearchModal from '@/features/documents/components/DocumentEmployeeSearchModal';
-import DocumentRequestSwitchBar from '@/features/documents/components/DocumentRequestSwitchBar';
 import DocumentsPageLayout from '@/features/documents/components/DocumentsPageLayout';
 import {
   RequestPickerField,
@@ -132,14 +132,15 @@ export default function ContractRequestPage() {
         selectedEmployeeId !== null &&
         form.employeeName &&
         form.contractStartDate &&
-        form.contractEndDate &&
         form.workPlace &&
         form.workDescription &&
+        form.scheduledStartTime &&
+        form.scheduledEndTime &&
+        form.weeklyWorkDays &&
+        form.weeklyHoliday &&
         form.hourlyWage &&
+        form.payday &&
         form.writtenDate &&
-        form.businessName &&
-        form.representativeName &&
-        form.businessPhone &&
         form.ownerSignatureDataUrl &&
         employeeAddress
       ),
@@ -171,40 +172,47 @@ export default function ContractRequestPage() {
     }
 
     try {
-      await createContract(currentStore.storeId, selectedEmployeeId, {
-        contractStartDate: form.contractStartDate,
-        contractEndDate: form.contractEndDate || null,
-        workplace: form.workPlace || undefined,
-        jobDescription: form.workDescription,
-        workStartTime: form.scheduledStartTime,
-        workEndTime: form.scheduledEndTime,
-        breakStartTime: form.breakStartTime || null,
-        breakEndTime: form.breakEndTime || null,
-        workDaysPerWeek: parseInt(form.weeklyWorkDays, 10),
-        weeklyHoliday: form.weeklyHoliday,
-        wageType: 'HOURLY',
-        wageAmount: parseInt(form.hourlyWage, 10),
-        hasBonus: form.hasBonus,
-        bonusAmount:
-          form.hasBonus && form.bonusAmount
-            ? parseInt(form.bonusAmount, 10)
+      const created = await createContract(
+        currentStore.storeId,
+        selectedEmployeeId,
+        {
+          contractStartDate: form.contractStartDate,
+          contractEndDate: form.contractEndDate || null,
+          workplace: form.workPlace || undefined,
+          jobDescription: form.workDescription,
+          workStartTime: form.scheduledStartTime,
+          workEndTime: form.scheduledEndTime,
+          breakStartTime: form.breakStartTime || null,
+          breakEndTime: form.breakEndTime || null,
+          workDaysPerWeek: parseInt(form.weeklyWorkDays, 10),
+          weeklyHoliday: form.weeklyHoliday,
+          wageType: 'HOURLY',
+          wageAmount: parseInt(form.hourlyWage, 10),
+          hasBonus: form.hasBonus,
+          bonusAmount:
+            form.hasBonus && form.bonusAmount
+              ? parseInt(form.bonusAmount, 10)
+              : null,
+          hasOtherAllowance: form.hasOtherPay,
+          otherAllowanceDetails: form.hasOtherPay
+            ? `${form.otherPayName} ${form.otherPayAmount}원`
             : null,
-        hasOtherAllowance: form.hasOtherPay,
-        otherAllowanceDetails: form.hasOtherPay
-          ? `${form.otherPayName} ${form.otherPayAmount}원`
-          : null,
-        payDayDescription: `매월 ${form.payday}일`,
-        employmentInsurance: form.insuranceEmployment,
-        industrialAccidentInsurance: form.insuranceIndustrial,
-        nationalPension: form.insuranceNationalPension,
-        healthInsurance: form.insuranceHealth,
-        contractDate: form.writtenDate,
-        employeeAddress,
+          payDayDescription: `매월 ${form.payday}일`,
+          employmentInsurance: form.insuranceEmployment,
+          industrialAccidentInsurance: form.insuranceIndustrial,
+          nationalPension: form.insuranceNationalPension,
+          healthInsurance: form.insuranceHealth,
+          contractDate: form.writtenDate,
+          employeeAddress,
+        }
+      );
+      await signByOwner(currentStore.storeId, created.contractId, {
+        signature: form.ownerSignatureDataUrl,
       });
       toast.success(PAGE_TEXT.success);
       navigate(`${ROUTES.DOCUMENTS_MY}?tab=CONTRACT`);
-    } catch {
-      toast.error('계약서 전송에 실패했습니다.');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, '계약서 전송에 실패했습니다.'));
     }
   };
 
@@ -214,8 +222,6 @@ export default function ContractRequestPage() {
       mainClassName="pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))]"
     >
       <div className="space-y-[var(--space-4)] px-[var(--space-5)] pt-[var(--space-5)]">
-        <DocumentRequestSwitchBar active="CONTRACT" />
-
         <RequestSection title={PAGE_TEXT.baseInfo}>
           <RequestPickerField
             label={PAGE_TEXT.employeeName}

@@ -309,8 +309,8 @@ export default function MyDocumentsPage() {
       title={PAGE_TEXT.title}
       mainClassName="flex flex-1 flex-col pb-[calc(var(--height-bottom-nav)+var(--space-8)+env(safe-area-inset-bottom,0px))]"
     >
-      <section className="border-b border-[var(--color-border-light)] bg-[var(--color-bg-white)] px-[var(--space-5)] pt-[var(--space-3)]">
-        <div className="flex items-center justify-center gap-[var(--space-5)]">
+      <section className="bg-[var(--color-bg-white)]">
+        <div className="flex border-b border-[var(--color-border-light)]">
           {DOCUMENT_TAB_OPTIONS.map((tab) => {
             const isActive = selectedTab === tab.key;
             return (
@@ -318,20 +318,28 @@ export default function MyDocumentsPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setSelectedTab(tab.key)}
-                className={`border-b-2 pb-[var(--space-2)] text-[length:var(--text-md2)] font-bold ${
+                className={`flex-1 cursor-pointer border-b-4 py-[var(--space-3)] ${
                   isActive
-                    ? 'border-[var(--color-primary)] text-[var(--color-text-primary)]'
-                    : 'border-transparent text-[var(--color-text-placeholder)]'
+                    ? 'border-[var(--color-primary)]'
+                    : 'border-transparent'
                 }`}
               >
-                {tab.label}
+                <span
+                  className={`text-[length:var(--text-md)] leading-5 ${
+                    isActive
+                      ? 'font-bold text-[var(--color-text-primary)]'
+                      : 'font-medium text-[var(--color-text-placeholder)]'
+                  }`}
+                >
+                  {tab.label}
+                </span>
               </button>
             );
           })}
         </div>
 
         {selectedTab === 'PAYSLIP' && (
-          <div className="pb-[var(--space-4)] pt-[var(--space-3)]">
+          <div className="px-[var(--space-5)] pb-[var(--space-4)] pt-[var(--space-3)]">
             <button
               type="button"
               onClick={() => {
