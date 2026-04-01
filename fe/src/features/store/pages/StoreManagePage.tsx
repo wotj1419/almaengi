@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Camera, ChevronRight, RefreshCw, Store } from 'lucide-react';
+import Avatar from 'boring-avatars';
+import { ChevronRight, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ROUTES } from '@/constants/routes';
@@ -11,7 +12,12 @@ import { generateInviteCode, getMyStores } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 
 type MenuItem = {
-  key: 'community' | 'qr' | 'documents';
+  key:
+    | 'community'
+    | 'qr'
+    | 'documents'
+    | 'documentsRequest'
+    | 'scheduleAuction';
   title: string;
   description: string;
   path?: string;
@@ -35,6 +41,18 @@ const MENU_ITEMS: MenuItem[] = [
     title: '문서함',
     description: '매장 운영에 필요한 문서와 데이터를 손쉽게 관리해요',
     path: ROUTES.DOCUMENTS,
+  },
+  {
+    key: 'documentsRequest',
+    title: '문서 요청',
+    description: '직원에게 요청할 문서를 작성하고 전송해요.',
+    path: ROUTES.DOCUMENTS_REQUEST,
+  },
+  {
+    key: 'scheduleAuction',
+    title: '스케줄 경매',
+    description: '홈의 스케줄 경매와 동일한 경매 페이지로 이동해요.',
+    path: ROUTES.AUCTION,
   },
 ];
 
@@ -117,23 +135,12 @@ export default function StoreManagePage() {
         <main className="flex-1 pt-[var(--space-7)] pb-[calc(var(--height-bottom-nav)+40px+env(safe-area-inset-bottom,0px))]">
           {currentStore ? (
             <section className="mx-[var(--space-5)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-form-card)] px-6 py-8 flex flex-col items-center gap-[var(--space-4)]">
-              <div className="relative">
-                <div className="size-24 rounded-full bg-[var(--color-bg-base)] flex items-center justify-center">
-                  <div className="size-14 rounded-full border-2 border-[var(--color-border-muted)] border-dashed flex items-center justify-center">
-                    <Store
-                      size={26}
-                      color="var(--color-text-placeholder)"
-                      strokeWidth={2}
-                    />
-                  </div>
-                </div>
-                <div className="absolute right-0 bottom-0 size-8 rounded-full border border-[var(--color-border-muted)] bg-[var(--color-bg-white)] shadow-[var(--shadow-form-card)] flex items-center justify-center">
-                  <Camera
-                    size={15}
-                    color="var(--color-text-muted)"
-                    strokeWidth={2}
-                  />
-                </div>
+              <div>
+                <Avatar
+                  size={58}
+                  name={`store-${currentStore.storeId}`}
+                  variant="beam"
+                />
               </div>
 
               <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--color-text-primary)] leading-8">
