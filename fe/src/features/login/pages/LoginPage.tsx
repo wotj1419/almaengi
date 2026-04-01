@@ -73,6 +73,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const authLogin = useAuthStore((s) => s.login);
 
+  // 세션 확인 완료 전까지 로그인 폼을 숨겨서 깜빡임 방지
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -95,31 +98,9 @@ export default function LoginPage() {
       const authStatus = await validateSessionByReissue();
       if (!isMounted) return;
 
-      // ─── 세션 복원 성공 시 Zustand store 업데이트 ──────────────────────────
-      // [문제] 이전 코드: authStatus === 'authenticated' 이면 바로 navigate
-      //        → validateSessionByReissue가 userId/role을 반환하지 않아
-      //          authLogin()이 호출되지 않음
-      //        → Zustand user/role이 null인 채로 HOME에 도달
-      //        → 라우터: role === 'OWNER' false → 항상 EmployeeHomePage 렌더링
-      //
-      // [해결] 현재 코드: authStatus에 userId/role이 포함됨
-      //        → authLogin() 호출로 Zustand를 올바른 role로 업데이트
-      //        → navigate 후 라우터가 role에 맞는 홈을 렌더링
-      //
-      // name: persist에 저장된 값 재사용 (없으면 빈 문자열 — 다음 credentials 로그인 시 갱신됨)
       if (authStatus !== 'unauthenticated') {
         const currentState = useAuthStore.getState();
 
-        // ─── 세션 복원 시 activeStoreId 재결정 ────────────────────────────────────
-        // [문제] 이전 코드: currentState.activeStoreId를 그대로 재사용
-        //        → 최초 로그인이 아닌 새로고침/재접속 시 null이 고정된 채 유지됨
-        //        → employee는 최초 로그인 직후에만 activeStoreId가 설정되고,
-        //          이후 새로고침 시 null로 고정되어 경매 목록이 표시되지 않는 문제 발생
-        //
-        // [해결] resolveActiveStoreId(accessToken, role)을 호출해 항상 최신 소속 매장 ID 결정
-        //        → OWNER는 /api/v1/stores, EMPLOYEE는 /api/v1/stores/employees/my 호출
-        //        → 응답이 비어 있으면 null 반환 (소속 없는 직원 정상 처리)
-        //        → OWNER/EMPLOYEE 모두 이 경로를 통해 올바른 activeStoreId가 설정됨
         const activeStoreId = await resolveActiveStoreId(
           authStatus.accessToken,
           authStatus.role
@@ -134,8 +115,6 @@ export default function LoginPage() {
           authStatus.accessToken,
           activeStoreId
         );
-        // EMPLOYEE이고 소속 매장이 없으면 HOME을 거치지 않고 바로 STORE_JOIN 또는 STORE_JOIN_PENDING으로 이동
-        // HOME을 경유하면 EmployeeHomePage가 잠깐 렌더링되며 불필요한 API 호출이 발생함
         if (authStatus.role === 'EMPLOYEE' && activeStoreId === null) {
           const isPending = localStorage.getItem('pendingJoin') === 'true';
           navigate(isPending ? ROUTES.STORE_JOIN_PENDING : ROUTES.STORE_JOIN, {
@@ -144,6 +123,9 @@ export default function LoginPage() {
         } else {
           navigate(ROUTES.HOME, { replace: true });
         }
+      } else {
+        // 인증 성공 시에는 navigate가 실행되므로 여기서만 로딩 해제
+        setIsCheckingSession(false);
       }
     })();
 
@@ -261,6 +243,10 @@ export default function LoginPage() {
     e.preventDefault();
     void loginWithCredentials(email, password);
   };
+
+  if (isCheckingSession) {
+    return <div className="min-h-dvh bg-[var(--color-bg-base)]" />;
+  }
 
   return (
     <div className="min-h-dvh px-[var(--space-6)] py-14 bg-[var(--color-bg-base)] flex justify-center items-center">
