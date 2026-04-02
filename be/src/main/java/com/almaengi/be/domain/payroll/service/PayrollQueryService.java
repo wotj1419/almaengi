@@ -67,14 +67,16 @@ public class  PayrollQueryService {
         Optional<Payroll> existingPayroll = payrollRepository
                 .findByEmployeeIdAndTargetMonth(employee.getId(), normalizedMonth);
 
+        Integer payDay = employee.getStore().getPayDay();
+
         if (existingPayroll.isPresent()) {
             Payroll payroll = existingPayroll.get();
             List<PayrollDetail> details = payrollDetailRepository.findAllByPayrollIdOrdered(payroll.getId());
-            return PayrollResponseDto.MyPayroll.from(payroll, details, false);
+            return PayrollResponseDto.MyPayroll.from(payroll, details, false, payDay);
         }
 
         // 급여 미생성: 출퇴근 기록 기반 실시간 미리보기
-        return calculatePreview(employee, normalizedMonth);
+        return calculatePreview(employee, normalizedMonth, payDay);
     }
 
     /**
@@ -220,7 +222,7 @@ public class  PayrollQueryService {
         if (isPartialMonth) {
             return buildPartialMonthSummary(store, storeId, normalizedMonth, lastMonth, today);
         } else {
-            return buildCompleteMonthSummary(storeId, normalizedMonth, lastMonth);
+            return buildCompleteMonthSummary(store, storeId, normalizedMonth, lastMonth);
         }
     }
 
@@ -231,7 +233,7 @@ public class  PayrollQueryService {
      * Payroll 레코드에서 총액·직원 리스트를, PayrollDetail에서 수당 합계를 조회합니다.
      */
     private PayrollResponseDto.MonthlySummary buildCompleteMonthSummary(
-            Long storeId, LocalDate thisMonth, LocalDate lastMonth) {
+            Store store, Long storeId, LocalDate thisMonth, LocalDate lastMonth) {
 
         LocalDate thisEnd = thisMonth.plusMonths(1).minusDays(1);  // 이번 달 말일
         LocalDate lastEnd = lastMonth.plusMonths(1).minusDays(1);  // 이전 달 말일
@@ -253,11 +255,16 @@ public class  PayrollQueryService {
         AllowanceSums lastAllowances = sumAllowances(
                 payrollDetailRepository.findAllowancesByStoreIdAndTargetMonth(storeId, lastMonth));
 
+        // 이전 달 급여 이체 완료 여부
+        boolean isAllTransferred = !lastPayrolls.isEmpty()
+                && lastPayrolls.stream().allMatch(Payroll::getIsTransferred);
+
         // 직원 리스트 (netPay 내림차순)
         List<PayrollResponseDto.SummaryEmployee> employees = buildEmployeeList(thisPayrolls);
         List<PayrollResponseDto.SummaryEmployee> topEarners = extractTopEarners(employees);
 
         return buildMonthlySummaryResponse(
+                store.getPayDay(), isAllTransferred,
                 thisMonth, false,
                 thisMonth, thisEnd, lastMonth, lastEnd,
                 thisTotal, lastTotal,
@@ -284,12 +291,19 @@ public class  PayrollQueryService {
         LocalDate lastStart = lastMonth;
         LocalDate lastEnd = lastMonth.withDayOfMonth(Math.min(thisEnd.getDayOfMonth(), lastMonthLastDay));
 
+        // 이전 달 급여 이체 완료 여부
+        List<Payroll> lastPayrolls = payrollRepository
+                .findAllByEmployeeStoreIdAndTargetMonth(storeId, lastMonth);
+        boolean isAllTransferred = !lastPayrolls.isEmpty()
+                && lastPayrolls.stream().allMatch(Payroll::getIsTransferred);
+
         // 매장 활성 직원 조회
         List<StoreEmployee> activeEmployees = storeEmployeeRepository
                 .findAllByStoreIdAndStatus(storeId, StoreEmployeeStatus.WORKING);
 
         if (activeEmployees.isEmpty()) {
             return buildMonthlySummaryResponse(
+                    store.getPayDay(), isAllTransferred,
                     thisMonth, true,
                     thisStart, thisEnd, lastStart, lastEnd,
                     0L, 0L,
@@ -363,6 +377,7 @@ public class  PayrollQueryService {
         List<PayrollResponseDto.SummaryEmployee> topEarners = extractTopEarners(employees);
 
         return buildMonthlySummaryResponse(
+                store.getPayDay(), isAllTransferred,
                 thisMonth, true,
                 thisStart, thisEnd, lastStart, lastEnd,
                 thisTotal, lastTotal,
@@ -489,6 +504,7 @@ public class  PayrollQueryService {
      * 완료된 월과 진행 중인 월 모두 이 메서드로 최종 응답을 생성합니다.
      */
     private PayrollResponseDto.MonthlySummary buildMonthlySummaryResponse(
+            Integer payDay, boolean isAllTransferred,
             LocalDate targetMonth, boolean isPartialMonth,
             LocalDate thisStart, LocalDate thisEnd,
             LocalDate lastStart, LocalDate lastEnd,
@@ -514,6 +530,8 @@ public class  PayrollQueryService {
         }
 
         return PayrollResponseDto.MonthlySummary.builder()
+                .payDay(payDay)
+                .isAllTransferred(isAllTransferred)
                 .targetMonth(targetMonth.toString().substring(0, 7))
                 .isPartialMonth(isPartialMonth)
                 .thisMonthStart(thisStart)
@@ -569,7 +587,7 @@ public class  PayrollQueryService {
      * 실시간 급여 미리보기 (DB 저장 없이 계산만 수행)
      * PayrollService의 계산 파이프라인을 재사용하되, 엔티티 대신 DTO를 빌드합니다.
      */
-    private PayrollResponseDto.MyPayroll calculatePreview(StoreEmployee employee, LocalDate normalizedMonth) {
+    private PayrollResponseDto.MyPayroll calculatePreview(StoreEmployee employee, LocalDate normalizedMonth, Integer payDay) {
         Store store = employee.getStore();
         int hourlyWage = employee.getHourlyWage();
 
@@ -664,6 +682,7 @@ public class  PayrollQueryService {
         String targetMonthStr = normalizedMonth.toString().substring(0, 7);
 
         return PayrollResponseDto.MyPayroll.builder()
+                .payDay(payDay)
                 .payrollId(null)
                 .targetMonth(targetMonthStr)
                 .isEstimated(true)
