@@ -18,6 +18,9 @@ public class PayrollResponseDto {
     @Getter
     @Builder
     public static class MyPayroll {
+        @Schema(description = "매장 급여일 (1~31, 미설정 시 null)", example = "25")
+        private Integer payDay;
+
         @Schema(description = "급여 ID (미생성 시 null)")
         private Long payrollId;
 
@@ -57,8 +60,9 @@ public class PayrollResponseDto {
         @Schema(description = "급여 상세 항목 목록")
         private List<DetailItem> details;
 
-        public static MyPayroll from(Payroll payroll, List<PayrollDetail> details, boolean isEstimated) {
+        public static MyPayroll from(Payroll payroll, List<PayrollDetail> details, boolean isEstimated, Integer payDay) {
             return MyPayroll.builder()
+                    .payDay(payDay)
                     .payrollId(payroll.getId())
                     .targetMonth(payroll.getTargetMonth().toString().substring(0, 7))
                     .isEstimated(isEstimated)
@@ -355,6 +359,12 @@ public class PayrollResponseDto {
     @Getter
     @Builder
     public static class MonthlySummary {
+        @Schema(description = "매장 급여일 (1~31, 미설정 시 null)", example = "25")
+        private Integer payDay;
+
+        @Schema(description = "이전 달 급여 전체 이체 완료 여부 (모두 이체 시 true, 하나라도 미이체 시 false)")
+        private Boolean isAllTransferred;
+
         @Schema(description = "정산 대상 월", example = "2026-03")
         private String targetMonth;
 
