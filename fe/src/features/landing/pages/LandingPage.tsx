@@ -1,6 +1,12 @@
 ﻿import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
-import landingImg from '@/assets/images/almangi_main.png';
+import landingImg from '@/assets/images/landingpage.png';
+
+const DECORATION_LINES = [
+  { x1: 78, y1: 52, x2: 58, y2: 20 },
+  { x1: 40, y1: 122, x2: 10, y2: 110 },
+  { x1: 40, y1: 210, x2: 12, y2: 224 },
+] as const;
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -30,23 +36,24 @@ export default function LandingPage() {
             xmlns="http://www.w3.org/2000/svg"
           >
             <g stroke="#ED6B4B" strokeWidth="4" strokeLinecap="round">
-              <line x1="125" y1="100" x2="110" y2="70" />
-              <line x1="105" y1="125" x2="70" y2="110" />
-              <line x1="215" y1="125" x2="250" y2="135" />
-              <line x1="195" y1="100" x2="210" y2="70" />
-              <line x1="215" y1="195" x2="245" y2="215" />
-              <line x1="105" y1="195" x2="80" y2="205" />
+              {DECORATION_LINES.map((line, index) => (
+                <line
+                  key={`${line.x1}-${line.y1}-${index}`}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                />
+              ))}
             </g>
           </svg>
 
-          <div className="relative z-10 flex h-[240px] w-[240px] items-center justify-center rounded-full bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
-            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full">
-              <img
-                src={landingImg}
-                alt="알맹이 서비스 대표 이미지"
-                className="h-[170px] w-[170px] object-contain opacity-95"
-              />
-            </div>
+          <div className="relative z-10 flex h-[240px] w-[240px] items-center justify-center">
+            <img
+              src={landingImg}
+              alt="알맹이 서비스 대표 이미지"
+              className="h-[300px] w-[300px] object-contain opacity-95"
+            />
           </div>
         </section>
 
