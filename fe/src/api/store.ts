@@ -88,6 +88,7 @@ export interface Employee {
   employeeId: number;
   userId: number;
   name: string;
+  phone?: string | null;
   position: string;
   hourlyWage: number;
   taxType: string;

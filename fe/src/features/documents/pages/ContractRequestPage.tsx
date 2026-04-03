@@ -20,7 +20,7 @@ import type { OwnerContractForm } from '@/features/documents/data/mockContracts'
 import useStoreStore from '@/stores/useStoreStore';
 
 const PAGE_TEXT = {
-  pageTitle: '문서 요청',
+  pageTitle: '근로계약서 작성',
   baseInfo: '기본 정보',
   workCondition: '근무 조건',
   payAndInsurance: '임금 및 보험',

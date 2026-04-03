@@ -44,8 +44,8 @@ const MENU_ITEMS: MenuItem[] = [
   },
   {
     key: 'documentsRequest',
-    title: '문서 요청',
-    description: '직원에게 요청할 문서를 작성하고 전송해요.',
+    title: '근로계약서 작성',
+    description: '직원들의 근로계약서를 작성해요.',
     path: ROUTES.DOCUMENTS_REQUEST,
   },
   {
