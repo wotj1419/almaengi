@@ -5,6 +5,7 @@ interface Props {
   type: 'manual' | 'auto';
   employeeCount: number;
   totalNetPay: number;
+  payDay: number | null;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -18,6 +19,7 @@ export default function TransferAgreementModal({
   type,
   employeeCount,
   totalNetPay,
+  payDay,
   onConfirm,
   onClose,
 }: Props) {
@@ -26,7 +28,7 @@ export default function TransferAgreementModal({
   const isAuto = type === 'auto';
 
   // 이체 날짜 (하드코딩: 급여일 21일)
-  const PAY_DAY = 21;
+  const PAY_DAY = payDay ?? 21;
   const today = new Date();
   const transferDateLabel = isAuto
     ? `매월 ${PAY_DAY}일`
