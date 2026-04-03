@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LogIn, LogOut } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmployeeWorkStatus, {
@@ -38,21 +38,20 @@ const buttonConfig: Record<
 > = {
   WAITING: { label: '출근하기', color: 'green', icon: LogIn },
   WORKING: { label: '퇴근하기', color: 'orange', icon: LogOut },
-  LATE: { label: '퇴근하기', color: 'orange', icon: LogOut },
+  LATE: { label: '출근하기', color: 'green', icon: LogIn },
   ABSENT: { label: '결근', color: 'purple', icon: LogOut },
   DONE: { label: '퇴근 완료', color: 'purple', icon: LogOut },
 };
 
 export default function EmployeeWorkStatusCard() {
   const currentStore = useStoreStore((s) => s.currentStore);
+  const location = useLocation();
+
+  // localStorage에서 직접 읽기 (렌더링마다 최신 값 반영)
   const stored = getStoredAttendance();
-  const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>(
-    stored?.status ?? 'WAITING'
-  );
-  const clockInTime = stored?.clockInTime ?? null;
-  const [scheduledEndTime, setScheduledEndTime] = useState<string | null>(
-    stored?.scheduledEndTime ?? null
-  );
+
+  const [apiStatus, setApiStatus] = useState<AttendanceStatus | null>(null);
+  const [apiEndTime, setApiEndTime] = useState<string | null>(null);
 
   // localStorage에 없을 때만 API 폴백
   useEffect(() => {
@@ -60,14 +59,20 @@ export default function EmployeeWorkStatusCard() {
     if (!currentStore) return;
     getMyTodayAttendance(currentStore.storeId)
       .then((res) => {
-        const status: AttendanceStatus = res.currentStatus
-          ? (res.currentStatus as AttendanceStatus)
-          : 'WAITING';
-        setAttendanceStatus(status);
-        setScheduledEndTime(res.scheduledEndTime ?? null);
+        setApiStatus(
+          res.currentStatus
+            ? (res.currentStatus as AttendanceStatus)
+            : 'WAITING'
+        );
+        setApiEndTime(res.scheduledEndTime ?? null);
       })
       .catch(() => {});
-  }, [currentStore]);
+  }, [currentStore, location.key, location.pathname]);
+
+  // localStorage 우선, 없으면 API 결과 사용
+  const attendanceStatus = stored?.status ?? apiStatus ?? 'WAITING';
+  const clockInTime = stored?.clockInTime ?? null;
+  const scheduledEndTime = stored?.scheduledEndTime ?? apiEndTime;
 
   const navigate = useNavigate();
 
@@ -75,9 +80,13 @@ export default function EmployeeWorkStatusCard() {
     navigate(ROUTES.ATTENDANCE_CHECK);
   };
 
-  const btn = buttonConfig[attendanceStatus];
+  // LATE + clockInTime 있으면 지각 출근 완료 → WORKING처럼 취급
+  const isLateCheckedIn = attendanceStatus === 'LATE' && clockInTime !== null;
+  const displayStatus = isLateCheckedIn ? 'WORKING' : attendanceStatus;
+
+  const btn = buttonConfig[displayStatus];
   const isButtonDisabled =
-    attendanceStatus === 'ABSENT' || attendanceStatus === 'DONE';
+    displayStatus === 'ABSENT' || displayStatus === 'DONE';
 
   return (
     <div className="relative z-[var(--z-content)] bg-[var(--color-bg-white)] rounded-[var(--radius-lg)] shadow-[var(--shadow-card)] shrink-0 w-full">
@@ -97,13 +106,11 @@ export default function EmployeeWorkStatusCard() {
             color={btn.color}
             icon={btn.icon}
             onClick={isButtonDisabled ? undefined : handleAttendanceClick}
-            compact={
-              attendanceStatus !== 'WAITING' && attendanceStatus !== 'DONE'
-            }
+            compact={displayStatus === 'WORKING'}
           />
-          {attendanceStatus !== 'WAITING' && attendanceStatus !== 'DONE' && (
+          {displayStatus === 'WORKING' && (
             <EmployeeWorkStatus
-              status={attendanceStatus}
+              status={displayStatus}
               clockInTime={clockInTime}
               scheduledEndTime={scheduledEndTime}
             />

@@ -36,6 +36,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
+      devOptions: { enabled: true },
       workbox: {
         navigateFallbackDenylist: [
           /^\/api\//,

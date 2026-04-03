@@ -13,6 +13,17 @@ function getRoomDisplayName(room: RoomSummary): string {
   return room.name ?? '채팅방';
 }
 
+/** 미리보기용 마크다운 기호 제거 */
+function stripMarkdown(text: string | null): string | null {
+  if (!text) return text;
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/^#{1,6}\s/gm, '');
+}
+
 /** 마지막 메시지 시각 포맷 */
 function formatLastMessageTime(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -67,7 +78,7 @@ export default function ChatRoomCard({ room, onClick }: Props) {
           )}
         </div>
         <p className="text-[length:var(--text-base)] text-[color:var(--color-text-muted)] truncate mt-[2px]">
-          {room.lastMessagePreview}
+          {stripMarkdown(room.lastMessagePreview)}
         </p>
       </div>
 

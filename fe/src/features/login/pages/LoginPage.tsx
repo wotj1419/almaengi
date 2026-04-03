@@ -95,6 +95,15 @@ export default function LoginPage() {
     let isMounted = true;
 
     void (async () => {
+      // accessToken도 없고 auth-storage에 로그인 기록도 없으면
+      // refresh_token 쿠키도 없을 가능성이 높으므로 reissue 생략
+      const hasToken = !!localStorage.getItem('accessToken');
+      const hasAuthStorage = !!localStorage.getItem('auth-storage');
+      if (!hasToken && !hasAuthStorage) {
+        setIsCheckingSession(false);
+        return;
+      }
+
       const authStatus = await validateSessionByReissue();
       if (!isMounted) return;
 

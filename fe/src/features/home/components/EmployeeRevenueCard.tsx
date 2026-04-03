@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
-import imgCharacter from '@/assets/images/character.png';
+import imgCharacter from '@/assets/images/3d_V.png';
 import useStoreStore from '@/stores/useStoreStore';
 import { fetchMyPayroll, getPayDay } from '@/api/payroll';
 import type { MyPayrollData } from '@/features/payroll/types';
@@ -32,25 +32,39 @@ export default function EmployeeRevenueCard() {
 
   const totalAmount = payroll ? payroll.netPay.toLocaleString() : '-';
 
-  // D-Day 계산 (BE API에서 급여일 조회)
-  const effectivePayDay = payDay ?? 25;
-  const today = new Date();
+  // D-Day 계산
+  // - 시간 제거 후 날짜만 비교 (당일 오후에 D-Day가 넘어가는 버그 방지)
+  // - 급여일 지났더라도 미지급이면 D-Day 유지
+  const effectivePayDay = payDay ?? 15;
+  const now = new Date();
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const thisMonthPayDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
+    now.getFullYear(),
+    now.getMonth(),
     effectivePayDay
   );
   const nextMonthPayDate = new Date(
-    today.getFullYear(),
-    today.getMonth() + 1,
+    now.getFullYear(),
+    now.getMonth() + 1,
     effectivePayDay
   );
-  const payDate =
-    today <= thisMonthPayDate ? thisMonthPayDate : nextMonthPayDate;
-  const dDay = Math.ceil(
-    (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  const dDayLabel = dDay === 0 ? '오늘 월급날!' : `월급날까지 D-${dDay}`;
+
+  const isTransferred = payroll?.isTransferred ?? false;
+  const isPastPayDay = todayDate.getTime() > thisMonthPayDate.getTime();
+
+  let dDayLabel: string;
+  if (isPastPayDay && !isTransferred) {
+    const overDays = Math.ceil(
+      (todayDate.getTime() - thisMonthPayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = `월급날 D+${overDays}`;
+  } else {
+    const payDate = isPastPayDay ? nextMonthPayDate : thisMonthPayDate;
+    const dDay = Math.ceil(
+      (payDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = dDay === 0 ? 'D-Day' : `월급날까지 D-${dDay}`;
+  }
 
   return (
     <div className="relative w-full h-[190px] rounded-[var(--radius-lg)] bg-[var(--color-bg-dark)] shadow-[var(--shadow-card)]">
@@ -102,47 +116,11 @@ export default function EmployeeRevenueCard() {
       </div>
 
       {/* 캐릭터 이미지 */}
-      <div
-        className="absolute h-[130px] top-[65px] w-[130px] origin-top-right scale-90"
-        style={{ right: 'var(--space-3)' }}
-      >
-        <div className="absolute contents left-[-50.5px] top-[-26px]">
-          <div className="absolute flex h-[56px] items-center justify-center left-[-50.5px] top-[138px] w-[153.5px]">
-            <div className="-scale-y-100 flex-none rotate-180">
-              <div className="h-[56px] relative w-[153.5px]">
-                <div className="absolute inset-[-5.36%_-3.09%_-5.56%_-2.2%]">
-                  <svg
-                    className="block size-full"
-                    fill="none"
-                    preserveAspectRatio="none"
-                    viewBox="0 0 161.619 62.1118"
-                  >
-                    <path
-                      d="M132.818 1.5L133.229 2.33984L158.229 53.3398L159.251 55.4238L156.931 55.499L3.43145 60.499L1.69122 60.5557L1.89239 58.8262L8.41387 2.82617L8.56817 1.5H132.818Z"
-                      fill="white"
-                      stroke="black"
-                      strokeWidth="3"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="absolute flex h-[216.989px] items-center justify-center left-[-42.87px] top-[-26px] w-[192.879px]">
-            <div className="-scale-y-100 flex-none rotate-180">
-              <div className="h-[216.989px] relative w-[192.879px]">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <img
-                    alt="알맹이 캐릭터"
-                    className="absolute h-[289.42%] left-[-12.66%] max-w-none top-0 w-[330.68%]"
-                    src={imgCharacter}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <img
+        alt="알맹이 캐릭터"
+        src={imgCharacter}
+        className="absolute right-[-30px] bottom-[-50px] h-[220px] w-auto object-contain pointer-events-none"
+      />
     </div>
   );
 }

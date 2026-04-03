@@ -79,6 +79,7 @@ export default function AttendanceCheckPage() {
       ATTENDANCE_STORAGE_KEY,
       JSON.stringify({ status: 'DONE', date: today, clockInTime: null })
     );
+    window.dispatchEvent(new Event('attendance-updated'));
     setResultMessage(
       data?.status ? '퇴근이 기록되었습니다.' : '인증이 완료되었습니다.'
     );
@@ -160,6 +161,7 @@ export default function AttendanceCheckPage() {
                   scheduledEndTime: res.data?.scheduledEndTime ?? null,
                 })
               );
+              window.dispatchEvent(new Event('attendance-updated'));
               setResultMessage(res.data?.message ?? '인증이 완료되었습니다.');
               setScanState('success');
             }

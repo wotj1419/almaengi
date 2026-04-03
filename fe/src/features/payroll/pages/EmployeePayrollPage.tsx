@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { FileText } from 'lucide-react';
@@ -9,6 +9,8 @@ import MonthNavigator from '../components/MonthNavigator';
 import useAuthStore from '@/stores/useAuthStore';
 import { useMyPayroll } from '../hooks/usePayrollQueries';
 import { ROUTES } from '@/constants/routes';
+import { getPayDay } from '@/api/payroll';
+import useStoreStore from '@/stores/useStoreStore';
 
 function formatAmount(amount: number): string {
   return amount.toLocaleString('ko-KR') + '원';
@@ -38,6 +40,15 @@ function PageShell({ children }: { children: React.ReactNode }) {
 export default function EmployeePayrollPage() {
   const navigate = useNavigate();
   const { activeStoreId } = useAuthStore();
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const [payDayFromApi, setPayDayFromApi] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!currentStore) return;
+    getPayDay(currentStore.storeId)
+      .then(setPayDayFromApi)
+      .catch(() => {});
+  }, [currentStore]);
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -171,12 +182,38 @@ export default function EmployeePayrollPage() {
 
   // 지급 완료: BE isTransferred 기반, 날짜는 D-Day 표시용
   const isPaid = payroll.isTransferred;
-  const PAY_DAY = 21;
-  const payDate = new Date(year, month, PAY_DAY);
-  const dDay = Math.ceil(
-    (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  const effectivePayDay = payDayFromApi ?? 15;
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
   );
-  const payDateLabel = `${month === 12 ? 1 : month + 1}월 ${PAY_DAY}일`;
+  const thisMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    effectivePayDay
+  );
+  const nextMonthPayDate = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    effectivePayDay
+  );
+  const isPastPayDay = todayDate.getTime() > thisMonthPayDate.getTime();
+
+  let dDayLabel: string;
+  if (isPastPayDay && !isPaid) {
+    const overDays = Math.ceil(
+      (todayDate.getTime() - thisMonthPayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = `D+${overDays}`;
+  } else {
+    const payDate = isPastPayDay ? nextMonthPayDate : thisMonthPayDate;
+    const dDay = Math.ceil(
+      (payDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = dDay === 0 ? 'D-Day' : `D-${dDay}`;
+  }
+  const payDateLabel = `${month === 12 ? 1 : month + 1}월 ${effectivePayDay}일`;
 
   return (
     <PageShell>
@@ -221,7 +258,7 @@ export default function EmployeePayrollPage() {
               />
             ) : (
               <span className="px-[var(--space-2)] py-[var(--space-0-5)] rounded-[var(--radius-xs)] text-[length:var(--text-2xs)] font-bold whitespace-nowrap bg-[var(--color-status-grey-bg)] text-[color:var(--color-status-grey-dot)]">
-                D - {dDay}
+                {dDayLabel}
               </span>
             )}
           </div>
@@ -260,10 +297,10 @@ export default function EmployeePayrollPage() {
 
           <div className="flex gap-[var(--space-3)]">
             <button
-              onClick={() => navigate(ROUTES.HOME)}
+              onClick={() => navigate(ROUTES.REPORT)}
               className="flex-1 py-[var(--space-3)] rounded-[var(--radius-sm)] bg-[var(--color-bg-surface)] text-[length:var(--text-sm)] font-bold text-[color:var(--color-text-primary)] cursor-pointer"
             >
-              홈으로 이동
+              분석 리포트
             </button>
             <button
               onClick={() => {

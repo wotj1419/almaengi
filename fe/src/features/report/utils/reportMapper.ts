@@ -1,6 +1,7 @@
 import type { MonthlyAttendanceReport } from '@/api/attendance';
 import type { AuctionInsightsReportDto } from '@/api/auction.types';
 import type { PayrollSummary } from '@/api/payroll';
+import type { StorePayrollEmployee } from '@/features/payroll/types';
 import type {
   AlertCardData,
   AttendanceRecord,
@@ -26,7 +27,10 @@ function formatWon(amount: number): string {
   return `${Math.round(amount).toLocaleString('ko-KR')}원`;
 }
 
-function calcPercentChange(current: number, previous: number): number | undefined {
+function calcPercentChange(
+  current: number,
+  previous: number
+): number | undefined {
   if (current === previous) return 0;
   if (previous <= 0) return undefined;
   const value = ((current - previous) / previous) * 100;
@@ -51,7 +55,9 @@ function timeText(time: string): string {
 }
 
 function getLateChampionCount(attendance: MonthlyAttendanceReport): number {
-  const championIds = new Set(attendance.lateChampions.map((c) => c.employeeId));
+  const championIds = new Set(
+    attendance.lateChampions.map((c) => c.employeeId)
+  );
   if (championIds.size === 0) return 0;
   return attendance.employees
     .filter((e) => championIds.has(e.employeeId))
@@ -73,7 +79,9 @@ export function mapSummaryCards(
       title: '이번 달 인건비',
       mainValue: formatManwon(payroll.thisMonthTotal),
       trend:
-        payroll.changeRate == null ? undefined : `${Math.abs(payroll.changeRate)}%`,
+        payroll.changeRate == null
+          ? undefined
+          : `${Math.abs(payroll.changeRate)}%`,
       trendType:
         payroll.changeDirection === 'UP'
           ? 'positive'
@@ -94,16 +102,15 @@ export function mapSummaryCards(
       id: 'auction',
       title: '경매 낙찰률',
       mainValue: auction ? `${successRate.toFixed(1)}%` : '-',
-      subText: auction ? `총 ${auction.totalAuctionCount}건` : '전월부터 확인 가능',
+      subText: auction
+        ? `총 ${auction.totalAuctionCount}건`
+        : '전월부터 확인 가능',
       subTextVariant: 'info',
     },
   ];
 }
 
-export function mapPayrollAlerts(
-  payroll: PayrollSummary,
-  attendance: MonthlyAttendanceReport
-): AlertCardData[] {
+export function mapPayrollAlerts(payroll: PayrollSummary): AlertCardData[] {
   const laborAlertDescription =
     payroll.changeRate == null
       ? '지난달 비교 데이터가 없어 인건비 추이를 계산할 수 없습니다.'
@@ -113,8 +120,14 @@ export function mapPayrollAlerts(
           ? `인건비가 전월 대비 ${Math.abs(payroll.changeRate)}% 감소했습니다.\n운영 효율이 개선되고 있습니다.`
           : '전월 대비 인건비 변동이 없습니다.\n현재 운영 수준이 안정적으로 유지되고 있습니다.';
 
-  const lateChampionName = attendance.lateChampions[0]?.employeeName;
-  const lateChampionCount = getLateChampionCount(attendance);
+  const allowanceTotal =
+    payroll.thisMonthOvertimePay +
+    payroll.thisMonthNightPay +
+    payroll.thisMonthWeeklyHolidayPay;
+  const allowanceRatio =
+    payroll.thisMonthTotal > 0
+      ? Math.round((allowanceTotal / payroll.thisMonthTotal) * 100)
+      : 0;
 
   return [
     {
@@ -123,29 +136,29 @@ export function mapPayrollAlerts(
       description: laborAlertDescription,
       variant: 'green',
     },
-    lateChampionName
-      ? {
-          id: 'late-alert',
-          title: '지각 주의보',
-          description: `${lateChampionName}님 지각이 ${lateChampionCount}회로 가장 높습니다.\n근무 시작 전 리마인드 공지를 권장합니다.`,
-          variant: 'orange',
-        }
-      : {
-          id: 'late-alert',
-          title: '근태 안정',
-          description: '이번 달 지각왕이 없습니다.\n현재 근태 관리 상태가 안정적입니다.',
-          variant: 'blue',
-        },
+    {
+      id: 'allowance-ratio-alert',
+      title: '수당 비중 알림',
+      description:
+        allowanceRatio > 0
+          ? `이번 달 연장·야간·주휴 수당이 전체 인건비의 ${allowanceRatio}%를 차지합니다.`
+          : '이번 달 수당 내역이 없습니다.',
+      variant: allowanceRatio >= 30 ? 'orange' : 'blue',
+    },
   ];
 }
 
-export function mapMonthlyPayrollSeries(summaries: (PayrollSummary | null)[]): MonthlyBarData[] {
+export function mapMonthlyPayrollSeries(
+  summaries: (PayrollSummary | null)[]
+): MonthlyBarData[] {
   return summaries.map((summary) => ({
     value: toManwon(summary?.thisMonthTotal ?? 0),
   }));
 }
 
-export function mapPayrollBreakdown(payroll: PayrollSummary): PayrollBreakdownItem[] {
+export function mapPayrollBreakdown(
+  payroll: PayrollSummary
+): PayrollBreakdownItem[] {
   return [
     {
       id: 'basic',
@@ -190,21 +203,34 @@ export function mapPayrollBreakdown(payroll: PayrollSummary): PayrollBreakdownIt
   ];
 }
 
-export function mapStaffAlerts(attendance: MonthlyAttendanceReport): AlertCardData[] {
+export function mapStaffAlerts(
+  attendance: MonthlyAttendanceReport,
+  payroll: PayrollSummary
+): AlertCardData[] {
   const lateChampionName = attendance.lateChampions[0]?.employeeName;
   const lateChampionCount = getLateChampionCount(attendance);
   const diligentNames = attendance.diligentEmployees
     .slice(0, 3)
     .map((d) => d.employeeName)
     .join(', ');
+  const topEarner = payroll.topEarners[0];
 
   const alerts: AlertCardData[] = [];
+
+  if (topEarner) {
+    alerts.push({
+      id: 'top-earner',
+      title: `이번 달 최고 급여: ${topEarner.employeeName}님`,
+      description: `${topEarner.employeeName}님의 이번 달 급여가 ${formatWon(topEarner.netPay)}으로 가장 높습니다.`,
+      variant: 'green',
+    });
+  }
 
   if (lateChampionName) {
     alerts.push({
       id: 'late-staff',
       title: `${lateChampionName}님 지각 ${lateChampionCount}회`,
-      description: '최근 30일 내 지각 횟수가 누적되었습니다.',
+      description: `${lateChampionName}님 지각이 ${lateChampionCount}회로 가장 높습니다.\n근무 시작 전 리마인드 공지를 권장합니다.`,
       variant: 'orange',
     });
   }
@@ -263,20 +289,32 @@ export function mapMonthlyHighlights(
 }
 
 export function mapAttendanceRecords(
-  attendance: MonthlyAttendanceReport
+  attendance: MonthlyAttendanceReport,
+  payrollEmployees?: StorePayrollEmployee[]
 ): AttendanceRecord[] {
-  return attendance.employees.map((employee) => ({
-    id: String(employee.employeeId),
-    name: employee.employeeName,
-    attendance: employee.attendanceCount,
-    late: employee.lateCount,
-    absent: employee.absentCount,
-    hours: Math.round(employee.totalWorkMinutes / 60),
-    isWarning: employee.lateCount >= 3 || employee.absentCount >= 1,
-  }));
+  const payrollMap = new Map(
+    (payrollEmployees ?? []).map((e) => [e.employeeId, e])
+  );
+
+  return attendance.employees.map((employee) => {
+    const pay = payrollMap.get(employee.employeeId);
+    return {
+      id: String(employee.employeeId),
+      name: employee.employeeName,
+      attendance: employee.attendanceCount,
+      late: employee.lateCount,
+      absent: employee.absentCount,
+      hours: Math.round(employee.totalWorkMinutes / 60),
+      overtimeHours: Math.round((pay?.overtimeMinutes ?? 0) / 60),
+      nightHours: Math.round((pay?.nightWorkMinutes ?? 0) / 60),
+      isWarning: employee.lateCount >= 3 || employee.absentCount >= 1,
+    };
+  });
 }
 
-export function mapPayrollRanking(payroll: PayrollSummary): PayrollRankingItem[] {
+export function mapPayrollRanking(
+  payroll: PayrollSummary
+): PayrollRankingItem[] {
   return payroll.employees
     .map((employee, index) => ({
       id: String(employee.employeeId),
@@ -383,7 +421,9 @@ export function mapAuctionSummary(
   ];
 }
 
-export function mapPeakTimes(auction: AuctionInsightsReportDto | null): PeakTimeItem[] {
+export function mapPeakTimes(
+  auction: AuctionInsightsReportDto | null
+): PeakTimeItem[] {
   if (!auction) return [];
 
   return auction.timelinePage.content.slice(0, 6).map((item, index) => {

@@ -17,7 +17,7 @@ export default function StorePage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const activeTab: Tab =
-    searchParams.get('tab') === 'chat' ? '채팅방' : '게시판';
+    searchParams.get('tab') === 'board' ? '게시판' : '채팅방';
   const setActiveTab = (tab: Tab) =>
     navigate(
       `${ROUTES.STORE_COMMUNITY}?tab=${tab === '채팅방' ? 'chat' : 'board'}`,
