@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Clock, MapPin, Timer, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -17,10 +17,15 @@ interface ResultPageWinner {
   wage: number;
 }
 
+type AuctionEntryFrom = 'home' | 'storeManage';
+
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const auctionId = Number(id);
+  const entryFrom = (location.state as { from?: AuctionEntryFrom } | null)
+    ?.from;
   const activeStoreId = useAuthStore((state) => state.activeStoreId);
 
   const { data: detail } = useAuctionDetail(auctionId);
@@ -57,7 +62,7 @@ export default function AuctionDetailPage() {
     }
 
     if (selectedBidIds.length === 0) {
-      toast.error('낙찰할 입찰자를 선택해주세요.');
+      toast.error('낙찰할 알바생을 선택해 주세요.');
       return;
     }
 
@@ -79,6 +84,7 @@ export default function AuctionDetailPage() {
           navigate(`/auction/result/${auctionId}`, {
             replace: true,
             state: {
+              from: entryFrom,
               winners,
               auction: auction
                 ? {
@@ -200,7 +206,7 @@ export default function AuctionDetailPage() {
             />
             <BidderGroup
               title="주휴수당 발생 가능"
-              description="이번 낙찰 시 주휴수당 발생 직원"
+              description="이번 낙찰 시 주휴수당이 발생하는 직원"
               bidders={bidders.group2}
               borderColor="border-[var(--color-action-schedule)]"
               rankColor="text-[var(--color-action-schedule)]"
@@ -209,7 +215,7 @@ export default function AuctionDetailPage() {
             />
             <BidderGroup
               title="주휴수당 미발생"
-              description="이번 낙찰 시 주휴수당 미발생 직원"
+              description="이번 낙찰 시 주휴수당이 미발생하는 직원"
               bidders={bidders.group3}
               borderColor="border-[var(--color-primary)]"
               rankColor="text-[var(--color-primary)]"
@@ -222,7 +228,7 @@ export default function AuctionDetailPage() {
         {!hasBidders && (
           <section className="w-full bg-[var(--color-bg-white)] rounded-2xl border border-[var(--color-border-light)] p-6">
             <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)] text-center">
-              아직 입찰한 알바생이 없습니다.
+              아직 지원한 알바생이 없습니다.
             </p>
           </section>
         )}

@@ -10,6 +10,7 @@ import {
   type EmployeeMonthlyAttendanceSummaryView,
 } from '@/api/attendance';
 import { getApiErrorMessage } from '@/api/error';
+import { getEmployees } from '@/api/store';
 import { getEmployeeSchedules, type ScheduleDto } from '@/api/schedule';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
@@ -155,22 +156,25 @@ export default function EmployeeDetailPage() {
 
     const fetchProfile = async () => {
       try {
-        const schedules = await getEmployeeSchedules(
-          currentStore.storeId,
-          parsedEmployeeId
-        );
+        const [schedules, employees] = await Promise.all([
+          getEmployeeSchedules(currentStore.storeId, parsedEmployeeId),
+          getEmployees(currentStore.storeId),
+        ]);
 
         if (isCancelled) return;
 
         const employeeName = routeState?.employee?.name ?? DEFAULT_PROFILE.name;
         const avatarSeed =
           routeState?.employee?.avatarSeed ?? `employee-${parsedEmployeeId}`;
+        const matchedEmployee = employees.find(
+          (employee) => employee.employeeId === parsedEmployeeId
+        );
 
         setProfile({
           id: parsedEmployeeId,
           name: employeeName,
           avatarSeed,
-          phone: '-',
+          phone: matchedEmployee?.phone ?? '-',
           defaultWorkTime: formatWorkTimeSummary(schedules),
         });
       } catch (error) {

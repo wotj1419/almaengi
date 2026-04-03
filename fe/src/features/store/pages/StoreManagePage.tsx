@@ -121,6 +121,10 @@ export default function StoreManagePage() {
 
   const handleMenuClick = (item: MenuItem) => {
     if (item.path) {
+      if (item.key === 'scheduleAuction') {
+        navigate(item.path, { state: { from: 'storeManage' } });
+        return;
+      }
       navigate(item.path);
       return;
     }

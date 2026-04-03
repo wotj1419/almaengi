@@ -8,6 +8,7 @@ import {
   getEmployees,
   getEmployeesByStatus,
 } from '@/api/store';
+import { getEmployeeSchedules, type ScheduleDto } from '@/api/schedule';
 import { getApiErrorMessage } from '@/api/error';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
@@ -67,14 +68,31 @@ export default function EmployeePage() {
   const fetchEmployees = useCallback(async (storeId: number) => {
     try {
       const employees = await getEmployees(storeId);
-      const records: EmployeeRecord[] = employees.map((emp) => ({
-        id: emp.employeeId,
-        name: emp.name,
-        avatarSeed: `employee-${emp.userId}`,
-        status: emp.status as UIEmployeeStatus,
-        position: emp.position,
-        hourlyWage: emp.hourlyWage,
-      }));
+      const records = await Promise.all(
+        employees.map(async (emp): Promise<EmployeeRecord> => {
+          let workSummary: string = EMPLOYEE_PAGE_TEXT.defaultWorkSummary;
+
+          try {
+            const schedules = await getEmployeeSchedules(
+              storeId,
+              emp.employeeId
+            );
+            workSummary = formatWorkTimeSummary(schedules);
+          } catch {
+            workSummary = EMPLOYEE_PAGE_TEXT.defaultWorkSummary;
+          }
+
+          return {
+            id: emp.employeeId,
+            name: emp.name,
+            avatarSeed: `employee-${emp.userId}`,
+            status: emp.status as UIEmployeeStatus,
+            position: emp.position,
+            hourlyWage: emp.hourlyWage,
+            workSummary,
+          };
+        })
+      );
 
       setEmployeeRecords(records);
       setEmployeeLoadError(false);
@@ -294,3 +312,26 @@ export default function EmployeePage() {
     </div>
   );
 }
+const formatScheduleTime = (value: string): string =>
+  value.length >= 5 ? value.slice(0, 5) : value;
+
+const formatWorkTimeSummary = (schedules: ScheduleDto[]): string => {
+  if (schedules.length === 0) return EMPLOYEE_PAGE_TEXT.defaultWorkSummary;
+
+  const dayCount = new Set(schedules.map((schedule) => schedule.dayOfWeek))
+    .size;
+  const uniqueSlots = new Set(
+    schedules.map(
+      (schedule) =>
+        `${formatScheduleTime(schedule.startTime)}-${formatScheduleTime(schedule.endTime)}`
+    )
+  );
+
+  if (uniqueSlots.size === 1) {
+    const [slot] = Array.from(uniqueSlots);
+    const [start, end] = slot.split('-');
+    return `주 ${dayCount}일 / ${start} - ${end}`;
+  }
+
+  return `주 ${dayCount}일 / 요일별 변동`;
+};
