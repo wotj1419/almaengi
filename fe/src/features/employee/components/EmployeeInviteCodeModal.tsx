@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Link2, RefreshCw, Send, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Copy, RefreshCw, Send, X } from 'lucide-react';
 import type { OwnerInviteCode } from '@/features/employee/data/mockInviteCode';
 
 interface EmployeeInviteCodeModalProps {
@@ -11,7 +11,7 @@ interface EmployeeInviteCodeModalProps {
   isRegenerating?: boolean;
 }
 
-// 직원 초대 코드 모달 - 매장 코드를 표시하고, 복사/공유/재발급 기능을 제공한다
+// 직원 초대 코드 모달 - 매장 코드를 표시하고, 복사/재발급 기능을 제공한다
 export default function EmployeeInviteCodeModal({
   isOpen,
   inviteCode,
@@ -20,15 +20,16 @@ export default function EmployeeInviteCodeModal({
   onRegenerate,
   isRegenerating = false,
 }: EmployeeInviteCodeModalProps) {
-  // 복사/공유 결과를 1.8초간 토스트 메시지로 표시
+  // 복사 결과를 짧게 안내 메시지로 보여준다
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const showFeedback = (message: string) => setFeedbackMessage(message);
+
   const handleClose = useCallback(() => {
     setFeedbackMessage('');
     onClose();
   }, [onClose]);
 
-  // ESC 키로 모달 닫기
+  // ESC로 모달 닫기
   useEffect(() => {
     if (!isOpen) return;
 
@@ -40,21 +41,12 @@ export default function EmployeeInviteCodeModal({
     return () => window.removeEventListener('keydown', handleEscClose);
   }, [isOpen, handleClose]);
 
-  // 공유 시 전달할 안내 문구 (매장명 + 초대 코드 + 가입 안내)
-  const shareText = useMemo(
-    () =>
-      `${inviteCode.storeName} 직원 초대 코드입니다.\n코드: ${inviteCode.code}\n코드 입력 후 등록 시 사장님 승인 대기로 전달됩니다.`,
-    [inviteCode]
-  );
-
-  // 피드백 메시지 1.8초 후 자동 소멸
   useEffect(() => {
     if (!feedbackMessage) return;
     const timer = window.setTimeout(() => setFeedbackMessage(''), 1800);
     return () => window.clearTimeout(timer);
   }, [feedbackMessage]);
 
-  // 클립보드 복사 공통 유틸 - 성공/실패에 따라 토스트 메시지 표시
   const copyToClipboardWithFeedback = async (
     text: string,
     successMessage: string,
@@ -74,28 +66,6 @@ export default function EmployeeInviteCodeModal({
       '매장 코드를 복사했어요.',
       '복사 권한이 없어 복사하지 못했어요.'
     );
-
-  // Web Share API 우선 시도 → 미지원 또는 취소 시 클립보드 복사로 fallback
-  const handleShareCode = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${inviteCode.storeName} 직원 초대`,
-          text: shareText,
-        });
-        showFeedback('초대 코드를 공유했어요.');
-        return;
-      } catch {
-        // 공유를 취소했거나 실패하면 복사 fallback으로 이어진다.
-      }
-    }
-
-    await copyToClipboardWithFeedback(
-      shareText,
-      '공유 기능이 없어 안내 문구를 복사했어요.',
-      '공유/복사를 진행하지 못했어요.'
-    );
-  };
 
   if (!isOpen) return null;
 
@@ -170,28 +140,17 @@ export default function EmployeeInviteCodeModal({
             </button>
             <button
               type="button"
-              onClick={handleShareCode}
-              disabled={isReissuing || !inviteCode.code}
-              className="inline-flex h-11 items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-primary)]"
-            >
-              <Link2 size={14} />
-              초대하기
-            </button>
-          </div>
-          {onRegenerate && (
-            <button
-              type="button"
               onClick={onRegenerate}
-              disabled={isRegenerating}
-              className="inline-flex h-10 w-full items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] border border-[var(--color-border-muted)] text-[length:var(--text-sm)] font-medium text-[var(--color-text-muted)] disabled:opacity-50"
+              disabled={!onRegenerate || isRegenerating}
+              className="inline-flex h-11 items-center justify-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-[length:var(--text-sm)] font-bold text-[var(--color-text-primary)] disabled:opacity-50"
             >
               <RefreshCw
-                size={13}
+                size={14}
                 className={isRegenerating ? 'animate-spin' : ''}
               />
               {isRegenerating ? '발급 중...' : '코드 재발급'}
             </button>
-          )}
+          </div>
           {feedbackMessage && (
             <p className="text-center text-[length:var(--text-xs)] font-medium text-[var(--color-status-green-dot)]">
               {feedbackMessage}

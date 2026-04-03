@@ -1,138 +1,100 @@
-import { useMemo, useState } from 'react';
-import dayjs, { type Dayjs } from 'dayjs';
+import { useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import Avatar from 'boring-avatars';
-import { ChevronDown, FileText, Phone } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  getMonthlyAttendanceReport,
+  mapEmployeeMonthlyAttendanceSummary,
+  type EmployeeMonthlyAttendanceSummaryView,
+} from '@/api/attendance';
+import { getApiErrorMessage } from '@/api/error';
+import { getEmployeeSchedules, type ScheduleDto } from '@/api/schedule';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import { ROUTES } from '@/constants/routes';
-import EmployeeRangeDateModal from '@/features/employee/components/EmployeeRangeDateModal';
-import {
-  getEmployeeDetailById,
-  type EmployeeAttendanceStats,
-  type EmployeeDetail,
-  type EmployeeSummary,
-} from '@/features/employee/data/mockEmployee';
+import MonthSelector from '@/features/report/components/MonthSelector';
+import useStoreStore from '@/stores/useStoreStore';
 
-// 직원 목록에서 navigate 시 state로 전달되는 요약 정보 타입
 type EmployeeDetailLocationState = {
-  employee?: EmployeeSummary;
+  employee?: {
+    id: number;
+    name: string;
+    avatarSeed: string;
+    workSummary?: string;
+  };
 };
 
-// mock 데이터에 없는 직원 ID일 때 사용하는 기본값 생성 (state로 전달된 요약 정보 우선 활용)
-function buildFallbackDetail(
-  employeeId: number | undefined,
-  employeeSummary?: EmployeeSummary
-): EmployeeDetail {
+interface EmployeeProfileView {
+  id: number;
+  name: string;
+  avatarSeed: string;
+  phone: string;
+  defaultWorkTime: string;
+}
+
+const DEFAULT_PROFILE: EmployeeProfileView = {
+  id: -1,
+  name: '미등록 직원',
+  avatarSeed: 'employee-fallback',
+  phone: '-',
+  defaultWorkTime: '근무 정보 미등록',
+};
+
+function padMonth(month: number): string {
+  return String(month).padStart(2, '0');
+}
+
+function toTargetMonth(year: number, month: number): string {
+  return `${year}-${padMonth(month)}`;
+}
+
+function formatTime(value: string): string {
+  return value.length >= 5 ? value.slice(0, 5) : value;
+}
+
+function formatWorkTimeSummary(schedules: ScheduleDto[]): string {
+  if (schedules.length === 0) {
+    return '근무 정보 미등록';
+  }
+
+  const dayCount = new Set(schedules.map((schedule) => schedule.dayOfWeek))
+    .size;
+  const uniqueSlots = new Set(
+    schedules.map(
+      (schedule) =>
+        `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}`
+    )
+  );
+
+  if (uniqueSlots.size === 1) {
+    const [slot] = Array.from(uniqueSlots);
+    const [start, end] = slot.split('-');
+    return `주 ${dayCount}일 / ${start} - ${end}`;
+  }
+
+  return `주 ${dayCount}일 / 요일별 변동`;
+}
+
+function createEmptySummary(
+  employeeId: number,
+  employeeName: string,
+  targetMonth: string
+): EmployeeMonthlyAttendanceSummaryView {
   return {
-    id: employeeId ?? -1,
-    name: employeeSummary?.name ?? '미등록 직원',
-    avatarSeed: employeeSummary?.avatarSeed ?? 'employee-fallback',
-    part: '미등록',
-    birthDate: '미등록',
-    phone: '연락처 미등록',
-    defaultWorkTime: employeeSummary?.workSummary ?? '근무 정보 미등록',
-    contractSigned: false,
-    stats: {
-      periodLabel: '기간 정보 없음',
-      totalDays: 0,
-      totalHours: 0,
-      normalAttendance: 0,
-      absentCount: 0,
-      lateCount: 0,
-      overtimeHours: 0,
-    },
+    employeeId,
+    employeeName,
+    periodLabel: targetMonth,
+    workedDays: 0,
+    workedHours: 0,
+    normalAttendance: 0,
+    lateCount: 0,
+    absentCount: 0,
+    overtimeHours: '-',
   };
 }
 
-// 전화번호 문자열에서 숫자만 추출하여 tel: 링크 생성 (10자리 미만이면 undefined)
-function toTelHref(phone: string): string | undefined {
-  const onlyNumber = phone.replace(/\D/g, '');
-  if (onlyNumber.length < 10) return undefined;
-  return `tel:${onlyNumber}`;
-}
-
-// 날짜 범위를 사용자에게 보여줄 라벨로 변환 (같은 연도/월이면 중복 생략)
-function formatRangeLabel(startDate: Dayjs, endDate: Dayjs): string {
-  if (startDate.year() !== endDate.year()) {
-    return `${startDate.format('YYYY년 M월 D일')} - ${endDate.format('YYYY년 M월 D일')}`;
-  }
-  if (startDate.month() !== endDate.month()) {
-    return `${startDate.format('YYYY년 M월 D일')} - ${endDate.format('M월 D일')}`;
-  }
-  return `${startDate.format('YYYY년 M월 D일')} - ${endDate.format('D일')}`;
-}
-
-// periodLabel 문자열("2026년 2월 1일 - 27일")에서 시작일/종료일을 파싱, 실패 시 이번 달 기본 범위 반환
-function parseDefaultRange(periodLabel: string): { start: Dayjs; end: Dayjs } {
-  const numbers = periodLabel.match(/\d+/g);
-  if (numbers && numbers.length >= 4) {
-    const [year, month, startDay, endDay] = numbers;
-    const start = dayjs(`${year}-${month}-${startDay}`).startOf('day');
-    const end = dayjs(`${year}-${month}-${endDay}`).startOf('day');
-    if (start.isValid() && end.isValid() && !end.isBefore(start, 'day')) {
-      return { start, end };
-    }
-  }
-
-  const fallbackStart = dayjs().startOf('month');
-  const fallbackEnd = fallbackStart.add(26, 'day');
-  return { start: fallbackStart, end: fallbackEnd };
-}
-
-// 선택한 날짜 범위에 맞춰 기본 통계를 비율 기반으로 스케일링하여 근태 통계 산출
-function getRangeStats(
-  baseStats: EmployeeAttendanceStats,
-  startDate: Dayjs,
-  endDate: Dayjs
-): EmployeeAttendanceStats {
-  const start = startDate.startOf('day');
-  const end = endDate.startOf('day');
-  const baseRange = parseDefaultRange(baseStats.periodLabel);
-
-  const selectedPeriodDays = end.diff(start, 'day') + 1;
-  const basePeriodDays = Math.max(
-    1,
-    baseRange.end.diff(baseRange.start, 'day') + 1
-  );
-  const workdayRatio = Math.min(1, baseStats.totalDays / basePeriodDays);
-  const scaledWorkdays = Math.max(
-    0,
-    Math.round(selectedPeriodDays * workdayRatio)
-  );
-
-  const absentRate = baseStats.absentCount / Math.max(1, baseStats.totalDays);
-  const lateRate = baseStats.lateCount / Math.max(1, baseStats.totalDays);
-  const hoursPerWorkday =
-    baseStats.totalHours / Math.max(1, baseStats.totalDays);
-  const overtimePerWorkday =
-    baseStats.overtimeHours / Math.max(1, baseStats.totalDays);
-
-  const absentCount = Math.min(
-    scaledWorkdays,
-    Math.round(scaledWorkdays * absentRate)
-  );
-  const lateCount = Math.min(
-    scaledWorkdays - absentCount,
-    Math.round(scaledWorkdays * lateRate)
-  );
-  const normalAttendance = Math.max(
-    0,
-    scaledWorkdays - absentCount - lateCount
-  );
-
-  return {
-    periodLabel: formatRangeLabel(start, end),
-    totalDays: scaledWorkdays,
-    totalHours: Math.max(0, Math.round(scaledWorkdays * hoursPerWorkday)),
-    normalAttendance,
-    absentCount,
-    lateCount,
-    overtimeHours: Math.max(0, Math.round(scaledWorkdays * overtimePerWorkday)),
-  };
-}
-
-// 프로필 섹션에서 라벨-값 쌍을 한 줄로 표시하는 공통 행 컴포넌트
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-[var(--space-4)]">
@@ -146,82 +108,197 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// 직원 상세 정보 페이지 - 프로필 카드 + 날짜 범위별 근태 통계 표시
 export default function EmployeeDetailPage() {
   const navigate = useNavigate();
   const { employeeId } = useParams();
   const location = useLocation();
+  const currentStore = useStoreStore((state) => state.currentStore);
   const routeState = location.state as EmployeeDetailLocationState | null;
 
-  // URL 파라미터에서 직원 ID 추출 → mock 데이터 조회, 없으면 fallback 사용
-  const parsedEmployeeId = employeeId ? Number(employeeId) : undefined;
-  const detailById =
-    parsedEmployeeId !== undefined && Number.isFinite(parsedEmployeeId)
-      ? getEmployeeDetailById(parsedEmployeeId)
-      : undefined;
+  const parsedEmployeeId = Number(employeeId);
+  const hasValidEmployeeId =
+    Number.isFinite(parsedEmployeeId) && parsedEmployeeId > 0;
 
-  const detail =
-    detailById ?? buildFallbackDetail(parsedEmployeeId, routeState?.employee);
-  const callHref = toTelHref(detail.phone);
+  const today = dayjs();
+  const [year, setYear] = useState(today.year());
+  const [month, setMonth] = useState(today.month() + 1);
+
+  const targetMonth = useMemo(() => toTargetMonth(year, month), [year, month]);
+
+  const [profile, setProfile] = useState<EmployeeProfileView>({
+    ...DEFAULT_PROFILE,
+    id: hasValidEmployeeId ? parsedEmployeeId : -1,
+    name: routeState?.employee?.name ?? DEFAULT_PROFILE.name,
+    avatarSeed: routeState?.employee?.avatarSeed ?? DEFAULT_PROFILE.avatarSeed,
+    defaultWorkTime:
+      routeState?.employee?.workSummary ?? DEFAULT_PROFILE.defaultWorkTime,
+  });
+
+  const [summary, setSummary] = useState<EmployeeMonthlyAttendanceSummaryView>(
+    createEmptySummary(
+      hasValidEmployeeId ? parsedEmployeeId : -1,
+      routeState?.employee?.name ?? DEFAULT_PROFILE.name,
+      targetMonth
+    )
+  );
+
+  const disableNextMonth = year === today.year() && month === today.month() + 1;
   const contractRoute = ROUTES.EMPLOYEE_CONTRACT.replace(
     ':employeeId',
-    String(detail.id)
+    String(hasValidEmployeeId ? parsedEmployeeId : profile.id)
   );
 
-  const defaultRange = useMemo(
-    () => parseDefaultRange(detail.stats.periodLabel),
-    [detail.stats.periodLabel]
-  );
+  useEffect(() => {
+    if (!currentStore || !hasValidEmployeeId) return;
 
-  const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
-  const [rangeStart, setRangeStart] = useState(defaultRange.start);
-  const [rangeEnd, setRangeEnd] = useState(defaultRange.end);
+    let isCancelled = false;
 
-  const selectedStats = useMemo(
-    () => getRangeStats(detail.stats, rangeStart, rangeEnd),
-    [detail.stats, rangeStart, rangeEnd]
-  );
+    const fetchProfile = async () => {
+      try {
+        const schedules = await getEmployeeSchedules(
+          currentStore.storeId,
+          parsedEmployeeId
+        );
 
-  // 우측 요약: 실근무일(정상출근+지각), 실근무시간(평균근무시간*실근무일 + 연장근무)
-  const workedSummary = useMemo(() => {
-    const workedDays = selectedStats.normalAttendance + selectedStats.lateCount;
-    const hoursPerDay =
-      selectedStats.totalHours / Math.max(selectedStats.totalDays, 1);
-    const workedHours = Math.max(
-      0,
-      Math.round(workedDays * hoursPerDay + selectedStats.overtimeHours)
-    );
+        if (isCancelled) return;
 
-    return { workedDays, workedHours };
-  }, [selectedStats]);
+        const employeeName = routeState?.employee?.name ?? DEFAULT_PROFILE.name;
+        const avatarSeed =
+          routeState?.employee?.avatarSeed ?? `employee-${parsedEmployeeId}`;
 
-  // 근태 통계 항목별 표시 설정 (라벨, 값, 색상 dot, 텍스트 색상)
+        setProfile({
+          id: parsedEmployeeId,
+          name: employeeName,
+          avatarSeed,
+          phone: '-',
+          defaultWorkTime: formatWorkTimeSummary(schedules),
+        });
+      } catch (error) {
+        if (isCancelled) return;
+
+        toast.error(
+          getApiErrorMessage(error, '근무시간 정보를 불러오지 못했습니다.')
+        );
+        setProfile((prev) => ({
+          ...prev,
+          id: parsedEmployeeId,
+          phone: '-',
+          defaultWorkTime: DEFAULT_PROFILE.defaultWorkTime,
+        }));
+      }
+    };
+
+    void fetchProfile();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    currentStore,
+    hasValidEmployeeId,
+    parsedEmployeeId,
+    routeState?.employee?.avatarSeed,
+    routeState?.employee?.name,
+  ]);
+
+  useEffect(() => {
+    if (!currentStore || !hasValidEmployeeId) return;
+
+    let isCancelled = false;
+
+    const fetchMonthlySummary = async () => {
+      try {
+        const report = await getMonthlyAttendanceReport(
+          currentStore.storeId,
+          targetMonth
+        );
+
+        if (isCancelled) return;
+
+        setSummary(
+          mapEmployeeMonthlyAttendanceSummary(
+            report,
+            parsedEmployeeId,
+            profile.name || DEFAULT_PROFILE.name
+          )
+        );
+      } catch (error) {
+        if (isCancelled) return;
+
+        toast.error(
+          getApiErrorMessage(error, '직원 근태 통계를 불러오지 못했습니다.')
+        );
+        setSummary(
+          createEmptySummary(
+            parsedEmployeeId,
+            profile.name || DEFAULT_PROFILE.name,
+            targetMonth
+          )
+        );
+      }
+    };
+
+    void fetchMonthlySummary();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    currentStore,
+    hasValidEmployeeId,
+    parsedEmployeeId,
+    profile.name,
+    targetMonth,
+  ]);
+
   const statRows = [
     {
-      label: '정상 출근',
-      value: `${selectedStats.normalAttendance}회`,
-      dotClass: 'bg-[var(--color-status-blue-dot)]',
-      valueClass: 'text-white',
-    },
-    {
-      label: '결근',
-      value: `${selectedStats.absentCount}회`,
-      dotClass: 'bg-[var(--color-danger)]',
-      valueClass: 'text-[var(--color-danger)]',
-    },
-    {
       label: '지각',
-      value: `${selectedStats.lateCount}회`,
+      value: `${summary.lateCount}일`,
       dotClass: 'bg-[var(--color-status-orange-dot)]',
       valueClass: 'text-[var(--color-status-orange-dot)]',
     },
     {
+      label: '결근',
+      value: `${summary.absentCount}일`,
+      dotClass: 'bg-[var(--color-danger)]',
+      valueClass: 'text-[var(--color-danger)]',
+    },
+    {
+      label: '정상출근',
+      value: `${summary.normalAttendance}일`,
+      dotClass: 'bg-[var(--color-status-blue-dot)]',
+      valueClass: 'text-white',
+    },
+    {
       label: '연장 근무',
-      value: `${selectedStats.overtimeHours}시간`,
+      value: summary.overtimeHours,
       dotClass: 'bg-[var(--color-status-purple-dot)]',
       valueClass: 'text-white',
     },
   ];
+
+  const handlePrevMonth = () => {
+    if (month === 1) {
+      setYear((prev) => prev - 1);
+      setMonth(12);
+      return;
+    }
+
+    setMonth((prev) => prev - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (disableNextMonth) return;
+
+    if (month === 12) {
+      setYear((prev) => prev + 1);
+      setMonth(1);
+      return;
+    }
+
+    setMonth((prev) => prev + 1);
+  };
 
   return (
     <div className="min-h-dvh bg-[var(--color-bg-base)]">
@@ -232,10 +309,10 @@ export default function EmployeeDetailPage() {
           <section className="rounded-[var(--radius-xl)] bg-[var(--color-bg-white)] px-[var(--space-6)] py-[var(--space-6)] shadow-[var(--shadow-form-card)]">
             <div className="flex items-center justify-between border-b border-[var(--color-border-light)] pb-[var(--space-4)]">
               <div className="flex min-w-0 items-center gap-[var(--space-3)]">
-                <Avatar size={44} name={detail.avatarSeed} variant="beam" />
+                <Avatar size={44} name={profile.avatarSeed} variant="beam" />
                 <div className="min-w-0">
                   <h1 className="truncate text-[length:var(--text-lg)] font-bold text-[var(--color-text-primary)]">
-                    {detail.name}
+                    {profile.name}
                   </h1>
                 </div>
               </div>
@@ -245,56 +322,41 @@ export default function EmployeeDetailPage() {
                 className="inline-flex items-center gap-[var(--space-1-5)] rounded-[var(--radius-sm)] bg-[var(--color-badge-green-bg)] px-[var(--space-3)] py-[var(--space-1)] text-[length:var(--text-xs)] font-bold text-[var(--color-status-green-dot)]"
               >
                 <FileText size={12} />
-                근로계약서
+                {'근로계약서'}
               </button>
             </div>
 
             <div className="mt-[var(--space-4)] space-y-[var(--space-3)]">
-              <InfoRow label="생년월일" value={detail.birthDate} />
-              <div className="flex items-center justify-between gap-[var(--space-4)]">
-                <span className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
-                  휴대전화
-                </span>
-                <div className="flex items-center gap-[var(--space-2)]">
-                  {callHref && (
-                    <a
-                      href={callHref}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]"
-                      aria-label="전화 걸기"
-                    >
-                      <Phone size={14} />
-                    </a>
-                  )}
-                  <span className="text-[length:var(--text-base)] font-bold text-[var(--color-text-secondary)]">
-                    {detail.phone}
-                  </span>
-                </div>
-              </div>
-              <InfoRow label="근무시간" value={detail.defaultWorkTime} />
+              <InfoRow label={'전화번호'} value={profile.phone} />
+              <InfoRow label={'근무시간'} value={profile.defaultWorkTime} />
             </div>
           </section>
 
           <section className="rounded-[var(--radius-xl)] bg-[var(--color-bg-dark)] px-[var(--space-6)] py-[var(--space-6)] shadow-[var(--shadow-card)]">
+            <MonthSelector
+              year={year}
+              month={month}
+              onPrev={handlePrevMonth}
+              onNext={handleNextMonth}
+              disableNext={disableNextMonth}
+              variant="darkCard"
+            />
+
             <div className="mb-[var(--space-5)] flex items-start justify-between gap-[var(--space-4)]">
               <div>
-                <button
-                  type="button"
-                  onClick={() => setIsRangeModalOpen(true)}
-                  className="inline-flex items-center gap-[var(--space-1)] text-[length:var(--text-lg)] font-bold text-white"
-                >
-                  {selectedStats.periodLabel}
-                  <ChevronDown size={14} color="var(--color-text-light)" />
-                </button>
+                <p className="text-[length:var(--text-lg)] font-bold text-white">
+                  {summary.periodLabel}
+                </p>
                 <p className="mt-[var(--space-1)] text-[length:var(--text-xs)] font-medium text-[var(--color-text-light)]">
-                  근무 통계
+                  {'월간 근태'}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-[length:var(--text-3xl)] font-black leading-none text-[var(--color-primary)]">
-                  {workedSummary.workedDays}일
+                  {`출근 ${summary.workedDays}일`}
                 </p>
                 <p className="mt-[var(--space-1)] text-[length:var(--text-xs)] font-medium text-[var(--color-text-light)]">
-                  총 {workedSummary.workedHours}시간 근무
+                  {`총 ${summary.workedHours}시간 근무`}
                 </p>
               </div>
             </div>
@@ -328,19 +390,6 @@ export default function EmployeeDetailPage() {
       </div>
 
       <BottomNav activeTab="staff" />
-
-      <EmployeeRangeDateModal
-        key={`employee-range-${isRangeModalOpen}-${rangeStart.valueOf()}-${rangeEnd.valueOf()}`}
-        isOpen={isRangeModalOpen}
-        startDate={rangeStart}
-        endDate={rangeEnd}
-        onClose={() => setIsRangeModalOpen(false)}
-        onConfirm={(startDate, endDate) => {
-          setRangeStart(startDate);
-          setRangeEnd(endDate);
-          setIsRangeModalOpen(false);
-        }}
-      />
     </div>
   );
 }

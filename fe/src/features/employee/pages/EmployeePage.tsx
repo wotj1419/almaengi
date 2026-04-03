@@ -1,5 +1,5 @@
 import { FileText, UserPlus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,7 +17,6 @@ import EmployeeInviteCodeModal from '@/features/employee/components/EmployeeInvi
 import EmployeePendingInviteItem from '@/features/employee/components/EmployeePendingInviteItem';
 import EmployeeQuickActionCard from '@/features/employee/components/EmployeeQuickActionCard';
 import EmployeeSectionCard from '@/features/employee/components/EmployeeSectionCard';
-import EmployeeStaffGroupTabs from '@/features/employee/components/EmployeeStaffGroupTabs';
 import {
   EMPLOYEE_PAGE_TEXT,
   STAFF_GROUP_EMPTY_MESSAGE,
@@ -25,7 +24,6 @@ import {
 import { type EmployeeSummary } from '@/features/employee/data/mockEmployee';
 import type {
   EmployeeRecord,
-  StaffGroupKey,
   UIEmployeeStatus,
 } from '@/features/employee/types/employeeRecord';
 import { WORKING_STATUS_GROUP } from '@/features/employee/types/employeeRecord';
@@ -43,10 +41,13 @@ export default function EmployeePage() {
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isReissuing, setIsReissuing] = useState(false);
-  const [selectedStaffGroup, setSelectedStaffGroup] =
-    useState<StaffGroupKey>('CURRENT');
   const [employeeRecords, setEmployeeRecords] = useState<EmployeeRecord[]>([]);
   const [invitedRecords, setInvitedRecords] = useState<EmployeeRecord[]>([]);
+  const [employeeLoadError, setEmployeeLoadError] = useState(false);
+  const [pendingLoadError, setPendingLoadError] = useState(false);
+
+  const employeeErrorToastShownRef = useRef(false);
+  const pendingErrorToastShownRef = useRef(false);
 
   const fetchInviteCode = useCallback(
     async (storeId: number) => {
@@ -63,7 +64,6 @@ export default function EmployeePage() {
     [setInviteCodeStore]
   );
 
-  // 매장의 직원 목록을 API에서 조회
   const fetchEmployees = useCallback(async (storeId: number) => {
     try {
       const employees = await getEmployees(storeId);
@@ -75,9 +75,19 @@ export default function EmployeePage() {
         position: emp.position,
         hourlyWage: emp.hourlyWage,
       }));
+
       setEmployeeRecords(records);
+      setEmployeeLoadError(false);
+      employeeErrorToastShownRef.current = false;
     } catch (error) {
-      toast.error(getApiErrorMessage(error, '직원 목록 조회에 실패했어요.'));
+      setEmployeeRecords([]);
+      setEmployeeLoadError(true);
+      if (!employeeErrorToastShownRef.current) {
+        toast.error(
+          getApiErrorMessage(error, '직원 목록을 불러올 수 없습니다.')
+        );
+        employeeErrorToastShownRef.current = true;
+      }
     }
   }, []);
 
@@ -90,23 +100,33 @@ export default function EmployeePage() {
         avatarSeed: `employee-${emp.userId}`,
         status: 'INVITED',
       }));
+
       setInvitedRecords(records);
+      setPendingLoadError(false);
+      pendingErrorToastShownRef.current = false;
     } catch (error) {
-      toast.error(
-        getApiErrorMessage(error, '대기 직원 목록 조회에 실패했어요.')
-      );
+      setInvitedRecords([]);
+      setPendingLoadError(true);
+      if (!pendingErrorToastShownRef.current) {
+        toast.error(
+          getApiErrorMessage(error, '대기 직원 목록을 불러올 수 없습니다.')
+        );
+        pendingErrorToastShownRef.current = true;
+      }
     }
   }, []);
 
-  // currentStore 변경 시 직원 목록 조회 및 초대코드 갱신
   useEffect(() => {
     if (!currentStore) return;
+
     void fetchEmployees(currentStore.storeId);
     void fetchPendingEmployees(currentStore.storeId);
+
     const isExpired =
       !storedInviteCode ||
       !storedExpiredAt ||
       new Date() >= new Date(storedExpiredAt);
+
     if (isExpired) void fetchInviteCode(currentStore.storeId);
   }, [
     currentStore,
@@ -125,14 +145,6 @@ export default function EmployeePage() {
     [employeeRecords]
   );
 
-  const resignedRecords = useMemo(
-    () => employeeRecords.filter((item) => item.status === 'RESIGNED'),
-    [employeeRecords]
-  );
-
-  const selectedStaffRecords =
-    selectedStaffGroup === 'CURRENT' ? currentRecords : resignedRecords;
-
   const ownerInviteCode = useMemo(
     () => ({
       storeName: currentStore?.storeName ?? '',
@@ -147,14 +159,16 @@ export default function EmployeePage() {
     openContractPage: () => navigate(ROUTES.DOCUMENTS_REQUEST),
     closeInviteModal: () => setIsInviteModalOpen(false),
     regenerateCode: () => {
-      if (currentStore && !isReissuing)
+      if (currentStore && !isReissuing) {
         void fetchInviteCode(currentStore.storeId);
+      }
     },
     removeInvitedEmployee: () => {
       toast('요청 거절 기능은 아직 준비 중입니다.');
     },
     approveInvitedEmployee: async (employeeId: number) => {
       if (!currentStore) return;
+
       try {
         await approveEmployee(currentStore.storeId, employeeId);
         toast.success('직원 합류를 승인했어요.');
@@ -216,7 +230,11 @@ export default function EmployeePage() {
             title={EMPLOYEE_PAGE_TEXT.invitedSectionTitle}
             count={invitedRecords.length}
           >
-            {invitedRecords.length === 0 ? (
+            {pendingLoadError ? (
+              <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-5)] text-center text-[length:var(--text-sm)] text-[var(--color-text-placeholder)]">
+                {'대기 직원 목록을 불러올 수 없어 기능이 제한됩니다.'}
+              </div>
+            ) : invitedRecords.length === 0 ? (
               <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-muted)] px-[var(--space-4)] py-[var(--space-5)] text-center text-[length:var(--text-sm)] text-[var(--color-text-placeholder)]">
                 {EMPLOYEE_PAGE_TEXT.invitedEmptyMessage}
               </div>
@@ -236,27 +254,24 @@ export default function EmployeePage() {
 
           <EmployeeSectionCard
             title={EMPLOYEE_PAGE_TEXT.staffSectionTitle}
-            count={selectedStaffRecords.length}
+            count={currentRecords.length}
           >
-            <EmployeeStaffGroupTabs
-              selectedGroup={selectedStaffGroup}
-              currentCount={currentRecords.length}
-              resignedCount={resignedRecords.length}
-              onSelect={setSelectedStaffGroup}
-            />
-
-            {selectedStaffRecords.length === 0 ? (
-              <div className="flex h-56 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-muted)] px-[var(--space-4)] py-[var(--space-5)] text-center text-[length:var(--text-sm)] text-[var(--color-text-placeholder)]">
-                {STAFF_GROUP_EMPTY_MESSAGE[selectedStaffGroup]}
+            {employeeLoadError ? (
+              <div className="flex h-72 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-5)] text-center text-[length:var(--text-sm)] text-[var(--color-text-placeholder)]">
+                {'직원 목록을 불러올 수 없어 기능이 제한됩니다.'}
+              </div>
+            ) : currentRecords.length === 0 ? (
+              <div className="flex h-72 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-muted)] px-[var(--space-4)] py-[var(--space-5)] text-center text-[length:var(--text-sm)] text-[var(--color-text-placeholder)]">
+                {STAFF_GROUP_EMPTY_MESSAGE.CURRENT}
               </div>
             ) : (
-              <ul className="h-56 space-y-[var(--space-2)] overflow-y-auto pr-[var(--space-0-5)]">
-                {selectedStaffRecords.map((item) => (
+              <ul className="h-72 space-y-[var(--space-2)] overflow-y-auto pr-[var(--space-0-5)]">
+                {currentRecords.map((item) => (
                   <li key={item.id}>
                     <EmployeeListItem
                       item={item}
                       onOpen={handlers.openEmployeeDetail}
-                      isInactive={selectedStaffGroup === 'RESIGNED'}
+                      isInactive={false}
                     />
                   </li>
                 ))}
