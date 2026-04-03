@@ -5,6 +5,7 @@ import type { Payroll } from '../types';
 
 interface Props {
   payroll: Payroll;
+  payDay: number | null;
   onViewStatement: () => void;
 }
 
@@ -20,6 +21,7 @@ function formatTime(minutes: number): string {
 
 export default function PayrollEmployeeCard({
   payroll,
+  payDay,
   onViewStatement,
 }: Props) {
   // 배지 상태: 지급 예정 → 승인 완료 → 지급 완료
@@ -27,7 +29,7 @@ export default function PayrollEmployeeCard({
   const isApproved = payroll.is_approved;
 
   // 하드코딩: 급여일 21일 (다음달 21일 지급)
-  const PAY_DAY = 21;
+  const PAY_DAY = payDay ?? 21;
   const paidDateLabel = dayjs(payroll.target_month)
     .add(1, 'month')
     .date(PAY_DAY)

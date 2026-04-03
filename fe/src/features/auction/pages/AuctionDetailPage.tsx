@@ -1,10 +1,12 @@
 ﻿import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Clock, MapPin, Timer, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/common/DetailHeader';
+import { getStore } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 import useAuthStore from '@/stores/useAuthStore';
 import { useAuctionDetail, useCloseAuction } from '../hooks/useAuctionQueries';
@@ -35,6 +37,11 @@ export default function AuctionDetailPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const auction = detail?.auction;
+  const { data: storeInfo } = useQuery({
+    queryKey: ['auction', 'store', auction?.storeId],
+    queryFn: () => getStore(auction!.storeId),
+    enabled: typeof auction?.storeId === 'number',
+  });
   const bidders = detail?.bidders;
   const hasBidders = Boolean(
     bidders &&
@@ -163,7 +170,6 @@ export default function AuctionDetailPage() {
                 </span>
               </span>
             </div>
-
             <div className="inline-flex items-center gap-2">
               <Clock
                 className="w-4 h-4 text-[var(--color-text-muted)]"
@@ -186,7 +192,7 @@ export default function AuctionDetailPage() {
               <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
                 근무 지점:{' '}
                 <span className="text-[var(--color-text-primary)]">
-                  부산갈매기 수완점
+                  {storeInfo?.storeName ?? '-'}
                 </span>
               </span>
             </div>
