@@ -16,11 +16,11 @@ import {
   useReportPayrollSummary,
   useReportPayrollTrend,
 } from '../hooks/useReportQueries';
+import { useStorePayrolls } from '@/features/payroll/hooks/usePayrollQueries';
 import {
   mapAttendanceRecords,
   mapAuctionInsightsAlerts,
   mapAuctionSummary,
-  mapMonthlyHighlights,
   mapMonthlyPayrollSeries,
   mapPayrollAlerts,
   mapPayrollBreakdown,
@@ -43,7 +43,10 @@ export default function ReportPage() {
   const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
   const isCurrentMonth = year === todayYear && month === todayMonth;
 
-  const payrollSummaryQuery = useReportPayrollSummary(activeStoreId, targetMonth);
+  const payrollSummaryQuery = useReportPayrollSummary(
+    activeStoreId,
+    targetMonth
+  );
   const attendanceMonthlyQuery = useReportAttendanceMonthly(
     activeStoreId,
     targetMonth
@@ -55,9 +58,14 @@ export default function ReportPage() {
     !isCurrentMonth
   );
 
+  const storePayrollsQuery = useStorePayrolls(activeStoreId, targetMonth);
+
   const payrollSummary = payrollSummaryQuery.data;
   const attendanceMonthly = attendanceMonthlyQuery.data;
-  const auctionInsights = isCurrentMonth ? null : (auctionInsightsQuery.data ?? null);
+  const storePayrolls = storePayrollsQuery.data;
+  const auctionInsights = isCurrentMonth
+    ? null
+    : (auctionInsightsQuery.data ?? null);
 
   const summaryCards = useMemo(() => {
     if (!payrollSummary || !attendanceMonthly) {
@@ -86,9 +94,9 @@ export default function ReportPage() {
   }, [payrollSummary, attendanceMonthly, auctionInsights, isCurrentMonth]);
 
   const payrollAlerts = useMemo(() => {
-    if (!payrollSummary || !attendanceMonthly) return [];
-    return mapPayrollAlerts(payrollSummary, attendanceMonthly);
-  }, [payrollSummary, attendanceMonthly]);
+    if (!payrollSummary) return [];
+    return mapPayrollAlerts(payrollSummary);
+  }, [payrollSummary]);
 
   const monthlyPayrollSeries = useMemo(
     () => mapMonthlyPayrollSeries(payrollTrendQuery.summaries),
@@ -101,19 +109,14 @@ export default function ReportPage() {
   }, [payrollSummary]);
 
   const staffAlerts = useMemo(() => {
-    if (!attendanceMonthly) return [];
-    return mapStaffAlerts(attendanceMonthly);
-  }, [attendanceMonthly]);
-
-  const monthlyHighlights = useMemo(() => {
-    if (!payrollSummary || !attendanceMonthly) return [];
-    return mapMonthlyHighlights(payrollSummary, attendanceMonthly);
-  }, [payrollSummary, attendanceMonthly]);
+    if (!attendanceMonthly || !payrollSummary) return [];
+    return mapStaffAlerts(attendanceMonthly, payrollSummary);
+  }, [attendanceMonthly, payrollSummary]);
 
   const attendanceRecords = useMemo(() => {
     if (!attendanceMonthly) return [];
-    return mapAttendanceRecords(attendanceMonthly);
-  }, [attendanceMonthly]);
+    return mapAttendanceRecords(attendanceMonthly, storePayrolls?.employees);
+  }, [attendanceMonthly, storePayrolls]);
 
   const payrollRanking = useMemo(() => {
     if (!payrollSummary) return [];
@@ -128,16 +131,23 @@ export default function ReportPage() {
     () => mapAuctionSummary(auctionInsights),
     [auctionInsights]
   );
-  const peakTimes = useMemo(() => mapPeakTimes(auctionInsights), [auctionInsights]);
+  const peakTimes = useMemo(
+    () => mapPeakTimes(auctionInsights),
+    [auctionInsights]
+  );
 
   const isCoreLoading =
     payrollSummaryQuery.isLoading || attendanceMonthlyQuery.isLoading;
 
   const isPayrollTabLoading = isCoreLoading || payrollTrendQuery.isLoading;
-  const isAuctionTabLoading = isCurrentMonth ? false : auctionInsightsQuery.isLoading;
+  const isAuctionTabLoading = isCurrentMonth
+    ? false
+    : auctionInsightsQuery.isLoading;
 
   const payrollErrorMessage =
-    payrollSummaryQuery.error || attendanceMonthlyQuery.error || payrollTrendQuery.isError
+    payrollSummaryQuery.error ||
+    attendanceMonthlyQuery.error ||
+    payrollTrendQuery.isError
       ? getApiErrorMessage(
           payrollSummaryQuery.error ?? attendanceMonthlyQuery.error,
           '급여 리포트를 불러오지 못했습니다.'
@@ -248,7 +258,6 @@ export default function ReportPage() {
             ) : (
               <StaffComparisonTab
                 alerts={staffAlerts}
-                highlights={monthlyHighlights}
                 attendanceRecords={attendanceRecords}
                 payrollRanking={payrollRanking}
               />

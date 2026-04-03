@@ -25,11 +25,18 @@ export default function PayrollRankingCard({ ranking }: Props) {
         직원별 급여 랭킹
       </p>
 
-      <div className="flex flex-col gap-[var(--space-5)]">
+      <div className="flex flex-col gap-[var(--space-8)] mb-[var(--space-5)]">
         {ranking.map((item, index) => {
-          const color = RANK_COLORS[index] ?? 'var(--color-text-light)';
-          const isMuted = index === 3;
+          const color =
+            RANK_COLORS[Math.min(index, 3)] ?? 'var(--color-text-light)';
+          const isMuted = index >= 3;
           const barWidth = Math.round((item.amount / maxAmount) * 100);
+          const textColor =
+            index === 0
+              ? 'var(--color-text-primary)'
+              : isMuted
+                ? 'var(--color-text-light)'
+                : 'var(--color-text-primary)';
 
           return (
             <div key={item.id} className="flex flex-col gap-[var(--space-2)]">
@@ -37,7 +44,9 @@ export default function PayrollRankingCard({ ranking }: Props) {
                 <div className="flex items-center gap-[var(--space-3)]">
                   <span
                     className="text-[length:var(--text-sm)] font-bold text-center"
-                    style={{ color }}
+                    style={{
+                      color: index === 0 ? 'var(--color-text-primary)' : color,
+                    }}
                   >
                     {item.rank}위
                   </span>
@@ -46,22 +55,14 @@ export default function PayrollRankingCard({ ranking }: Props) {
                   </div>
                   <span
                     className="text-[length:var(--text-sm)] font-medium"
-                    style={{
-                      color: isMuted
-                        ? 'var(--color-text-light)'
-                        : 'var(--color-text-primary)',
-                    }}
+                    style={{ color: textColor }}
                   >
                     {item.name}
                   </span>
                 </div>
                 <span
                   className="text-[length:var(--text-sm)] font-bold"
-                  style={{
-                    color: isMuted
-                      ? 'var(--color-text-light)'
-                      : 'var(--color-text-primary)',
-                  }}
+                  style={{ color: textColor }}
                 >
                   {formatAmount(item.amount)}
                 </span>

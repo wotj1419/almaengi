@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import stampPaid from '@/assets/images/stamp-paid.png';
+import { getPayDay } from '@/api/payroll';
+import useStoreStore from '@/stores/useStoreStore';
 
 interface Props {
   totalNetPay: number;
@@ -40,25 +43,45 @@ export default function PayrollSummaryCard({
   onManualTransfer,
 }: Props) {
   const navigate = useNavigate();
+  const currentStore = useStoreStore((s) => s.currentStore);
+  const [payDay, setPayDay] = useState<number | null>(null);
 
-  // D-Day 계산 (하드코딩: 급여일 21일)
-  const PAY_DAY = 21;
-  const today = new Date();
+  useEffect(() => {
+    if (!currentStore) return;
+    getPayDay(currentStore.storeId)
+      .then(setPayDay)
+      .catch(() => {});
+  }, [currentStore]);
+
+  // D-Day 계산
+  const effectivePayDay = payDay ?? 15;
+  const now = new Date();
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const thisMonthPayDate = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    PAY_DAY
+    now.getFullYear(),
+    now.getMonth(),
+    effectivePayDay
   );
   const nextMonthPayDate = new Date(
-    today.getFullYear(),
-    today.getMonth() + 1,
-    PAY_DAY
+    now.getFullYear(),
+    now.getMonth() + 1,
+    effectivePayDay
   );
-  const payDate =
-    today <= thisMonthPayDate ? thisMonthPayDate : nextMonthPayDate;
-  const dDay = Math.ceil(
-    (payDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const isPastPayDay = todayDate.getTime() > thisMonthPayDate.getTime();
+
+  let dDayLabel: string;
+  if (isPastPayDay && !isPaid) {
+    const overDays = Math.ceil(
+      (todayDate.getTime() - thisMonthPayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = `D+${overDays}`;
+  } else {
+    const payDate = isPastPayDay ? nextMonthPayDate : thisMonthPayDate;
+    const dDay = Math.ceil(
+      (payDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    dDayLabel = dDay === 0 ? 'D-Day' : `D-${dDay}`;
+  }
 
   return (
     <div className="px-[var(--space-5)] pt-[var(--space-5)] pb-[var(--space-5)] flex flex-col gap-[var(--space-5)]">
@@ -81,7 +104,7 @@ export default function PayrollSummaryCard({
           />
         ) : (
           <span className="px-[var(--space-2)] py-[var(--space-0-5)] rounded-[var(--radius-xs)] text-[length:var(--text-2xs)] font-bold whitespace-nowrap bg-[var(--color-status-grey-bg)] text-[color:var(--color-status-grey-dot)]">
-            D-{dDay}
+            {dDayLabel}
           </span>
         )}
       </div>
