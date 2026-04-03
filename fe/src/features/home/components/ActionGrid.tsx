@@ -43,6 +43,7 @@ export default function ActionGrid() {
         iconColor="var(--color-icon-light)"
         icon="schedule"
         path={ROUTES.AUCTION}
+        state={{ from: 'home' }}
       />
       <ActionCard
         title="할 일 관리"

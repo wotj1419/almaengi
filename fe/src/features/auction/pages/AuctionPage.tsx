@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/common/DetailHeader';
 import { getApiErrorMessage } from '@/api/error';
+import { ROUTES } from '@/constants/routes';
 import useAuthStore from '@/stores/useAuthStore';
 import NoStoreCard from '@/components/common/NoStoreCard';
 import AuctionListCard from '../components/AuctionListCard';
@@ -47,15 +48,18 @@ function persistHiddenCompletedAuctionIds(auctionIds: number[]) {
 export default function AuctionPage() {
   const activeStoreId = useAuthStore((state) => state.activeStoreId);
 
-  // 사장 페이지에서도 경매 이벤트를 구독해 목록/상세를 즉시 동기화
+  // 사장 페이지에서 경매 이벤트를 구독해 목록/상세를 즉시 동기화
   useAuctionSocket(activeStoreId);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const locationState = location.state as {
+    tab?: string;
+    from?: 'home' | 'storeManage';
+  } | null;
+  const entryFrom = locationState?.from;
   const initialTab =
-    (location.state as { tab?: string } | null)?.tab === 'completed'
-      ? 'completed'
-      : 'inProgress';
+    locationState?.tab === 'completed' ? 'completed' : 'inProgress';
 
   const [activeTab, setActiveTab] = useState<'inProgress' | 'completed'>(
     initialTab
@@ -67,10 +71,6 @@ export default function AuctionPage() {
   >(() => readHiddenCompletedAuctionIds());
   const [countdownTick, setCountdownTick] = useState(() => Date.now());
 
-  // ─── 경매 데이터 조회 ──────────────────────────────────────────────────────
-  // [변경 사항] Mock 폴백 제거: API가 빈 배열을 반환하면 정상적으로 빈 상태 UI 표시
-  // - 이전: auctionDtos.length === 0일 때 mockAuctionDtos로 폴백 → 실제 API 동작 숨김
-  // - 현재: auctionDtos를 그대로 사용 → 로딩/에러/빈 상태를 명확히 구분
   const { data: auctionDtos = [] } = useAuctions(activeStoreId);
   const deleteMutation = useDeleteAuction();
 
@@ -82,21 +82,21 @@ export default function AuctionPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // ─── 경매 항목 변환 (카운트다운 재계산용) ─────────────────────────────────
-  // countdownTick이 변할 때마다 남은 시간 표시 업데이트
   const auctions = useMemo(() => {
-    // countdownTick drives re-computation every second for live countdown labels.
     void countdownTick;
     return auctionDtos.map(toAuctionItem);
   }, [auctionDtos, countdownTick]);
+
   const hiddenCompletedAuctionIdSet = useMemo(
     () => new Set(hiddenCompletedAuctionIds),
     [hiddenCompletedAuctionIds]
   );
+
   const inProgressAuctions = useMemo(
     () => auctions.filter((auction) => auction.status === 'inProgress'),
     [auctions]
   );
+
   const completedAuctions = useMemo(() => {
     const filtered = auctions.filter(
       (auction) =>
@@ -104,33 +104,25 @@ export default function AuctionPage() {
         !hiddenCompletedAuctionIdSet.has(auction.id)
     );
 
-    // Split into expired (unawarded) and normal groups
     const expired = filtered.filter(
       (auction) => auction.displayStatus === 'expired'
     );
     const normal = filtered.filter(
       (auction) => auction.displayStatus !== 'expired'
     );
-
-    // Return expired first, then normal
     return [...expired, ...normal];
   }, [auctions, hiddenCompletedAuctionIdSet]);
 
   const filteredAuctions =
     activeTab === 'inProgress' ? inProgressAuctions : completedAuctions;
 
-  const hideCompletedAuction = (auctionId: number) => {
+  const handleDeleteCompleted = (auctionId: number) => {
     setHiddenCompletedAuctionIds((prev) => {
       if (prev.includes(auctionId)) return prev;
-
       const next = [...prev, auctionId];
       persistHiddenCompletedAuctionIds(next);
       return next;
     });
-  };
-
-  const handleDeleteCompleted = (auctionId: number) => {
-    hideCompletedAuction(auctionId);
   };
 
   const handleConfirmStop = () => {
@@ -160,18 +152,25 @@ export default function AuctionPage() {
     });
   };
 
+  const handleBack = () => {
+    if (entryFrom === 'home') {
+      navigate(ROUTES.HOME, { replace: true });
+      return;
+    }
+
+    if (entryFrom === 'storeManage') {
+      navigate(ROUTES.STORE, { replace: true });
+      return;
+    }
+
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
-      <DetailHeader title="근무 경매" />
+      <DetailHeader title="근무 경매" onBack={handleBack} />
 
       <main className="px-[15px] pt-2.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col gap-3.5">
-        {/* ─── 매장 미선택 상태 ─────────────────────────────────────────────
-            [변경 사항] Mock 폴백 제거 후 조건 단순화
-            - 이전: activeStoreId === null && !isUsingMockAuctions
-              (매장 없거나 && 실제 데이터를 사용 중일 때만 NoStoreCard 표시)
-            - 현재: activeStoreId === null
-              (매장이 없으면 항상 NoStoreCard 표시)
-            ──────────────────────────────────────────────────────────────── */}
         {activeStoreId === null ? (
           <div className="-mx-[15px]">
             <NoStoreCard
@@ -179,7 +178,7 @@ export default function AuctionPage() {
                 <>
                   경매 기능을 사용하려면
                   <br />
-                  매장을 등록해야 합니다
+                  매장을 먼저 등록해야 합니다.
                 </>
               }
             />
@@ -189,15 +188,25 @@ export default function AuctionPage() {
             <AuctionSummaryCard
               inProgressCount={inProgressAuctions.length}
               completedCount={completedAuctions.length}
-              onRegister={() => navigate('/auction/register')}
+              onRegister={() =>
+                navigate('/auction/register', { state: { from: entryFrom } })
+              }
             />
             <AuctionListCard
               activeTab={activeTab}
               onTabChange={setActiveTab}
               auctions={filteredAuctions}
-              onViewBids={(id) => navigate(`/auction/${id}`)}
-              onViewResult={(id) => navigate(`/auction/result/${id}`)}
-              onEdit={(id) => navigate(`/auction/edit/${id}`)}
+              onViewBids={(id) =>
+                navigate(`/auction/${id}`, { state: { from: entryFrom } })
+              }
+              onViewResult={(id) =>
+                navigate(`/auction/result/${id}`, {
+                  state: { from: entryFrom },
+                })
+              }
+              onEdit={(id) =>
+                navigate(`/auction/edit/${id}`, { state: { from: entryFrom } })
+              }
               onStop={(id) => {
                 setTargetAuctionId(id);
                 setShowStopModal(true);

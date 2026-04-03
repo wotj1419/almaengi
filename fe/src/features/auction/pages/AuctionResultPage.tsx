@@ -1,7 +1,9 @@
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+﻿import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CircleCheck, Clock, MapPin, Timer, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import DetailHeader from '@/components/common/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
+import { getStore } from '@/api/store';
 import { useAuctionDetail } from '../hooks/useAuctionQueries';
 import type { AuctionDto } from '@/api/auction.types';
 
@@ -15,6 +17,7 @@ interface ResultPageWinner {
 interface ResultState {
   winners?: ResultPageWinner[];
   auction?: AuctionDto;
+  from?: 'home' | 'storeManage';
 }
 
 export default function AuctionResultPage() {
@@ -23,10 +26,16 @@ export default function AuctionResultPage() {
   const auctionId = Number(id);
   const location = useLocation();
   const state = location.state as ResultState | null;
+  const entryFrom = state?.from;
   const isFirstView = Boolean(state?.winners?.length);
 
   const { data: detail, isLoading } = useAuctionDetail(auctionId);
   const auction = state?.auction ?? detail?.auction;
+  const { data: storeInfo } = useQuery({
+    queryKey: ['auction', 'store', auction?.storeId],
+    queryFn: () => getStore(auction!.storeId),
+    enabled: typeof auction?.storeId === 'number',
+  });
 
   const winners: ResultPageWinner[] =
     state?.winners ??
@@ -90,7 +99,12 @@ export default function AuctionResultPage() {
     <div className="min-h-dvh flex flex-col bg-[var(--color-bg-base)]">
       <DetailHeader
         title="경매 결과"
-        onBack={() => navigate('/auction', { state: { tab: 'completed' } })}
+        onBack={() =>
+          navigate('/auction', {
+            replace: true,
+            state: { tab: 'completed', from: entryFrom },
+          })
+        }
       />
 
       <div className="px-3.5 pb-[calc(96px+env(safe-area-inset-bottom,0px))] flex flex-col items-center gap-5">
@@ -108,7 +122,7 @@ export default function AuctionResultPage() {
               <span className="text-[var(--color-text-primary)] text-xl font-bold leading-6">
                 경매가 성공적으로
                 <br />
-                낙찰되었습니다.
+                낙찰되었습니다
               </span>
             </div>
           </>
@@ -160,7 +174,7 @@ export default function AuctionResultPage() {
                 <span className="text-[var(--color-text-muted)] text-base font-medium leading-5">
                   근무 지점:{' '}
                   <span className="text-[var(--color-text-primary)]">
-                    부산갈매기 수완점
+                    {storeInfo?.storeName ?? '-'}
                   </span>
                 </span>
               </div>
@@ -204,7 +218,7 @@ export default function AuctionResultPage() {
                       근무 지점
                     </span>
                     <span className="text-[var(--color-text-secondary)] text-base font-medium leading-5">
-                      부산갈매기 수완점
+                      {storeInfo?.storeName ?? '-'}
                     </span>
                   </div>
                 </div>
@@ -216,7 +230,10 @@ export default function AuctionResultPage() {
         <div className="w-full flex flex-col items-center gap-3">
           <button
             onClick={() =>
-              navigate('/auction', { state: { tab: 'completed' } })
+              navigate('/auction', {
+                replace: true,
+                state: { tab: 'completed', from: entryFrom },
+              })
             }
             className="self-stretch py-4 bg-[var(--color-primary)] rounded-2xl flex justify-center items-center"
           >
