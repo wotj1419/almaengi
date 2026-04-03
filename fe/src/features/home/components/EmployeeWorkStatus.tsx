@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import workingImg from '@/assets/images/working.png';
+import workingImg from '@/assets/images/landingpage.png';
 
 // 백엔드 AttendanceStatus와 동일. DONE은 clockOut 존재 여부로 판단
 export type AttendanceStatus =

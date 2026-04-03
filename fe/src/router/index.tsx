@@ -44,6 +44,7 @@ import AttendancePage from '@/features/attendance/pages/AttendancePage';
 import AttendanceCheckPage from '@/features/attendance/pages/AttendanceCheckPage';
 import ChatbotPage from '@/features/chatbot/pages/ChatbotPage';
 import ReportPage from '@/features/report/pages/ReportPage';
+import EmployeeReportPage from '@/features/report/pages/EmployeeReportPage';
 import NotificationPage from '@/features/notification/pages/NotificationPage';
 import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/login/pages/LoginPage';
@@ -208,13 +209,7 @@ export default function AppRouter() {
       <Route path={ROUTES.CHATBOT} element={<ChatbotPage />} />
       <Route
         path={ROUTES.REPORT}
-        element={
-          role === 'OWNER' ? (
-            <ReportPage />
-          ) : (
-            <Navigate replace to={ROUTES.PAYROLL} />
-          )
-        }
+        element={role === 'OWNER' ? <ReportPage /> : <EmployeeReportPage />}
       />
       <Route path={ROUTES.NOTIFICATION} element={<NotificationPage />} />
       <Route path="*" element={<NotFoundPage />} />

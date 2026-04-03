@@ -5,6 +5,8 @@ export interface AttendanceRecord {
   late: number;
   absent: number;
   hours: number;
+  overtimeHours: number;
+  nightHours: number;
   isWarning: boolean;
 }
 

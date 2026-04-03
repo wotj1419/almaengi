@@ -1,13 +1,11 @@
-import { TriangleAlert, BadgeCheck } from 'lucide-react';
+import { TriangleAlert, BadgeCheck, Banknote } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AlertCard from './AlertCard';
-import MonthlyHighlights from './MonthlyHighlights';
 import AttendanceTable from './AttendanceTable';
 import PayrollRankingCard from './PayrollRankingCard';
 import type {
   AlertCardData,
   AttendanceRecord,
-  MonthlyHighlightItem,
   PayrollRankingItem,
 } from '../types';
 
@@ -17,7 +15,7 @@ const ICON_CONFIG: Record<
 > = {
   green: {
     icon: (
-      <BadgeCheck
+      <Banknote
         size={20}
         color="var(--color-status-green-dot)"
         strokeWidth={2}
@@ -45,14 +43,12 @@ const ICON_CONFIG: Record<
 
 interface Props {
   alerts: AlertCardData[];
-  highlights: MonthlyHighlightItem[];
   attendanceRecords: AttendanceRecord[];
   payrollRanking: PayrollRankingItem[];
 }
 
 export default function StaffComparisonTab({
   alerts,
-  highlights,
   attendanceRecords,
   payrollRanking,
 }: Props) {
@@ -70,7 +66,6 @@ export default function StaffComparisonTab({
           />
         );
       })}
-      <MonthlyHighlights highlights={highlights} />
       <AttendanceTable records={attendanceRecords} />
       <PayrollRankingCard ranking={payrollRanking} />
     </div>

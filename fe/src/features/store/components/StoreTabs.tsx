@@ -1,5 +1,5 @@
 type Tab = '게시판' | '채팅방';
-const TABS: Tab[] = ['게시판', '채팅방'];
+const TABS: Tab[] = ['채팅방', '게시판'];
 
 type Props = {
   activeTab: Tab;

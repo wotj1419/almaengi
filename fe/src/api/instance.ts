@@ -25,6 +25,11 @@ function processQueue(error: unknown, token: string | null) {
   failedQueue = [];
 }
 
+function clearClientAuthState() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('auth-storage');
+}
+
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
@@ -50,13 +55,22 @@ instance.interceptors.response.use(
   async (error: AxiosError) => {
     // 로그인 요청의 401은 비밀번호 불일치 등이므로 재발급하지 않음
     const isLoginRequest = error.config?.url?.includes('/auth/login');
+    const isReissueRequest = error.config?.url?.includes('/auth/reissue');
 
-    if (error.response?.status === 401 && !isLoginRequest) {
+    // accessToken이 없으면 로그인 전 상태이므로 reissue 시도하지 않음
+    const hasToken = !!localStorage.getItem('accessToken');
+
+    if (
+      error.response?.status === 401 &&
+      !isLoginRequest &&
+      !isReissueRequest &&
+      hasToken
+    ) {
       const originalRequest = error.config as InternalAxiosRequestConfig;
 
       // 재시도했는데도 401이면 무한 루프 방지를 위해 로그아웃
       if (originalRequest._retry) {
-        localStorage.removeItem('accessToken');
+        clearClientAuthState();
         window.location.href = '/login';
         return Promise.reject(error);
       }
@@ -91,7 +105,7 @@ instance.interceptors.response.use(
         return instance(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('accessToken');
+        clearClientAuthState();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {

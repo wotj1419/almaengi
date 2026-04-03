@@ -1,6 +1,6 @@
 import type { AttendanceRecord } from '../types';
 
-const HEADERS = ['이름', '출근', '지각', '결근', '시간'];
+const HEADERS = ['이름', '출근', '지각', '결근', '시간', '연장', '야간'];
 
 interface Props {
   records: AttendanceRecord[];
@@ -13,15 +13,15 @@ export default function AttendanceTable({ records }: Props) {
         <p className="text-[length:var(--text-ml)] text-[color:var(--color-text-primary)] font-bold">
           직원별 근태 비교
         </p>
-        <p className="text-[length:var(--text-xs)] text-[color:var(--color-text-muted)]">
+        {/* <p className="text-[length:var(--text-xs)] text-[color:var(--color-text-muted)]">
           최근 30일 기준
-        </p>
+        </p> */}
       </div>
 
-      <div className="rounded-[var(--radius-sm)] overflow-hidden">
+      <div className="rounded-[var(--radius-sm)] overflow-hidden overflow-x-auto">
         {/* 헤더 */}
         <div
-          className="grid grid-cols-5 py-[var(--space-3)] px-[var(--space-3)]"
+          className="grid grid-cols-7 min-w-[420px] py-[var(--space-3)] px-[var(--space-3)]"
           style={{ backgroundColor: 'var(--color-table-header-bg)' }}
         >
           {HEADERS.map((h) => (
@@ -39,7 +39,7 @@ export default function AttendanceTable({ records }: Props) {
         {records.map((row) => (
           <div
             key={row.id}
-            className="grid grid-cols-5 py-[var(--space-4)] px-[var(--space-3)]"
+            className="grid grid-cols-7 min-w-[420px] py-[var(--space-4)] px-[var(--space-3)]"
             style={{
               backgroundColor: row.isWarning
                 ? 'var(--color-table-row-warning-bg)'
@@ -88,6 +88,12 @@ export default function AttendanceTable({ records }: Props) {
             </p>
             <p className="text-[length:var(--text-sm)] text-[color:var(--color-text-primary)] font-medium text-center">
               {row.hours}h
+            </p>
+            <p className="text-[length:var(--text-sm)] text-[color:var(--color-text-primary)] font-medium text-center">
+              {row.overtimeHours}h
+            </p>
+            <p className="text-[length:var(--text-sm)] text-[color:var(--color-text-primary)] font-medium text-center">
+              {row.nightHours}h
             </p>
           </div>
         ))}
