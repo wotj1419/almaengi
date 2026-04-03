@@ -67,6 +67,7 @@ ai/**/*.py[cod]
 ai/**/*.egg-info/
 ai/qdrant_data/
 ai/redis_data/
+*.pem
 
 ### 6. Docker & Others ###
 docker-data/

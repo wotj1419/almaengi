@@ -48,10 +48,12 @@ export default function ChatRoomPage() {
 
   const roomId = Number(chatRoomId);
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const storeId = useAuthStore((s) => s.activeStoreId);
   const room = useChatStore((s) => s.rooms.find((r) => r.roomId === roomId));
   const messages = useChatStore((s) => s.messages[roomId]) ?? EMPTY_MESSAGES;
   const fetchMessages = useChatStore((s) => s.fetchMessages);
   const fetchMoreMessages = useChatStore((s) => s.fetchMoreMessages);
+  const fetchRooms = useChatStore((s) => s.fetchRooms);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const markAsRead = useChatStore((s) => s.markAsRead);
   const hasMore = useChatStore((s) => s.nextCursors[roomId] != null);
@@ -66,6 +68,11 @@ export default function ChatRoomPage() {
 
   // WebSocket 연결 및 실시간 메시지 수신
   useChatSocket(roomId);
+
+  // rooms가 로드되지 않은 경로로 직접 진입 시 fetchRooms 호출 (isBot 판별을 위해 필요)
+  useEffect(() => {
+    if (!room && storeId) fetchRooms(storeId);
+  }, [room, storeId, fetchRooms]);
 
   // 방 입장 시 메시지 불러오기 + 읽음 처리
   useEffect(() => {

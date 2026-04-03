@@ -27,8 +27,9 @@ class Settings(BaseSettings):
         return f"redis://{self.ai_redis_host}:{self.ai_redis_port}"
 
     internal_api_host: str = "localhost"
-    internal_api_port: int = 8080
-    internal_api_key: str = ""
+    internal_api_port: int = 8090
+    internal_api_email: str = ""
+    internal_api_password: str = ""
 
     @property
     def internal_api_url(self) -> str:
