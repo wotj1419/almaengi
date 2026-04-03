@@ -1,7 +1,11 @@
 from fastapi import Depends, FastAPI
 
 from app.repository.data_service import DataService, MockDataService
-from app.router import ask_router, chat_router, health_router
+from app.router import health_router
+from app.router.ask_router import create_router
+from app.service.chat_service import ChatService
+from app.service.rag_service import RagService
+from app.service.router_service import RouterService
 
 app = FastAPI(
     title="알맹이 AI Service",
@@ -9,13 +13,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# 앱 시작 시 1번만 초기화 (BGE-M3 모델 중복 로드 방지)
+_rag_service = RagService()
+_router_service = RouterService()
+_chat_service = ChatService(_rag_service, _router_service)
+
 app.include_router(health_router.router, tags=["health"])
-app.include_router(chat_router.router)
-app.include_router(ask_router.router)
+app.include_router(create_router(_chat_service))
 
 
 def get_data_service() -> DataService:
-    """DataService DI 팩토리. 추후 RealDataService로 교체 가능."""
     return MockDataService()
 
 

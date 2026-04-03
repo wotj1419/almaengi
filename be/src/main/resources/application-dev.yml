@@ -24,6 +24,9 @@ spring:
 app:
   cookie:
     secure: false
+  chat:
+    # rag-api-base-url: http://localhost:8000
+    rag-api-base-url: http://ai:8000
 
 logging:
   level:
