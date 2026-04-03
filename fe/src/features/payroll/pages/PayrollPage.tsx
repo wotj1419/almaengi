@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DetailHeader from '@/components/layout/DetailHeader';
 import BottomNav from '@/components/layout/BottomNav';
@@ -7,7 +8,7 @@ import MonthNavigator from '../components/MonthNavigator';
 import PayrollSummaryCard from '../components/PayrollSummaryCard';
 import PayrollEmployeeCard from '../components/PayrollEmployeeCard';
 import { useStorePayrolls } from '../hooks/usePayrollQueries';
-import { approveAllPayrolls, transferPayrolls } from '@/api/payroll';
+import { approveAllPayrolls, getPayDay, transferPayrolls } from '@/api/payroll';
 import useAuthStore from '@/stores/useAuthStore';
 import { ROUTES } from '@/constants/routes';
 import type { Payroll } from '../types';
@@ -29,6 +30,11 @@ export default function PayrollPage() {
   const [autoTransferModalOpen, setAutoTransferModalOpen] = useState(false);
 
   const { activeStoreId } = useAuthStore();
+  const { data: payDay = null } = useQuery({
+    queryKey: ['payroll', 'payday', activeStoreId],
+    queryFn: () => getPayDay(activeStoreId as number),
+    enabled: typeof activeStoreId === 'number',
+  });
 
   const handlePrev = () => {
     if (month === 1) {
@@ -167,6 +173,7 @@ export default function PayrollPage() {
                 <PayrollEmployeeCard
                   key={payroll.payroll_id}
                   payroll={payroll}
+                  payDay={payDay}
                   onViewStatement={() => {
                     navigate(
                       ROUTES.DOCUMENTS_PAYSLIP_DETAIL.replace(
@@ -197,6 +204,7 @@ export default function PayrollPage() {
         type="manual"
         employeeCount={employeeCount}
         totalNetPay={totalNetPay}
+        payDay={payDay}
         onConfirm={async () => {
           if (!activeStoreId) return;
           try {
@@ -215,6 +223,7 @@ export default function PayrollPage() {
         type="auto"
         employeeCount={employeeCount}
         totalNetPay={totalNetPay}
+        payDay={payDay}
         onConfirm={() => {
           setIsAutoTransferOn(true);
           setAutoTransferModalOpen(false);

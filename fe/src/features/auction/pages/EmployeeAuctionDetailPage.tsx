@@ -1,15 +1,19 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Clock, MapPin, Timer, Users, WalletMinimal } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 import BottomNav from '@/components/layout/BottomNav';
 import DetailHeader from '@/components/layout/DetailHeader';
+import { getMyEmployeeStores, getStore } from '@/api/store';
+import useAuthStore from '@/stores/useAuthStore';
 import { useAuctionDetail, useBidAuction } from '../hooks/useAuctionQueries';
 
 export default function EmployeeAuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const auctionId = Number(id);
+  const activeStoreId = useAuthStore((state) => state.activeStoreId);
 
   const { data: detail } = useAuctionDetail(auctionId);
   const bidMutation = useBidAuction();
@@ -18,6 +22,19 @@ export default function EmployeeAuctionDetailPage() {
   const [error, setError] = useState('');
 
   const auction = detail?.auction;
+  const resolvedStoreId = auction?.storeId ?? activeStoreId;
+  const { data: storeInfo } = useQuery({
+    queryKey: ['auction', 'store', resolvedStoreId],
+    queryFn: () => getStore(resolvedStoreId!),
+    enabled: typeof resolvedStoreId === 'number',
+  });
+  const { data: myEmployeeStores = [] } = useQuery({
+    queryKey: ['employee', 'stores'],
+    queryFn: getMyEmployeeStores,
+  });
+  const fallbackStoreName =
+    myEmployeeStores.find((store) => store.storeId === resolvedStoreId)
+      ?.storeName ?? null;
 
   if (!auction) {
     return (
@@ -52,20 +69,22 @@ export default function EmployeeAuctionDetailPage() {
     const checkRangeImmediately = options?.checkRangeImmediately ?? true;
 
     if (!value.trim()) {
-      return checkEmpty ? '시급을 입력해주세요' : '';
+      return checkEmpty ? '시급을 입력해 주세요' : '';
     }
 
     const numericBidWage = Number(value);
-    if (Number.isNaN(numericBidWage)) return '시급을 입력해주세요';
+    if (Number.isNaN(numericBidWage)) return '시급을 입력해 주세요';
 
     if (!checkRangeImmediately && value.length < 5) {
       return '';
     }
 
-    if (numericBidWage > maxWage)
+    if (numericBidWage > maxWage) {
       return `시급 상한가(${maxWage.toLocaleString()}원)를 초과할 수 없습니다`;
-    if (numericBidWage < minWage)
+    }
+    if (numericBidWage < minWage) {
       return `시급 하한가(${minWage.toLocaleString()}원)보다 낮게 입찰할 수 없습니다`;
+    }
     return '';
   };
 
@@ -94,7 +113,7 @@ export default function EmployeeAuctionDetailPage() {
       { auctionId, body: { bidWage } },
       {
         onSuccess: () => {
-          toast.success('입찰이 성공적으로 접수되었습니다');
+          toast.success('입찰이 성공적으로 접수되었습니다.');
           navigate(-1);
         },
         onError: (err: unknown) => {
@@ -104,7 +123,9 @@ export default function EmployeeAuctionDetailPage() {
             'response' in err &&
             (err as { response?: { status?: number } }).response?.status;
           if (status === 429) {
-            toast.error('처리가 지연되고 있습니다. 잠시 후 다시 시도해주세요.');
+            toast.error(
+              '처리가 지연되고 있습니다. 잠시 후 다시 시도해 주세요.'
+            );
           } else {
             toast.error('입찰에 실패했습니다.');
           }
@@ -178,7 +199,7 @@ export default function EmployeeAuctionDetailPage() {
               <span className="text-[var(--color-text-sub)] text-[length:var(--text-base)] font-medium leading-5">
                 근무 지점:{' '}
                 <span className="text-[var(--color-text-primary)]">
-                  부산갈매기 수완점
+                  {storeInfo?.storeName ?? fallbackStoreName ?? '-'}
                 </span>
               </span>
             </div>
