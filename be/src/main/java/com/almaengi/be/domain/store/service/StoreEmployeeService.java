@@ -183,10 +183,11 @@ public class StoreEmployeeService {
             result.add(StoreEmployeeResponseDto.EmployeeInfo.fromOwner(store.getOwner()));
 
         List<StoreEmployeeResponseDto.EmployeeInfo> employeeInfos = storeEmployeeRepository.findByStoreId(storeId).stream()
-                .filter(employee -> !employee.getUser().getId().equals(userId))
                 .filter(employee -> employee.getStatus() != StoreEmployeeStatus.RESIGNED
                                                 && employee.getStatus() != StoreEmployeeStatus.WAITING
                                                 && employee.getStatus() != StoreEmployeeStatus.INVITED)
+                .filter(employee -> employee.getUser() != null)
+                .filter(employee -> !employee.getUser().getId().equals(userId))
                 .map(StoreEmployeeResponseDto.EmployeeInfo::from)
                 .toList();
 
@@ -205,6 +206,7 @@ public class StoreEmployeeService {
         }
         return storeEmployeeRepository.findByStoreId(storeId).stream()
                 .filter(employee -> employee.getStatus() == status)
+                .filter(employee -> employee.getUser() != null)
                 .map(StoreEmployeeResponseDto.EmployeeInfo::from)
                 .toList();
     }

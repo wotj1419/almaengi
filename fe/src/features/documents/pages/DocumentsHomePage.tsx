@@ -25,7 +25,7 @@ const PAGE_TEXT = {
   documentSectionTitle: '문서 관리',
   storeDataSectionTitle: '매장 데이터',
   myDocuments: '내 문서',
-  requestDocuments: '문서 요청',
+  requestDocuments: '근로계약서 작성',
   registerDocuments: '문서 등록',
   timesheet: '근무표',
   payrollLedger: '급여대장',

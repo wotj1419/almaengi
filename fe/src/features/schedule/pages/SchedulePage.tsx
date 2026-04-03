@@ -20,6 +20,11 @@ import {
   WEEKDAY_LABELS,
   DAYS_OF_WEEK,
 } from '@/features/schedule/constants/scheduleMeta';
+import {
+  getDashboardDetail,
+  getMyAttendanceLog,
+  getMyTodayAttendance,
+} from '@/api/attendance';
 import { getEmployees } from '@/api/store';
 import { getApiErrorMessage } from '@/api/error';
 import useAuthStore from '@/stores/useAuthStore';
@@ -39,6 +44,7 @@ import ScheduleTopBar from '@/features/schedule/components/ScheduleTopBar';
 import type {
   ScheduleActionType,
   ScheduleEmployee,
+  ScheduleStatus,
   ScheduleStoreEmployee,
   ScheduleSummary,
 } from '@/features/schedule/types';
@@ -49,6 +55,24 @@ const CLICK_GUARD_MS = 220; // 드래그 직후 의도치 않은 클릭을 무�
 const WEEK_PANEL_HEIGHT = 72; // 주간 달력 패널 높이(px)
 const MONTH_PANEL_HEIGHT = 320; // 월간 달력 패널 높이(px)
 const CALENDAR_DRAG_RANGE = MONTH_PANEL_HEIGHT - WEEK_PANEL_HEIGHT; // 드래그 가능한 최대 범위
+
+const OWNER_DASHBOARD_STATUSES = ['working', 'late', 'absent'] as const;
+const OWNER_STATUS_TO_SCHEDULE_STATUS: Record<
+  (typeof OWNER_DASHBOARD_STATUSES)[number],
+  ScheduleStatus
+> = {
+  working: 'WORKING',
+  late: 'LATE',
+  absent: 'ABSENT',
+};
+
+function toScheduleStatus(status: string | null | undefined): ScheduleStatus {
+  const normalized = status?.toUpperCase();
+  if (normalized === 'WORKING') return 'WORKING';
+  if (normalized === 'LATE') return 'LATE';
+  if (normalized === 'ABSENT') return 'ABSENT';
+  return 'BEFORE_SHIFT';
+}
 
 interface ScheduleSummaryCardsProps {
   summary: ScheduleSummary;
@@ -134,16 +158,12 @@ function ScheduleSummaryCards({ summary }: ScheduleSummaryCardsProps) {
 
 interface ScheduleDayHeaderProps {
   selectedDate: Dayjs;
-  scheduleCount: number;
-  canAddSchedule: boolean;
   onAddSchedule: () => void;
 }
 
 // 선택된 날짜 정보(날짜·요일·일정 수)와 "근무 추가" 버튼을 보여주는 헤더
 function ScheduleDayHeader({
   selectedDate,
-  scheduleCount,
-  canAddSchedule,
   onAddSchedule,
 }: ScheduleDayHeaderProps) {
   const weekdayLabel = WEEKDAY_LABELS[selectedDate.day()];
@@ -154,13 +174,9 @@ function ScheduleDayHeader({
         <h2 className="text-[length:var(--text-lg)] font-bold text-[var(--color-text-primary)]">
           {selectedDate.format('M월 D일')} {weekdayLabel}요일
         </h2>
-        <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
-          총 {scheduleCount}건의 일정이 있습니다
-        </p>
       </div>
       <button
         type="button"
-        hidden={!canAddSchedule}
         onClick={onAddSchedule}
         className="inline-flex h-9 items-center gap-[var(--space-1)] rounded-[var(--radius-sm)] border border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-3)] text-[length:var(--text-base)] font-medium text-[var(--color-text-muted)] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
       >
@@ -174,6 +190,14 @@ function ScheduleDayHeader({
 interface ScheduleEmployeeListProps {
   employees: ScheduleEmployee[];
   onSelectEmployee: (employee: ScheduleEmployee) => void;
+}
+
+interface EmployeeWeeklyAttendanceSummary {
+  attendanceCount: number;
+  lateCount: number;
+  absentCount: number;
+  totalWorkMinutes: number;
+  overtimeMinutes: number;
 }
 
 // 직원 한 명의 이름·상태(근무/지각/결근 등)·근무시간을 표시하는 카드 행
@@ -250,6 +274,192 @@ function ScheduleEmployeeList({
   );
 }
 
+function EmployeeDailyQrCard({
+  status,
+  clockIn,
+  clockOut,
+  exists,
+  isLoading,
+  isError,
+}: {
+  status: string | null;
+  clockIn: string | null;
+  clockOut: string | null;
+  exists: boolean;
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <section className="rounded-2xl border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-7)] py-[var(--space-8)] text-center">
+        <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-placeholder)]">
+          당일 QR 근태 정보를 불러오는 중입니다.
+        </p>
+      </section>
+    );
+  }
+
+  if (isError) {
+    return (
+      <section className="rounded-2xl border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-7)] py-[var(--space-8)] text-center">
+        <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-placeholder)]">
+          당일 QR 근태 정보를 불러오지 못했습니다.
+        </p>
+      </section>
+    );
+  }
+
+  const formatQrTime = (value: string | null) =>
+    value ? dayjs(value).format('HH:mm') : '-';
+  const isAbsent = status === 'ABSENT';
+
+  return (
+    <section className="rounded-2xl bg-[var(--color-bg-white)] p-[var(--space-5)] shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-light)] pb-[var(--space-3)]">
+        <p className="text-[length:var(--text-lg)] font-bold text-[var(--color-text-primary)]">
+          당일 출퇴근 기록
+        </p>
+      </div>
+
+      {exists ? (
+        <div className="mt-[var(--space-4)] space-y-[var(--space-3)]">
+          <div className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-3)]">
+            <span className="text-[length:var(--text-sm)] font-medium text-[var(--color-text-muted)]">
+              출근 기록 시간
+            </span>
+            <span
+              className={`text-[length:var(--text-md2)] font-bold ${
+                isAbsent
+                  ? 'text-[var(--color-status-purple-dot)]'
+                  : 'text-[var(--color-status-green-dot)]'
+              }`}
+            >
+              {isAbsent ? '결근' : formatQrTime(clockIn)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-3)]">
+            <span className="text-[length:var(--text-sm)] font-medium text-[var(--color-text-muted)]">
+              퇴근 기록 시간
+            </span>
+            <span
+              className={`text-[length:var(--text-md2)] font-bold ${
+                isAbsent
+                  ? 'text-[var(--color-status-purple-dot)]'
+                  : 'text-[var(--color-status-blue-dot)]'
+              }`}
+            >
+              {isAbsent ? '결근' : formatQrTime(clockOut)}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-[var(--space-4)] rounded-xl border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-5)] text-center">
+          <p className="text-[length:var(--text-sm)] font-medium text-[var(--color-text-placeholder)]">
+            해당일은 근무가 없습니다.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EmployeeWeeklyAttendanceCard({
+  weekLabel,
+  summary,
+  isLoading,
+  isError,
+}: {
+  weekLabel: string;
+  summary: EmployeeWeeklyAttendanceSummary;
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <section className="rounded-2xl border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-7)] py-[var(--space-8)] text-center">
+        <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-placeholder)]">
+          주간 근태를 불러오는 중입니다.
+        </p>
+      </section>
+    );
+  }
+
+  if (isError) {
+    return (
+      <section className="rounded-2xl border border-dashed border-[var(--color-border-muted)] bg-[var(--color-bg-white)] px-[var(--space-7)] py-[var(--space-8)] text-center">
+        <p className="text-[length:var(--text-base)] font-medium text-[var(--color-text-placeholder)]">
+          주간 근태를 불러오지 못했습니다.
+        </p>
+      </section>
+    );
+  }
+
+  const formatMinutes = (minutes: number) => {
+    const safeMinutes = Math.max(minutes, 0);
+    const hours = Math.floor(safeMinutes / 60);
+    const restMinutes = safeMinutes % 60;
+    return `${hours}시간 ${restMinutes}분`;
+  };
+
+  const workedTimeLabel = formatMinutes(summary.totalWorkMinutes);
+  const overtimeTimeLabel = formatMinutes(summary.overtimeMinutes);
+
+  return (
+    <section className="rounded-2xl bg-[var(--color-bg-white)] p-[var(--space-5)] shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.1),0px_1px_3px_0px_rgba(0,0,0,0.1)]">
+      <div className="border-b border-[var(--color-border-light)] pb-[var(--space-3)]">
+        <div>
+          <p className="text-[length:var(--text-lg)] font-bold text-[var(--color-text-primary)]">
+            {weekLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-[var(--space-4)] flex gap-[var(--space-3)] overflow-x-auto pb-[var(--space-1)]">
+        <article className="w-[80px] shrink-0 rounded-xl bg-[var(--color-bg-surface)] p-[var(--space-3)]">
+          <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
+            출근 일수
+          </p>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-md2)] font-bold text-[var(--color-status-green-dot)]">
+            {summary.attendanceCount}일
+          </p>
+        </article>
+        <article className="w-[80px] shrink-0 rounded-xl bg-[var(--color-bg-surface)] p-[var(--space-3)]">
+          <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
+            지각
+          </p>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-md2)] font-bold text-[var(--color-status-orange-dot)]">
+            {summary.lateCount}일
+          </p>
+        </article>
+        <article className="w-[90px] shrink-0 rounded-xl bg-[var(--color-bg-surface)] p-[var(--space-3)]">
+          <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
+            결근
+          </p>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-md2)] font-bold text-[var(--color-status-purple-dot)]">
+            {summary.absentCount}일
+          </p>
+        </article>
+        <article className="w-[110px] shrink-0 rounded-xl bg-[var(--color-bg-surface)] p-[var(--space-3)]">
+          <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
+            총 근무 시간
+          </p>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-md2)] font-bold text-[var(--color-text-primary)]">
+            {workedTimeLabel}
+          </p>
+        </article>
+        <article className="w-[110px] shrink-0 rounded-xl bg-[var(--color-bg-surface)] p-[var(--space-3)]">
+          <p className="text-[length:var(--text-xs)] font-medium text-[var(--color-text-placeholder)]">
+            초과근무
+          </p>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-md2)] font-bold text-[var(--color-status-blue-dot)]">
+            {overtimeTimeLabel}
+          </p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 // 스케줄 관리 메인 페이지
 // 흐름: 달력에서 날짜 선택 → 직원 목록 → 직원 클릭 → 액션시트 → 모달(시간변경/직원변경/삭제) → state 갱신
 export default function SchedulePage() {
@@ -292,6 +502,24 @@ export default function SchedulePage() {
 
   // --- API 데이터 조회 ---
   const dayOfWeek = DAYS_OF_WEEK[selectedDate.day()];
+  const isToday = selectedDate.isSame(dayjs(), 'day');
+  const selectedDateKey = selectedDate.format('YYYY-MM-DD');
+  // 주간 집계 기준: 클릭한 날짜가 포함된 월요일~일요일
+  // dayjs 플러그인 의존 없이 월요일 시작 주간을 계산한다.
+  const weekStart = useMemo(() => {
+    const dayIndex = selectedDate.day(); // 0(일) ~ 6(토)
+    const diffToMonday = dayIndex === 0 ? 6 : dayIndex - 1;
+    return selectedDate.subtract(diffToMonday, 'day').startOf('day');
+  }, [selectedDate]);
+  const weekEnd = useMemo(() => weekStart.add(6, 'day'), [weekStart]);
+  const weekDates = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => weekStart.add(index, 'day')),
+    [weekStart]
+  );
+  const weekRangeLabel = useMemo(
+    () => `${weekStart.format('M월 DD일')} ~ ${weekEnd.format('M월 DD일')} `,
+    [weekEnd, weekStart]
+  );
   const normalizeDayOfWeek = (value: unknown) => {
     if (typeof value === 'string') return value.toUpperCase();
     if (typeof value === 'number' && value >= 0 && value <= 6)
@@ -335,6 +563,127 @@ export default function SchedulePage() {
   });
 
   // --- 뮤테이션 ---
+  const { data: ownerStatusByEmployeeId = {} } = useQuery<
+    Record<number, ScheduleStatus>
+  >({
+    queryKey: [
+      'schedule',
+      'ownerStatusByEmployee',
+      activeStoreId,
+      selectedDateKey,
+    ],
+    enabled: !!activeStoreId && isOwner && isToday,
+    queryFn: async () => {
+      const details = await Promise.allSettled(
+        OWNER_DASHBOARD_STATUSES.map(async (status) => ({
+          status,
+          detail: await getDashboardDetail(activeStoreId as number, status),
+        }))
+      );
+
+      const statusByEmployeeId: Record<number, ScheduleStatus> = {};
+      details.forEach((result) => {
+        if (result.status !== 'fulfilled') return;
+        const mappedStatus =
+          OWNER_STATUS_TO_SCHEDULE_STATUS[result.value.status];
+        result.value.detail.employees.forEach((employee) => {
+          statusByEmployeeId[employee.employeeId] = mappedStatus;
+        });
+      });
+
+      return statusByEmployeeId;
+    },
+  });
+  const { data: myTodayAttendance } = useQuery({
+    queryKey: [
+      'schedule',
+      'myTodayAttendance',
+      activeStoreId,
+      userId,
+      selectedDateKey,
+    ],
+    enabled: !!activeStoreId && !isOwner && !!userId && isToday,
+    queryFn: () => getMyTodayAttendance(activeStoreId as number),
+  });
+  const myTodayScheduleStatus = useMemo(
+    () => toScheduleStatus(myTodayAttendance?.currentStatus),
+    [myTodayAttendance?.currentStatus]
+  );
+  const {
+    data: mySelectedDayLog,
+    isLoading: isMySelectedDayLogLoading,
+    isError: isMySelectedDayLogError,
+  } = useQuery({
+    queryKey: [
+      'schedule',
+      'mySelectedDayLog',
+      activeStoreId,
+      userId,
+      selectedDateKey,
+    ],
+    enabled: !!activeStoreId && !isOwner && !!userId,
+    queryFn: () => getMyAttendanceLog(activeStoreId as number, selectedDateKey),
+  });
+  const {
+    data: myWeeklyAttendanceSummary,
+    isLoading: isMyWeeklyAttendanceLoading,
+    isError: isMyWeeklyAttendanceError,
+  } = useQuery({
+    queryKey: [
+      'schedule',
+      'myWeeklyAttendance',
+      activeStoreId,
+      weekStart.format('YYYY-MM-DD'),
+      userId,
+    ],
+    enabled: !!activeStoreId && !isOwner,
+    queryFn: async (): Promise<EmployeeWeeklyAttendanceSummary> => {
+      // 일부 요청 실패 시 화면 보호를 위해 0 기반 fallback 유지
+      const logs = await Promise.all(
+        weekDates.map(async (date) => {
+          try {
+            return await getMyAttendanceLog(
+              activeStoreId as number,
+              date.format('YYYY-MM-DD')
+            );
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return logs.reduce<EmployeeWeeklyAttendanceSummary>(
+        (acc, log) => {
+          // exists=false는 해당 날짜 기록 없음이므로 집계 제외(0 처리)
+          if (!log || !log.exists) return acc;
+
+          // 지각: 실제 출근을 찍었고(status=LATE) 지각 판정된 경우만 카운트
+          if (log.status === 'LATE' && log.clockIn) acc.lateCount += 1;
+          // 결근: 근무시간 내 출근이 없어 ABSENT로 확정된 경우 카운트
+          if (log.status === 'ABSENT' && !log.clockIn) acc.absentCount += 1;
+          // 출근 일수/총 근무시간: 퇴근(clockOut)까지 완료된 날만 반영
+          if (log.clockOut) {
+            acc.attendanceCount += 1;
+            acc.totalWorkMinutes += log.workedMinutes ?? 0;
+          }
+          // 초과근무 시간: 퇴근 완료 + overtime=true인 경우 workedMinutes를 누적
+          if (log.clockOut && log.overtime === true) {
+            acc.overtimeMinutes += log.workedMinutes ?? 0;
+          }
+
+          return acc;
+        },
+        {
+          attendanceCount: 0,
+          lateCount: 0,
+          absentCount: 0,
+          totalWorkMinutes: 0,
+          overtimeMinutes: 0,
+        }
+      );
+    },
+  });
+
   const createScheduleMutation = useCreateSchedule();
   const updateScheduleMutation = useUpdateSchedule();
   const deleteScheduleMutation = useDeleteSchedule();
@@ -345,11 +694,22 @@ export default function SchedulePage() {
       id: dto.scheduleId,
       employeeId: dto.employeeId,
       name: dto.employeeName,
-      status: 'BEFORE_SHIFT' as const,
+      status:
+        isToday && isOwner
+          ? (ownerStatusByEmployeeId[dto.employeeId] ?? 'BEFORE_SHIFT')
+          : isToday
+            ? myTodayScheduleStatus
+            : 'BEFORE_SHIFT',
       startTime: dto.startTime.slice(0, 5),
       endTime: dto.endTime.slice(0, 5),
     }));
-  }, [scheduleData]);
+  }, [
+    isOwner,
+    isToday,
+    myTodayScheduleStatus,
+    ownerStatusByEmployeeId,
+    scheduleData,
+  ]);
 
   const employeeNames = useMemo(
     () => new Set(employees.map((e) => e.name)),
@@ -368,11 +728,14 @@ export default function SchedulePage() {
         .map((emp) => ({
           id: emp.employeeId as number,
           name: emp.name,
-          status: 'BEFORE_SHIFT' as const,
+          status:
+            isToday && isOwner
+              ? (ownerStatusByEmployeeId[emp.employeeId] ?? 'BEFORE_SHIFT')
+              : 'BEFORE_SHIFT',
           defaultStartTime: '09:00',
           defaultEndTime: '18:00',
         })),
-    [storeEmployeeData]
+    [isOwner, isToday, ownerStatusByEmployeeId, storeEmployeeData]
   );
 
   const addableEmployees = useMemo(
@@ -685,21 +1048,53 @@ export default function SchedulePage() {
             isMonthExpanded ? 'gap-[var(--space-4)]' : 'gap-[var(--space-6)]'
           }`}
         >
-          {/* 주간 모드일 때만 요약 카드(총인원/근무/지각/결근) 표시 */}
-          {!isMonthExpanded && <ScheduleSummaryCards summary={summary} />}
+          {/* 주간 모드일 때만 요약 카드 표시 */}
+          {!isMonthExpanded &&
+            (isOwner ? (
+              // OWNER는 기존 일자/상태 요약 카드를 유지한다.
+              <ScheduleSummaryCards summary={summary} />
+            ) : (
+              // EMPLOYEE는 상단에 내 주간 근태 카드를 표시한다.
+              <EmployeeWeeklyAttendanceCard
+                weekLabel={weekRangeLabel}
+                summary={
+                  myWeeklyAttendanceSummary ?? {
+                    attendanceCount: 0,
+                    lateCount: 0,
+                    absentCount: 0,
+                    totalWorkMinutes: 0,
+                    overtimeMinutes: 0,
+                  }
+                }
+                isLoading={isMyWeeklyAttendanceLoading}
+                isError={isMyWeeklyAttendanceError}
+              />
+            ))}
 
-          {/* 선택 날짜 헤더 + 근무 추가 버튼 */}
-          <ScheduleDayHeader
-            selectedDate={selectedDate}
-            scheduleCount={employees.length}
-            canAddSchedule={isOwner}
-            onAddSchedule={handleOpenAddSchedule}
-          />
+          {/* OWNER만 기존 날짜 헤더 + 근무 추가 버튼을 사용한다. */}
+          {isOwner && (
+            <ScheduleDayHeader
+              selectedDate={selectedDate}
+              onAddSchedule={handleOpenAddSchedule}
+            />
+          )}
 
-          <ScheduleEmployeeList
-            employees={employees}
-            onSelectEmployee={handleSelectEmployee}
-          />
+          {isOwner ? (
+            <ScheduleEmployeeList
+              employees={employees}
+              onSelectEmployee={handleSelectEmployee}
+            />
+          ) : (
+            // EMPLOYEE는 선택 날짜의 QR 출근/퇴근 시간을 표시한다.
+            <EmployeeDailyQrCard
+              status={mySelectedDayLog?.status ?? null}
+              clockIn={mySelectedDayLog?.clockIn ?? null}
+              clockOut={mySelectedDayLog?.clockOut ?? null}
+              exists={mySelectedDayLog?.exists ?? false}
+              isLoading={isMySelectedDayLogLoading}
+              isError={isMySelectedDayLogError}
+            />
+          )}
 
           {isMonthExpanded && isOwner && (
             <button

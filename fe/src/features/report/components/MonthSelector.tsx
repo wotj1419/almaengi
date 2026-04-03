@@ -6,6 +6,7 @@ interface MonthSelectorProps {
   onPrev: () => void;
   onNext: () => void;
   disableNext?: boolean;
+  variant?: 'default' | 'darkCard';
 }
 
 export default function MonthSelector({
@@ -14,39 +15,59 @@ export default function MonthSelector({
   onPrev,
   onNext,
   disableNext = false,
+  variant = 'default',
 }: MonthSelectorProps) {
   const formattedMonth = String(month).padStart(2, '0');
+  const isDarkCard = variant === 'darkCard';
+
+  const containerClassName = isDarkCard
+    ? 'mb-[var(--space-5)] flex justify-center'
+    : 'flex justify-center bg-[var(--color-bg-white)] pb-[var(--space-7)] pt-[var(--space-3)]';
+
+  const monthControlClassName = isDarkCard
+    ? 'mx-auto flex w-fit items-center gap-[var(--gap-month-selector)] rounded-full bg-white/10 px-[var(--space-4)] py-[var(--space-1-5)]'
+    : 'flex items-center gap-[var(--gap-month-selector)] rounded-full bg-[var(--color-text-black)] px-[var(--space-4)] py-[var(--space-1-5)]';
+
+  const buttonBaseClassName = isDarkCard
+    ? 'flex items-center'
+    : 'flex items-center';
+
+  const iconClassName = isDarkCard
+    ? 'text-[var(--color-text-light)]'
+    : 'text-[var(--color-bg-white)]';
+
+  const rightButtonClassName = `${buttonBaseClassName} ${
+    disableNext ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'
+  }`;
+
+  const monthTextClassName = isDarkCard
+    ? 'text-[length:var(--text-md)] font-semibold leading-5 text-white'
+    : 'text-[length:var(--text-md)] font-normal leading-5 text-[color:var(--color-bg-white)]';
 
   return (
-    <div className="flex justify-center pt-[var(--space-3)] pb-[var(--space-7)] bg-[var(--color-bg-white)]">
-      <div className="flex items-center gap-[var(--gap-month-selector)] rounded-full bg-[var(--color-text-black)] py-[var(--space-1-5)] px-[var(--space-4)]">
+    <div className={containerClassName}>
+      <div className={monthControlClassName}>
         <button
+          type="button"
           onClick={onPrev}
-          aria-label="이전 달"
-          className="flex items-center cursor-pointer"
+          aria-label="Previous month"
+          className={`${buttonBaseClassName} cursor-pointer`}
         >
-          <ChevronLeft
-            size={16}
-            color="var(--color-bg-white)"
-            strokeWidth={2.5}
-          />
+          <ChevronLeft size={16} strokeWidth={2.5} className={iconClassName} />
         </button>
 
-        <span className="text-[color:var(--color-bg-white)] text-[length:var(--text-md)] font-normal leading-5">
+        <span className={monthTextClassName}>
           {year}.{formattedMonth}
         </span>
 
         <button
+          type="button"
           onClick={onNext}
-          aria-label="다음 달"
+          aria-label="Next month"
           disabled={disableNext}
-          className={`flex items-center ${disableNext ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+          className={rightButtonClassName}
         >
-          <ChevronRight
-            size={16}
-            color="var(--color-bg-white)"
-            strokeWidth={2.5}
-          />
+          <ChevronRight size={16} strokeWidth={2.5} className={iconClassName} />
         </button>
       </div>
     </div>
