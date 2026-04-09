@@ -1,0 +1,328 @@
+/* Tailwind v4 Preflight가 기본 여백을 제거하므로 box-sizing만 전역 설정
+   * { margin/padding: 0 } 은 Tailwind 유틸리티를 통해 적용 */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+:root {
+  font-family:
+    'Pretendard',
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  /* ═══════════════════════════════════
+     디자인 토큰 (Design Tokens)
+     ═══════════════════════════════════ */
+
+  /* 🎨 색상: 프라이머리 */
+  --color-primary: #d5f368;
+
+  /* 🎨 색상: 배경색 */
+  --color-bg-base: #f0efeb;
+  --color-bg-dark: #1a1a1a;
+  --color-bg-card: #f7f5f3;
+  --color-bg-surface: #f3f4f6;
+  --color-bg-body: #f5f5f5;
+  --color-bg-white: #ffffff;
+
+  /* 🎨 색상: 텍스트 */
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #374151;
+  --color-text-muted: #6b7280;
+  --color-text-placeholder: #9ca3af;
+  --color-text-light: #94a3b8;
+  --color-text-chip: #475569;
+  --color-text-sub: #64748b;
+  --color-status-badge-green-text: #7f9728;
+  --color-select-all-checked-bg: #e7e6e6;
+  --color-text-dark: #4d4d4d;
+  --color-text-black: #000000;
+
+  /* 🎨 색상: 상태 (홈 화면 상태 뱃지) */
+  --color-status-green-dot: #65a30d;
+  --color-status-green-bg: #ebfbbc;
+  --color-status-green-border: #d5f368;
+
+  --color-status-orange-dot: #f6723f;
+  --color-status-orange-bg: #fde6d1;
+  --color-status-orange-border: #fad4a8;
+
+  --color-status-purple-dot: #8b5cf6;
+  --color-status-purple-bg: #e9e1fa;
+  --color-status-purple-border: #d0c1f6;
+
+  --color-status-grey-dot: #6b7280;
+  --color-status-grey-bg: #e7e7e7;
+  --color-status-grey-border: #d1d5db;
+
+  --color-status-blue-dot: #3b82f6;
+  --color-status-blue-bg: #dbeafe;
+  --color-status-blue-border: #bfdbfe;
+
+  /* 🎨 색상: 상태 뱃지 (StatusBadge 컴포넌트) */
+  --color-badge-green-bg: #e9f5c5;
+  --color-badge-green-text: #111827;
+  --color-badge-orange-bg: #fff2e6;
+  --color-badge-orange-text: #f6723f;
+  --color-badge-purple-bg: #f5efff;
+  --color-badge-purple-text: #8b5cf6;
+
+  /* 🎨 색상: 액션 카드 */
+  --color-action-todo: #d5f367;
+  --color-action-schedule: #3b82f6;
+  --color-action-schedule-text: #f5f8fe;
+  --color-action-board: #ffddb6;
+  --color-action-attendance: #e7d6ff;
+
+  /* ── 색상: 빈 상태 ── */
+  --color-empty-icon-outer: rgba(213, 243, 104, 0.2);
+  --color-empty-text-sub: #8e8e8e;
+
+  /* ── 색상: 오버레이 ── */
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay-dark: rgba(0, 0, 0, 0.8);
+
+  /* ── 색상: 위험/알림 ── */
+  --color-danger: #ef4444;
+  --color-warning: #f6723f;
+  --color-badge-new: #f54c4c;
+
+  /* ── 색상: 알림 (미읽음) ── */
+  --color-notification-unread-bg: #fffbe8;
+  --color-notification-unread-border: #f5e7a1;
+
+  /* ── 색상: 승인 가능 배지 ── */
+  --color-badge-approvable-bg: #dde8f5;
+  --color-badge-approvable-border: #93b8d8;
+  --color-badge-approvable-text: #3a6899;
+
+  /* ── 색상: 직원 미완료 표시 ── */
+  --color-employee-incomplete-bg: #fee2e2;
+  --color-employee-incomplete-text: #dc2626;
+
+  /* 🎨 색상: 아이콘 */
+  --color-icon-default: #5e5e5e;
+  --color-icon-dark: #292929;
+  --color-icon-muted: #374957;
+  --color-icon-light: #ededed;
+
+  /* 🎨 색상: 테두리 */
+  --color-border-light: #f1f5f9;
+  --color-border-muted: #d1d5db;
+
+  /* 🎨 폰트 사이즈 */
+  /* ── 색상: 입력 필드 ── */
+  --color-input-bg: #f8fafc;
+  --color-input-border: #e2e8f0;
+
+  /* ── 색상: 사진 첨부 ── */
+  --color-photo-add-border: #cbd5e1;
+  --color-photo-add-text: #64748b;
+  --color-photo-slot-bg: #f5f8fb;
+  --color-photo-slot-icon: #dbe2ea;
+
+  /* ── 폰트 크기 ── */
+  --text-2xs: 10px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-md2: 16px;
+  --text-ml: 17px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 25px;
+  --text-2-5xl: 28px;
+  --text-3xl: 32px;
+
+  /* ── 자간 ── */
+  --tracking-tight: -0.3px;
+  --tracking-tighter: -0.5px;
+
+  /* ── 줄 높이 ── */
+  --leading-normal: 1.25rem;
+
+  /* ── 간격 (padding, margin, gap) ── */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 15px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 30px;
+  --space-10: 32px;
+  --bottom-safe: 160px;
+
+  /* 🎨 테두리 반경 */
+  --radius-xs: 8px;
+  /* ── 컴포넌트 크기 ── */
+  --size-checkbox: 15px;
+  --size-time-label: 56px;
+  --size-empty-outer: 128px;
+  --size-empty-middle: 96px;
+  --size-empty-inner: 64px;
+  --border-avatar: 2px;
+  --p-avatar: 1px;
+  --max-w-app: 600px;
+  --height-bottom-nav: 80px;
+  --pb-content: 140px;
+  --pb-content-selection: 220px;
+
+  /* ── 둥글기 ── */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 15px;
+  --radius-xl: 20px;
+  --radius-2xl: 16px;
+
+  /* 🎨 컴포넌트 크기 */
+  --size-checkbox: 15px;
+  --size-textarea-h: 102px;
+  --size-photo-thumbnail: 60px;
+  --size-empty-icon-outer: 96px;
+  --size-empty-icon-inner: 64px;
+  --size-photo-slot: 75px;
+  --size-photo-preview-w: 240px;
+  --size-photo-preview-h: 180px;
+
+  /* ── 월 선택 바 ── */
+  --gap-month-selector: 29px;
+
+  /* ── 근태 테이블 ── */
+  --color-table-header-bg: #f8fafc;
+  --color-table-header-text: #64748b;
+  --color-table-value-good: #3b82f6;
+  --color-table-value-warning: #ea580c;
+  --color-table-row-warning-bg: rgba(255, 240, 235, 0.5);
+
+  /* ── 직원 비교 ── */
+  --color-attendance-bg: #e3f2fd;
+  --color-ranking-3rd: #fdba74;
+  --color-highlight-payroll-icon: #0f172a;
+  --color-highlight-attendance-bg: #ecdeff;
+  --color-highlight-attendance-label: #581c87;
+  --color-highlight-attendance-icon: #7e22ce;
+  --color-highlight-late-bg: #fff0eb;
+  --color-highlight-late-label: #7c2d12;
+  --color-highlight-late-icon: #ea580c;
+  --radius-highlight: 21.15px;
+
+  /* ── 도넛 차트 ── */
+  --chart-donut-size: 200;
+  --chart-donut-radius: 70;
+  --chart-donut-stroke-width: 26;
+  --chart-donut-gap: 4;
+
+  /* ── 출퇴근 상태 도넛 차트 (recharts fill용 실제 색상값) ── */
+  --chart-attendance-working: #65a30d;
+  --chart-attendance-late: #f6723f;
+  --chart-attendance-done: #8b5cf6;
+  --chart-attendance-track: #e5e7eb;
+  --chart-attendance-track-active: rgba(255, 255, 255, 0.45);
+
+  /* 🎨 z-index */
+  --z-content: 10;
+  --z-nav: 50;
+  --z-bottom-sheet: 100;
+  --z-modal: 200;
+
+  /* 🎨 그림자 */
+  --shadow-card:
+    0px 5.782px 8.673px -1.735px rgba(0, 0, 0, 0.1),
+    0px 2.313px 3.469px -2.313px rgba(0, 0, 0, 0.1);
+  --shadow-badge: 0px 0.578px 1.156px 0px rgba(0, 0, 0, 0.05);
+  --shadow-form-card: 0px 2px 4px 0px rgba(0, 0, 0, 0.05);
+  --shadow-alert:
+    0px 5.78px 8.67px 0px rgba(0, 0, 0, 0.1),
+    0px 2.31px 3.47px 0px rgba(0, 0, 0, 0.1);
+  --shadow-nav: 0px -4px 12px 0px rgba(0, 0, 0, 0.08);
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background-color: var(--color-bg-body);
+}
+
+/* 반응형 레이아웃 - 모바일(360px~), 800px 이상에서 최대 너비 고정 */
+#root {
+  min-height: 100dvh;
+  margin: 0 auto;
+  position: relative;
+  background-color: var(--color-bg-white);
+}
+
+@media (min-width: 768px) {
+  #root {
+    max-width: 600px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* 슬라이드업 애니메이션 */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* 위에서 아래로 슬라이드 인 */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+/* 스크롤바 숨김 (WebKit) */
+.overflow-y-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* html5-qrcode: 라이브러리가 video에 고정 크기를 attribute로 설정하므로 강제 오버라이드 */
+#qr-reader {
+  width: 100% !important;
+}
+#qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover;
+}

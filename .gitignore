@@ -1,0 +1,86 @@
+### 1. Global (OS & System) ###
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.metadata
+be/bin
+c105
+
+### 2. IDE & Editors (IntelliJ, VS Code, etc) ###
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# VS Code
+.vscode/
+*.code-workspace
+!.vscode/settings.json
+
+### 3. Build & Dependencies (Backend & Frontend) ###
+# Gradle (Backend)
+.gradle/
+build/
+out/
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# Node (Frontend)
+node_modules/
+dist/
+fe/dev-dist/
+package-lock.json
+yarn.lock
+
+# pnpm
+pnpm-debug.log*
+.pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+
+### 4. Logs ###
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### 5. Secrets & Environment ###
+# Frontend Env
+.env
+.env.local
+.env.*.local
+
+# Backend Config
+application-secret.yml
+
+# AI Server Config
+ai/.env*
+!ai/.env.example
+ai/.venv/
+ai/**/__pycache__/
+ai/**/*.py[cod]
+ai/**/*.egg-info/
+ai/qdrant_data/
+ai/redis_data/
+*.pem
+
+### 6. Docker & Others ###
+docker-data/
+HELP.md
+
+# Testing (Jest / Vitest)
+coverage/
+__snapshots__/
+
+# Misc
+.eslintcache
+.stylelintcache
+
+# FCM
+almaengi-c2bba-firebase-adminsdk-fbsvc-adedb0478d.json

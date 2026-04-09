@@ -1,0 +1,39 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/almaengi
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true # 콘솔에서 SQL을 보기 좋게 정렬
+        use_sql_comments: true # 어떤 리포지토리 메서드가 쿼리를 발생시켰는지 주석 추가
+
+app:
+  cookie:
+    secure: false
+  chat:
+    # rag-api-base-url: http://localhost:8000
+    rag-api-base-url: http://ai:8000
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+
+kakao:
+  local:
+    base-url: https://dapi.kakao.com

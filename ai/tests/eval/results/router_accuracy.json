@@ -1,0 +1,29 @@
+{
+  "total": 139,
+  "correct": 139,
+  "accuracy": 1.0,
+  "avg_latency_ms": 176.4,
+  "type_stats": {
+    "LEGAL_QUERY": {
+      "total": 50,
+      "correct": 50
+    },
+    "DATA_QUERY": {
+      "total": 35,
+      "correct": 35
+    },
+    "COMPLEX_QUERY": {
+      "total": 24,
+      "correct": 24
+    },
+    "CALCULATION": {
+      "total": 15,
+      "correct": 15
+    },
+    "GENERAL": {
+      "total": 15,
+      "correct": 15
+    }
+  },
+  "errors": []
+}

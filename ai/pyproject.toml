@@ -1,0 +1,77 @@
+[tool.poetry]
+name = "almaengi-ai"
+version = "0.1.0"
+description = "알맹이 노동법 AI 챗봇 서비스"
+authors = ["almaengi-team"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+fastapi = "^0.115.0"
+uvicorn = { version = "^0.30.0", extras = ["standard"] }
+pydantic = "^2.9.0"
+pydantic-settings = "^2.5.0"
+langchain = "^0.3.0"
+langchain-openai = "^0.2.0"
+langchain-community = "^0.3.0"
+qdrant-client = "^1.11.0"
+redis = { version = "^5.1.0", extras = ["hiredis"] }
+httpx = "^0.27.0"
+structlog = "^24.4.0"
+flashrank = "^0.2.0"
+requests = "^2.32.5"
+flagembedding = "^1.3.5"
+transformers = ">=4.40,<5"
+ragas = "^0.4.3"
+datasets = "^4.8.3"
+semantic-router = "^0.1.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.6.0"
+mypy = "^1.11.0"
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pre-commit = "^3.8.0"
+types-requests = "^2.32.4.20260107"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# --- Ruff (포맷 + 린트 통합) ---
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+]
+ignore = ["E501"] # line length는 formatter가 처리
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# --- mypy ---
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+
+# --- pytest ---
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

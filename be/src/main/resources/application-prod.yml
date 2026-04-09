@@ -1,0 +1,43 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10 # 커넥션 풀 크기 명시적 설정
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+ssafy:
+  finance:
+    api-key: ${SSAFY_FINANCE_API_KEY}
+    base-url: ${SSAFY_FINANCE_BASE_URL}
+
+app:
+  cookie:
+    secure: true
+logging:
+  file:
+    name: logs/application.log
+  level:
+    root: info
+
+kakao:
+  local:
+    base-url: https://dapi.kakao.com
+    rest-api-key: ${KAKAO_API_KEY}

@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: be
+
+  profiles:
+    active: dev
+    group:
+      dev: dev, secret
+
+  # Jackson(JSON) 직렬화 설정
+  jackson:
+    time-zone: Asia/Seoul
+    serialization:
+      write-dates-as-timestamps: false # 타임스탬프 대신 LocalDate/LocalDateTime 포맷 사용
+
+  # 멀티파트(파일 업로드) 설정
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  docker:
+    compose:
+      enabled: false
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        default_batch_fetch_size: 1000 # 컬렉션 조회를 배치로 처리하여 N+1 쿼리 문제 해결
+        jdbc:
+          time_zone: Asia/Seoul
+
+server:
+  port: 8090
+
+logging:
+  pattern:
+    console: ${CONSOLE_LOG_PATTERN:%clr(%d{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}}
+  level:
+    root: info
+
+app:
+  auction:
+    legal-minimum-wage: 10320
+  contract:
+    storage-path: /home/ubuntu/documents
+  payroll:
+    night-start: "22:00"
+    night-end: "06:00"
+    overtime-daily-threshold-minutes: 480       # 일 8시간
+    overtime-weekly-threshold-minutes: 2400     # 주 40시간
+    holiday-pay-weekly-threshold-minutes: 900   # 주 15시간
+    # 3.3% 공제
+    income-tax-rate: 0.03
+    local-income-tax-rate: 0.003
+    # 4대 보험 공제율 (2026년 기준)
+    national-pension-rate: 0.0475
+    health-insurance-rate: 0.03595
+    long-term-care-rate: 0.1314
+    employment-insurance-rate: 0.009
+    # 4대 보험 기준소득월액 상·하한선 (2026년 기준)
+    national-pension-min: 390000
+    national-pension-max: 6170000
+    health-insurance-min: 279300
+    health-insurance-max: 119625000
+  payslip:
+    storage-path: /home/ubuntu/documents
+  file:
+    upload-dir: /home/ubuntu/documents
+    max-size:
+      default: 10485760
+  chat:
+    bot-user-id: 999
+    rag-api-base-url: http://ai:8000
+
+jwt:
+  access-token-expiry: 1800000      # 30분
+  refresh-token-expiry: 604800000   # 7일
