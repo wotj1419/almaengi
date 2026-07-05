@@ -2,14 +2,13 @@
 
 ## Purpose
 
-This document records the baseline targets and measured values used for the Almaengi frontend performance comparison.
+This document records the raw baseline targets and measured before/after averages for the Almaengi frontend chunk-splitting comparison.
 
 ## Baseline Targets
 
-| Target | Before Commit | After Commit | Improvement |
+| Target | Before Branch | After Branch | Improvement |
 | --- | --- | --- | --- |
-| chunk-splitting | `9014e2a369455c048df5cd6e5bfc37a00bf59adf` | `814690e72d1398680a0d7bfa56a237538831d316` | Split `node_modules` into a Vite `vendor` chunk |
-| pwa-cache | `22a55f644c4f7b39aae86181d1b5bc279b7478ba` | `2b6f1e9f756c6572bfaaf981423156019148219f` | Add PWA service worker and static asset cache behavior |
+| chunk-splitting | `test-104-fe-performance-before` | `feat-104-fe-performance-measurement` | Split `node_modules` into a Vite `vendor` chunk |
 
 ## Measurement Environment
 
@@ -21,34 +20,35 @@ This document records the baseline targets and measured values used for the Alma
 | Output directory | `dist` |
 | Measurement tool | Chrome DevTools Lighthouse |
 | Mode | Navigation |
+| Device | Mobile |
 | Run count | 3 runs per page, average used |
 | Backend API | Not connected for this measurement |
 
-## Target Pages
+## Measurement Notes
 
-The first measurement pass focuses on public frontend routes because the original SSAFY backend deployment is no longer available.
+The original SSAFY backend deployment is no longer available, so API-dependent pages were excluded. The comparison focuses on public frontend routes.
 
-| Page | Reason |
-| --- | --- |
-| `/` | Landing route and initial static asset loading |
-| `/login` | Authentication entry route without API dependency |
-| `/signup` | Signup entry route without requiring a completed backend flow |
+The before branch removes `manualChunks`. Because the resulting single JavaScript file exceeded Workbox's default 2MiB precache limit, the before branch only relaxes `workbox.maximumFileSizeToCacheInBytes` to make the build deployable for measurement.
 
-## Current After Metrics
+## Build Output Baseline
 
-Current values are measured from the `feat-104-fe-performance-measurement` Vercel Preview deployment after adding the Vercel SPA rewrite.
+| Metric | Before | After | Delta |
+| --- | ---: | ---: | ---: |
+| Main app JS chunk | 2,300.18 kB | 472.85 kB | -1,827.33 kB (-79.4%) |
+| Main app JS gzip | 658.41 kB | 97.27 kB | -561.14 kB (-85.2%) |
+| Largest JS asset | 2,300.18 kB | 2,017.01 kB | -283.17 kB (-12.3%) |
 
-| Page | Device | Runs | Performance | FCP | LCP | TBT | CLS | Speed Index | Total Bytes |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `/` | Mobile | 3 | 62 | 5.09s | 8.85s | 127ms | 0.000 | 5.09s | 3.09MiB |
-| `/login` | Mobile | 3 | 67 | 5.08s | 5.23s | 91ms | 0.000 | 5.08s | 2.97MiB |
-| `/signup` | Mobile | 3 | 61 | 5.08s | 23.41s | 105ms | 0.000 | 5.08s | 4.76MiB |
+## Lighthouse Mobile Average Metrics
 
-## Pending Measurements
+| Page | Timing | Performance | FCP | LCP | TBT | CLS | Speed Index | Total Bytes |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `/` | Before | 67.3 | 4.77s | 5.53s | 81ms | 0.000 | 4.77s | 3.04MiB |
+| `/` | After | 61.7 | 5.09s | 8.85s | 127ms | 0.000 | 5.09s | 3.09MiB |
+| `/login` | Before | 69.7 | 4.74s | 4.89s | 63ms | 0.000 | 4.74s | 2.92MiB |
+| `/login` | After | 67.3 | 5.08s | 5.23s | 91ms | 0.000 | 5.08s | 2.97MiB |
+| `/signup` | Before | 63.0 | 4.78s | 24.52s | 79ms | 0.000 | 4.78s | 4.70MiB |
+| `/signup` | After | 61.3 | 5.08s | 23.41s | 105ms | 0.000 | 5.08s | 4.76MiB |
 
-| Target | Status |
-| --- | --- |
-| chunk-splitting before Mobile | Pending |
-| chunk-splitting before Desktop | Pending |
-| chunk-splitting after Desktop | Pending |
-| pwa-cache before/after repeat visit | Pending |
+## Key Takeaway
+
+Manual chunk splitting reduced the main app JavaScript chunk by 79.4%, but it did not improve first-load Mobile Lighthouse scores in this measurement. The improvement should be described as bundle structure, cache separation, and PWA build stability improvement.
