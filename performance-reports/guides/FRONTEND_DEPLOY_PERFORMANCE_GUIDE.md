@@ -1,10 +1,10 @@
-﻿# Frontend Deploy Performance Guide
+# Frontend Deploy Performance Guide
 
 ## Vercel Preview Deployment
 
-?꾨줎?몄뿏???깅뒫 媛쒖꽑 ?꾪썑瑜?鍮꾧탳???뚮뒗 Vercel Preview Deployment瑜??ъ슜?⑸땲??
+프론트엔드 성능 개선 전후를 비교할 때는 Vercel Preview Deployment를 사용합니다.
 
-沅뚯옣 ?ㅼ젙:
+권장 설정:
 
 ```txt
 Root Directory: fe
@@ -14,7 +14,11 @@ Build Command: pnpm build
 Output Directory: dist
 ```
 
-?꾩슂???섍꼍 蹂??
+## Environment Variables
+
+이번 1차 측정은 backend 없이 public route만 측정했기 때문에 Environment Variables를 비워둔 상태로 진행했습니다.
+
+backend를 다시 배포하고 로그인 이후 페이지까지 측정할 경우에는 아래 값이 필요합니다.
 
 ```txt
 VITE_API_BASE_URL=https://<backend-domain>
@@ -32,17 +36,21 @@ VITE_FIREBASE_VAPID_KEY=<key>
 ## Measurement Flow
 
 ```txt
-1. before commit 諛고룷
-2. before URL 湲곕줉
-3. Lighthouse Mobile/Desktop 3???댁긽 痢≪젙
-4. JSON ?먮낯 ???5. after commit 諛고룷
-6. after URL 湲곕줉
-7. 媛숈? 議곌굔?쇰줈 Lighthouse ?ъ륫??8. 寃곌낵 ?됯퇏媛?鍮꾧탳
+1. before branch 배포
+2. before URL 기록
+3. `/`, `/login`, `/signup` 직접 접속 확인
+4. Lighthouse Mobile 3회씩 측정
+5. before JSON 원본 저장
+6. after branch 배포
+7. after URL 기록
+8. 같은 route와 같은 조건으로 Lighthouse 재측정
+9. 평균값과 delta 계산
+10. final report에 결과와 해석 정리
 ```
 
 ## SPA Routing
 
-Vercel?먯꽌 React Router deep link ?덈줈怨좎묠??源⑥쭏 寃쎌슦 `fe/vercel.json`??SPA rewrite ?ㅼ젙??異붽??⑸땲??
+Vercel에서 React Router deep link 새로고침이 404로 떨어지는 것을 막기 위해 `fe/vercel.json`에 SPA rewrite 설정을 추가했습니다.
 
 ```json
 {
@@ -58,7 +66,7 @@ Vercel?먯꽌 React Router deep link ?덈줈怨좎묠??源⑥쭏 寃쎌슦 `fe/v
 
 ## Nginx Production Reference
 
-?ㅼ젣 ?쒕퉬??援ъ“??猷⑦듃 `docker-compose.yml`怨?`nginx/default.conf`瑜?湲곗??쇰줈 ?⑸땲??
+기존 프로젝트의 실제 운영 구조는 루트 `docker-compose.yml`과 `nginx/default.conf`를 기준으로 합니다.
 
 ```txt
 /api/      -> Spring Boot backend
@@ -68,4 +76,4 @@ Vercel?먯꽌 React Router deep link ?덈줈怨좎묠??源⑥쭏 寃쎌슦 `fe/v
 workbox-*  -> immutable cache policy
 ```
 
-理쒖쥌 蹂닿퀬?쒖뿉??Vercel 痢≪젙 寃곌낵? ?ㅼ젣 Nginx ?댁쁺 援ъ“??李⑥씠瑜??④퍡 湲곕줉?⑸땲??
+이번 측정은 실제 운영 서버가 아니라 Vercel Preview 환경에서 프론트엔드 개선 효과만 분리 측정했습니다. 따라서 최종 문서에는 Vercel 측정 환경이라는 제한을 함께 기록합니다.

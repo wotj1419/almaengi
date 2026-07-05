@@ -1,27 +1,33 @@
-﻿# Frontend Performance Measurement Report
+# Frontend Performance Measurement Report
 
-## Executive Summary
+## 요약
 
-This measurement compares the Almaengi frontend before and after Vite manual chunk splitting.
+이 문서는 Almaengi 프론트엔드에 Vite `manualChunks`를 적용하기 전과 후를 비교한 성능 측정 결과다.
 
-The optimization did not improve first-load Lighthouse Mobile scores in this Vercel Preview test. The main measurable improvement is bundle structure: the single large entry JavaScript file was split into a smaller app entry chunk and a separate vendor chunk. This improves cacheability and prevents the app code from being coupled to third-party library cache invalidation.
+이번 작업은 first-load Lighthouse Mobile 점수를 직접 개선하지는 못했다. Vercel Preview 환경에서 측정한 결과, Lighthouse Mobile Performance 평균은 66.7점에서 63.4점으로 3.2점 낮아졌다.
 
-## What Was Improved
+대신 명확하게 수치화할 수 있는 개선 지점은 bundle structure다. 기존에는 app code와 third-party dependency가 하나의 큰 JavaScript entry chunk에 함께 포함되어 있었고, 개선 후에는 app chunk와 `vendor` chunk로 분리되었다. 그 결과 main app JS chunk 크기는 2,300.18 kB에서 472.85 kB로 79.4% 감소했다.
 
-### Problem
+## 개선이 필요했던 이유
 
-Before optimization, most application and third-party dependency code was emitted into one large JavaScript entry chunk. When PWA precaching was enabled, removing manual chunk splitting produced a 2.3MB JavaScript asset, which exceeded Workbox's default 2MiB precache limit.
+개선 전 build에서는 대부분의 app code와 `node_modules` dependency가 하나의 JavaScript entry chunk로 묶였다. 이 구조는 두 가지 문제가 있었다.
+
+첫째, app code가 조금만 변경되어도 dependency code까지 같은 entry bundle의 cache invalidation 영향권에 들어간다. 즉, 브라우저가 장기적으로 cache할 수 있는 vendor code와 자주 변경되는 app code가 분리되지 않았다.
+
+둘째, PWA precaching 관점에서도 문제가 있었다. `manualChunks`를 제거한 개선 전 상태에서는 단일 JavaScript asset이 2.3MB로 생성되었고, 이는 Workbox의 기본 precache 제한인 2MiB를 초과했다.
 
 ```txt
-Before build problem:
+개선 전 build 문제:
 assets/index-BG7G1KR1.js: 2,300.18 kB
 Workbox default precache limit: 2 MiB
-Result: PWA precache build failed unless the limit was relaxed for measurement
+결과: 측정을 위해 제한을 완화하지 않으면 PWA precache build 실패
 ```
 
-### Change
+따라서 이 개선의 목적은 단순히 Lighthouse 점수를 올리는 것이 아니라, bundle을 app/vendor 기준으로 분리해 cache 효율과 build 안정성을 높이는 것이었다.
 
-The Vite build config was updated to split `node_modules` into a separate `vendor` chunk.
+## 개선 방법
+
+Vite build 설정에서 `rollupOptions.output.manualChunks`를 사용해 `node_modules`에 포함된 dependency를 별도의 `vendor` chunk로 분리했다.
 
 ```ts
 build: {
@@ -37,38 +43,37 @@ build: {
 }
 ```
 
-### Intended Effect
+이 설정을 통해 자주 변경되는 app code는 main app JS chunk에 남기고, 상대적으로 변경 빈도가 낮은 third-party dependency는 `vendor` chunk로 분리했다.
 
-- Reduce the app entry chunk size.
-- Separate frequently changing app code from less frequently changing dependency code.
-- Improve long-term browser cache behavior for vendor code.
-- Avoid PWA precache failures caused by a single oversized JavaScript asset.
-
-## Build Output Comparison
+## Build Output 비교
 
 | Metric | Before | After | Delta |
 | --- | ---: | ---: | ---: |
 | Main app JS chunk | 2,300.18 kB | 472.85 kB | -1,827.33 kB (-79.4%) |
 | Main app JS gzip | 658.41 kB | 97.27 kB | -561.14 kB (-85.2%) |
-| Vendor JS chunk | N/A | 2,017.01 kB | Separated dependency cache |
-| Vendor JS gzip | N/A | 620.84 kB | Separated dependency cache |
+| Vendor JS chunk | N/A | 2,017.01 kB | dependency cache 분리 |
+| Vendor JS gzip | N/A | 620.84 kB | dependency cache 분리 |
 | Largest JS asset | 2,300.18 kB | 2,017.01 kB | -283.17 kB (-12.3%) |
-| PWA precache default limit | Failed at 2.3MB asset | Passed with split chunks | Build stability improved |
+| PWA precache default limit | 2.3MB asset으로 실패 | split chunk 적용 후 통과 | build 안정성 개선 |
 
-## Lighthouse Mobile Result
+가장 큰 수치 변화는 main app JS chunk 크기다. 개선 전에는 2,300.18 kB의 단일 entry chunk였지만, 개선 후에는 app chunk가 472.85 kB로 분리되었다. gzip 기준으로도 658.41 kB에서 97.27 kB로 줄어 85.2% 감소했다.
 
-Each public route was measured 3 times in Chrome DevTools Lighthouse Mobile mode.
+다만 `vendor` chunk가 새로 분리되었기 때문에 전체 JavaScript 전송량이 극적으로 줄어든 것은 아니다. 이 작업의 의미는 전체 dependency를 없앤 것이 아니라, app code와 dependency code의 변경 단위와 cache 단위를 분리했다는 점에 있다.
 
-### Average Scores
+## Lighthouse Mobile 측정 결과
 
-| Page | Before Perf | After Perf | Delta | Result |
+Chrome DevTools Lighthouse Mobile mode에서 public route 3개를 각각 3회 측정하고 평균값을 사용했다.
+
+### Performance Score
+
+| Page | Before Perf | After Perf | Delta | 해석 |
 | --- | ---: | ---: | ---: | --- |
-| `/` | 67.3 | 61.7 | -5.7 (-8.4%) | Worse in this run |
-| `/login` | 69.7 | 67.3 | -2.3 (-3.3%) | Slightly worse |
-| `/signup` | 63.0 | 61.3 | -1.7 (-2.6%) | Slightly worse |
-| Average | 66.7 | 63.4 | -3.2 (-4.8%) | No first-load score gain |
+| `/` | 67.3 | 61.7 | -5.7 (-8.4%) | 이번 측정에서는 하락 |
+| `/login` | 69.7 | 67.3 | -2.3 (-3.3%) | 소폭 하락 |
+| `/signup` | 63.0 | 61.3 | -1.7 (-2.6%) | 소폭 하락 |
+| Average | 66.7 | 63.4 | -3.2 (-4.8%) | first-load score 개선 없음 |
 
-### Average Core Metrics
+### Core Metrics
 
 | Page | Metric | Before | After | Delta |
 | --- | --- | ---: | ---: | ---: |
@@ -85,33 +90,35 @@ Each public route was measured 3 times in Chrome DevTools Lighthouse Mobile mode
 | `/signup` | TBT | 79ms | 105ms | +26ms (+32.8%) |
 | `/signup` | Total Bytes | 4.70MiB | 4.76MiB | +0.05MiB (+1.2%) |
 
-## Interpretation
+## 결과 해석
 
-This optimization should not be presented as a first-load Lighthouse improvement. In the measured Vercel Preview environment, Mobile Lighthouse Performance decreased by 4.8% on average.
+이번 측정 결과를 "초기 로딩 성능이 좋아졌다"라고 표현하는 것은 정확하지 않다. Lighthouse Mobile 기준 first-load score는 평균 4.8% 하락했고, FCP와 TBT도 전반적으로 증가했다.
 
-The stronger and more accurate portfolio claim is:
+반면 bundle 구조 관점에서는 개선 효과가 명확하다. main app JS chunk가 79.4% 감소했고, app code와 third-party dependency가 서로 다른 chunk로 분리되었다. 이 구조에서는 app code가 변경되더라도 vendor dependency cache를 더 안정적으로 유지할 수 있다.
 
-```txt
-Reduced the main app JavaScript chunk from 2.3MB to 472.85KB (-79.4%) by splitting third-party dependencies into a vendor chunk, improving cache separation and resolving an oversized PWA precache asset issue.
-```
+또한 개선 전 단일 JS asset은 Workbox PWA precache 기본 제한인 2MiB를 초과했지만, 개선 후에는 app chunk가 분리되면서 해당 문제가 해소되었다. 따라서 이 작업은 Lighthouse score 개선보다는 bundle architecture, cache strategy, PWA build stability 개선으로 정리하는 것이 맞다.
 
-This is a bundle architecture and caching improvement rather than a direct first-load rendering improvement. It makes future deploys more cache-friendly because app code changes no longer force the entire dependency bundle to be treated as part of the same entry chunk.
+## 포트폴리오용 문장
 
-## Resume / Portfolio Wording
-
-### Short Version
+### 짧은 버전
 
 ```txt
-Vite manualChunks를 적용해 2.3MB 단일 엔트리 JS를 app/vendor 청크로 분리하고, 메인 앱 청크를 472.85KB로 79.4% 축소했습니다. 이를 통해 앱 코드와 외부 라이브러리 캐시를 분리하고, PWA precache 2MiB 제한을 초과하던 대형 번들 문제를 해결했습니다.
+Vite manualChunks를 적용해 2.3MB 단일 entry JS를 app/vendor chunk로 분리하고, main app JS chunk를 472.85KB로 79.4% 축소했습니다. 이를 통해 app code와 third-party dependency cache를 분리하고, PWA precache 2MiB 제한을 초과하던 대형 bundle 문제를 해결했습니다.
 ```
 
-### Detailed Version
+### 상세 버전
 
 ```txt
-React/Vite 기반 프론트엔드의 초기 번들 구조를 분석해 node_modules가 앱 엔트리 번들에 함께 포함되는 문제를 확인했습니다. Vite rollupOptions.manualChunks로 외부 라이브러리를 vendor 청크로 분리했고, 그 결과 메인 앱 JS 청크 크기를 2,300.18KB에서 472.85KB로 79.4% 줄였습니다. 또한 기존 단일 JS 번들이 Workbox PWA precache 기본 제한(2MiB)을 초과하던 문제를 해소해 배포 안정성과 장기 캐시 효율을 개선했습니다. Lighthouse Mobile 기준 첫 로드 점수는 평균 66.7점에서 63.4점으로 개선되지 않아, 후속 과제로 라우트 단위 code splitting과 대형 이미지 최적화가 필요함을 도출했습니다.
+React/Vite 기반 프론트엔드의 초기 bundle structure를 분석해 node_modules가 app entry bundle에 함께 포함되는 문제를 확인했습니다. Vite rollupOptions.manualChunks로 third-party dependency를 vendor chunk로 분리했고, 그 결과 main app JS chunk 크기를 2,300.18KB에서 472.85KB로 79.4% 줄였습니다. 또한 기존 단일 JS bundle이 Workbox PWA precache 기본 제한(2MiB)을 초과하던 문제를 해소해 배포 안정성과 장기 cache 효율을 개선했습니다. Lighthouse Mobile 기준 first-load score는 평균 66.7점에서 63.4점으로 개선되지 않아, 후속 과제로 route-level code splitting과 대형 image asset 최적화가 필요함을 도출했습니다.
 ```
 
-## Raw Measurement Files
+## 자기소개서용 정리
+
+성능 개선을 수치화하기 위해 개선 전후 branch를 분리하고, Vercel Preview Deployment 환경에서 동일한 public route를 Lighthouse Mobile mode로 3회씩 반복 측정했습니다. 측정 결과 first-load Lighthouse score는 개선되지 않았지만, build output 분석을 통해 main app JS chunk를 2,300.18 kB에서 472.85 kB로 79.4% 줄였고, PWA precache 2MiB 제한을 초과하던 단일 bundle 문제를 해결했습니다.
+
+이 경험을 통해 단순히 성능 점수를 높이는 것보다, 어떤 지표가 실제 개선을 설명하는지 구분하는 과정이 중요하다는 것을 배웠습니다. Lighthouse score가 개선되지 않은 원인을 바탕으로 다음 최적화 과제를 route-level code splitting, image asset 최적화, repeat-visit cache 측정으로 구체화했습니다.
+
+## 원본 측정 파일
 
 ```txt
 performance-reports/measurements/before/chunk-splitting/lighthouse_mobile_landing_before_1.json
@@ -134,9 +141,9 @@ performance-reports/measurements/after/chunk-splitting/lighthouse_mobile_signup_
 performance-reports/measurements/after/chunk-splitting/lighthouse_mobile_signup_after_3.json
 ```
 
-## Next Optimization Candidates
+## 후속 개선 과제
 
-1. Add route-level lazy loading with `React.lazy` and `Suspense`.
-2. Optimize large image assets such as `stamp-paid`, `owner`, and `worker`.
-3. Measure repeat-visit cache behavior separately for the PWA service worker.
-4. Add bundle visualizer output to identify the largest vendor modules.
+1. `React.lazy`와 `Suspense`를 활용한 route-level code splitting 적용
+2. `stamp-paid`, `owner`, `worker` 등 대형 image asset 최적화
+3. PWA service worker 기준 repeat-visit cache 성능 별도 측정
+4. bundle visualizer를 활용해 `vendor` chunk 내부의 대형 dependency 분석

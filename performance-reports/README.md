@@ -1,6 +1,6 @@
-﻿# Performance Reports
+# Performance Reports
 
-Almaengi ?꾨줎?몄뿏???깅뒫 痢≪젙 湲곗?, 媛쒖꽑 怨꾪쉷, 痢≪젙 ?먮낯, 理쒖쥌 寃곌낵瑜?紐⑥븘?먮뒗 ?대뜑?낅땲??
+Almaengi 프론트엔드 성능 측정 기준, 개선 계획, 측정 원본, 최종 결과를 모아두는 폴더입니다.
 
 ## Folder Structure
 
@@ -28,44 +28,44 @@ performance-reports/
 
 ```txt
 baselines/
-  媛쒖꽑 ??而ㅻ컠, 痢≪젙 URL, Lighthouse 湲곗?媛믪쓣 ?뺣━?⑸땲??
+  측정 환경, before/after 기준, Lighthouse 평균값, build output 기준값을 정리합니다.
 
 guides/
-  Vercel Preview ?먮뒗 Nginx 諛고룷 ?섍꼍?먯꽌 ?깅뒫??痢≪젙?섎뒗 諛⑸쾿???뺣━?⑸땲??
+  Vercel Preview Deployment 기준 배포 설정과 측정 절차를 정리합니다.
 
 measurements/
-  Lighthouse JSON ?먮낯, ?ㅽ겕由곗꺑, ?ㅽ듃?뚰겕 罹≪쿂 ??痢≪젙 ?먮낯??蹂닿??⑸땲??
+  Lighthouse JSON 원본 파일을 before/after 기준으로 보관합니다.
 
 plans/
-  ?대뼡 媛쒖꽑???대뼡 湲곗??쇰줈 寃利앺븷吏 怨꾪쉷???뺣━?⑸땲??
+  어떤 개선을 어떤 기준으로 검증할지 측정 계획을 정리합니다.
 
 final/
-  理쒖쥌 ?깅뒫 媛쒖꽑 寃곌낵? ?댁꽍???뺣━?⑸땲??
+  최종 성능 비교 결과, 해석, 포트폴리오용 문장을 정리합니다.
 ```
 
 ## Measurement Targets
 
 ```txt
 chunk-splitting:
-  9014e2a369455c048df5cd6e5bfc37a00bf59adf -> 814690e72d1398680a0d7bfa56a237538831d316
+  manualChunks 적용 전후의 bundle structure, cache separation, Lighthouse Mobile 지표를 비교합니다.
 
 pwa-cache:
-  22a55f644c4f7b39aae86181d1b5bc279b7478ba -> 2b6f1e9f756c6572bfaaf981423156019148219f
+  service worker 적용 전후의 repeat visit cache 효과를 별도 측정 대상으로 둡니다.
 ```
 
 ## Naming Rule
 
-痢≪젙 寃곌낵 ?뚯씪? ?꾨옒 ?뺤떇?쇰줈 ??ν빀?덈떎.
+측정 결과 파일은 아래 형식으로 저장합니다.
 
 ```txt
-lighthouse_<device>_<target>_<timing>.json
+lighthouse_<device>_<page>_<timing>_<run>.json
 ```
 
-?덉떆:
+예시:
 
 ```txt
-lighthouse_mobile_chunk-splitting_before.json
-lighthouse_mobile_chunk-splitting_after.json
-lighthouse_desktop_pwa-cache_before.json
-lighthouse_desktop_pwa-cache_after.json
+lighthouse_mobile_landing_before_1.json
+lighthouse_mobile_landing_after_1.json
+lighthouse_mobile_login_before_1.json
+lighthouse_mobile_signup_after_3.json
 ```
