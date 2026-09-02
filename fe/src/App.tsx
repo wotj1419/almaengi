@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
 import { useFcmBootstrap } from '@/features/notification/hooks/useFcmBootstrap';
+import { isDemoMode } from '@/demo/config';
 import AppRouter from './router';
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
@@ -14,11 +15,15 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   );
 }
 
-const App = () => {
+function FcmBootstrap() {
   useFcmBootstrap();
-  
+  return null;
+}
+
+const App = () => {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
+      {!isDemoMode() && <FcmBootstrap />}
       <BrowserRouter>
         <AppRouter />
       </BrowserRouter>

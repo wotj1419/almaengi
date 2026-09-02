@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { isDemoMode } from '@/demo/config';
 
 declare module 'axios' {
   interface InternalAxiosRequestConfig {
@@ -64,7 +65,8 @@ instance.interceptors.response.use(
       error.response?.status === 401 &&
       !isLoginRequest &&
       !isReissueRequest &&
-      hasToken
+      hasToken &&
+      !isDemoMode()
     ) {
       const originalRequest = error.config as InternalAxiosRequestConfig;
 

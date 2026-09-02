@@ -52,6 +52,7 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import RoleSelectPage from '@/features/login/pages/RoleSelectPage';
 import SignupPage from '@/features/login/pages/SignupPage';
 import SignupCompletePage from '@/features/login/pages/SignupCompletePage';
+import DemoEntryPage from '@/demo/pages/DemoEntryPage';
 
 export default function AppRouter() {
   const role = useAuthStore((state) => state.user?.role);
@@ -212,6 +213,7 @@ export default function AppRouter() {
         element={role === 'OWNER' ? <ReportPage /> : <EmployeeReportPage />}
       />
       <Route path={ROUTES.NOTIFICATION} element={<NotificationPage />} />
+      <Route path="/demo/:role" element={<DemoEntryPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

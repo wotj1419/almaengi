@@ -2,6 +2,12 @@ export const DEMO_AUTH_TOKEN = 'demo-preview-access-token';
 
 export type DemoRole = 'OWNER' | 'EMPLOYEE';
 
+export function parseDemoRole(value: string | undefined): DemoRole | null {
+  if (value === 'owner') return 'OWNER';
+  if (value === 'employee') return 'EMPLOYEE';
+  return null;
+}
+
 type DemoUser = {
   id: number;
   name: string;

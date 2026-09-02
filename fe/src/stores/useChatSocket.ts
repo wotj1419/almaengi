@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
 import { useChatStore } from './useChatStore';
 import type { MessageItem } from '@/api/chat';
+import { isDemoMode } from '@/demo/config';
 
 /**
  * WebSocket(STOMP) 연결 및 채팅방 구독 훅
@@ -16,6 +17,8 @@ export function useChatSocket(roomId: number) {
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
+    if (isDemoMode()) return;
+
     const token = localStorage.getItem('accessToken');
     if (!token || !roomId) return;
 

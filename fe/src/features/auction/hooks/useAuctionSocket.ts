@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Client } from '@stomp/stompjs';
 import { useQueryClient } from '@tanstack/react-query';
+import { isDemoMode } from '@/demo/config';
 
 type AuctionWsEvent = {
   eventType:
@@ -20,7 +21,7 @@ type AuctionWsEvent = {
 export function useAuctionSocket(storeId: number | null) {
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!storeId) return;
+    if (isDemoMode() || !storeId) return;
     const token = localStorage.getItem('accessToken');
     if (!token) return;
     const wsBaseUrl =

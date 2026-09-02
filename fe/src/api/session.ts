@@ -1,4 +1,5 @@
 import type { ApiResponse } from './auction.types';
+import { isDemoMode } from '@/demo/config';
 
 type ReissueResponse = {
   accessToken?: string;
@@ -34,6 +35,10 @@ const UNAUTHENTICATED_COOLDOWN_MS = 5000;
 
 // RT(cookie)로 AT 재발급을 시도하여 세션 유효성 확인
 export async function validateSessionByReissue(): Promise<SessionAuthResult> {
+  if (isDemoMode()) {
+    return 'unauthenticated';
+  }
+
   if (validateSessionInFlight) {
     return validateSessionInFlight;
   }
