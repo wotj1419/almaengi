@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import App from './App.tsx';
+import { isDemoMode } from './demo/config';
 
 registerSW({
   immediate: true,
@@ -44,7 +45,14 @@ async function enableMocking() {
   return undefined;
 }
 
-enableMocking().then(() => {
+async function bootstrap() {
+  if (isDemoMode()) {
+    const { startDemoWorker } = await import('./demo/browser');
+    await startDemoWorker();
+  } else {
+    await enableMocking();
+  }
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
@@ -53,4 +61,6 @@ enableMocking().then(() => {
       </QueryClientProvider>
     </StrictMode>
   );
-});
+}
+
+void bootstrap();
