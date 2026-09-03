@@ -1,9 +1,11 @@
 import { http, HttpResponse } from 'msw';
 
 import {
+  demoAttendanceReport,
   demoAttendanceResult,
+  demoAuctionInsightsReport,
+  demoPayrollDetails,
   demoPayrollSummary,
-  demoStorePayrolls,
   type DemoData,
 } from './data';
 import { readDemoData, writeDemoData } from './storage';
@@ -61,6 +63,50 @@ function roomSummary(data: DemoData, roomId: number) {
   };
 }
 
+function payrollDetail(data: DemoData, payrollId: number) {
+  const payroll = data.payrolls.employees.find(
+    (item) => item.payrollId === payrollId
+  );
+  if (!payroll) return null;
+  const template = demoPayrollDetails[payrollId] ?? demoPayrollDetails[1];
+  return {
+    ...template,
+    payrollId,
+    employeeName: payroll.employeeName,
+    totalWorkMinutes: payroll.totalWorkMinutes,
+    basicPay: payroll.basicPay,
+    totalAllowance: payroll.totalAllowance,
+    totalDeduction: payroll.totalDeduction,
+    netPay: payroll.netPay,
+    isApproved: payroll.isApproved,
+  };
+}
+
+function contractSummary(contract: DemoData['contracts'][number]) {
+  return {
+    contractId: contract.contractId,
+    employeeName: contract.employeeName,
+    status: contract.status,
+    contractDate: contract.contractDate,
+    contractStartDate: contract.contractStartDate,
+    contractEndDate: contract.contractEndDate,
+    createdAt: contract.createdAt,
+  };
+}
+
+function pdf(fileName: string) {
+  return new HttpResponse(
+    new Blob(['%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'], {
+      type: 'application/pdf',
+    }),
+    {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${fileName}"`,
+      },
+    }
+  );
+}
 export const handlers = [
   http.get(api('stores'), () => success(readDemoData().stores)),
   http.get(api('stores/employees/my'), () => success(readDemoData().stores)),
@@ -276,80 +322,244 @@ export const handlers = [
   ),
   http.get(api('attendances/report/:storeId'), ({ request }) => {
     const targetMonth =
-      new URL(request.url).searchParams.get('targetMonth') ?? '2026-09';
-    const employees = readDemoData().employees.map((item) => ({
-      employeeId: item.employeeId,
-      employeeName: item.name,
-      attendanceCount: 18,
-      lateCount: 1,
-      absentCount: 0,
-      totalWorkMinutes: 8100,
-    }));
-    return success({
-      targetMonth,
-      employees,
-      diligentEmployees: employees.slice(0, 1),
-      lateChampions: employees.slice(1, 2),
-    });
+      new URL(request.url).searchParams.get('targetMonth') ??
+      demoAttendanceReport.targetMonth;
+    return success({ ...demoAttendanceReport, targetMonth });
   }),
-
-  http.get(api('stores/:storeId/payrolls/summary'), () =>
-    success(demoPayrollSummary)
-  ),
+  http.get(api('stores/:storeId/payrolls/summary'), ({ request }) => {
+    const targetMonth =
+      new URL(request.url).searchParams.get('targetMonth') ??
+      demoPayrollSummary.targetMonth;
+    return success({ ...demoPayrollSummary, targetMonth });
+  }),
   http.get(api('stores/:storeId/pay-day'), () => success(25)),
-  http.get(api('stores/:storeId/payrolls'), () => success(demoStorePayrolls)),
-  http.get(api('stores/:storeId/payrolls/me'), () =>
-    success({
-      payrollId: 1,
-      targetMonth: '2026-09',
+  http.get(api('stores/:storeId/payrolls/me'), () => {
+    const data = readDemoData();
+    const payroll = data.payrolls.employees.find(
+      (item) => item.employeeId === 10
+    );
+    if (!payroll)
+      return success({
+        payrollId: null,
+        targetMonth: data.payrolls.targetMonth,
+        isEstimated: false,
+        isApproved: false,
+        isTransferred: false,
+        transferredAt: null,
+        totalWorkMinutes: 0,
+        nightWorkMinutes: 0,
+        overtimeMinutes: 0,
+        basicPay: 0,
+        totalAllowance: 0,
+        totalDeduction: 0,
+        netPay: 0,
+        details: [],
+      });
+    const detail = payrollDetail(data, payroll.payrollId);
+    return success({
+      payrollId: payroll.payrollId,
+      targetMonth: data.payrolls.targetMonth,
       isEstimated: false,
-      isApproved: true,
-      isTransferred: false,
-      transferredAt: null,
-      totalWorkMinutes: 9000,
+      isApproved: payroll.isApproved,
+      isTransferred: payroll.isTransferred,
+      transferredAt: payroll.transferredAt,
+      totalWorkMinutes: payroll.totalWorkMinutes,
       nightWorkMinutes: 0,
       overtimeMinutes: 0,
-      basicPay: 1032000,
-      totalAllowance: 140000,
-      totalDeduction: 32000,
-      netPay: 1140000,
+      basicPay: payroll.basicPay,
+      totalAllowance: payroll.totalAllowance,
+      totalDeduction: payroll.totalDeduction,
+      netPay: payroll.netPay,
       details: [
-        {
-          detailId: 1,
-          detailType: 'BASE',
-          itemName: '기본급',
-          amount: 1032000,
-          calculationFormula: '86시간 × 12,000원',
-          workMinutes: 9000,
-        },
+        ...(detail?.baseItems ?? []),
+        ...(detail?.allowanceItems ?? []),
+        ...(detail?.deductionItems ?? []),
       ],
-    })
+    });
+  }),
+  http.get(api('stores/:storeId/payrolls/:payrollId/payslip'), ({ params }) => {
+    const detail = payrollDetail(readDemoData(), id(params.payrollId));
+    return detail
+      ? pdf(`payslip-${detail.payrollId}.pdf`)
+      : error(404, 'PAYROLL_NOT_FOUND', 'Payroll not found.');
+  }),
+  http.get(api('stores/:storeId/payrolls/:payrollId'), ({ params }) => {
+    const detail = payrollDetail(readDemoData(), id(params.payrollId));
+    return detail
+      ? success(detail)
+      : error(404, 'PAYROLL_NOT_FOUND', 'Payroll not found.');
+  }),
+  http.get(api('stores/:storeId/payrolls'), () =>
+    success(readDemoData().payrolls)
   ),
+  http.patch(api('stores/:storeId/payrolls/approve-all'), () => {
+    const data = readDemoData();
+    data.payrolls.employees.forEach((payroll) => {
+      payroll.isApproved = true;
+    });
+    save(data);
+    return success(data.payrolls.employees.length);
+  }),
+  http.post(api('stores/:storeId/payrolls/transfer'), () => {
+    const data = readDemoData();
+    const transferredAt = new Date().toISOString();
+    data.payrolls.employees.forEach((payroll) => {
+      if (payroll.isApproved) {
+        payroll.isTransferred = true;
+        payroll.transferredAt = transferredAt;
+      }
+    });
+    save(data);
+    return success(null);
+  }),
 
-  http.get(api('auctions/store/:storeId/insights-report'), () =>
-    success({
-      yearMonth: '2026-09',
-      totalAuctionCount: 2,
-      closedAuctionCount: 1,
-      successRate: 50,
-      averageWinningWage: 12000,
-      timelinePage: {
-        content: [
-          {
-            dayOfWeek: 'MONDAY',
-            startTime: '10:00:00',
-            endTime: '14:00:00',
-            auctionCount: 1,
-          },
-        ],
-        page: 0,
-        size: 6,
-        totalElements: 1,
-        totalPages: 1,
-        hasNext: false,
-      },
-    })
+  http.post(
+    api('stores/:storeId/contracts/:employeeId'),
+    async ({ params, request }) => {
+      const data = readDemoData();
+      const employee = data.employees.find(
+        (item) => item.employeeId === id(params.employeeId)
+      );
+      const store = data.stores.find(
+        (item) => item.storeId === id(params.storeId)
+      );
+      if (!employee || !store)
+        return error(404, 'EMPLOYEE_NOT_FOUND', 'Employee or store not found.');
+      const body = (await request.json()) as {
+        contractStartDate: string;
+        contractEndDate?: string | null;
+        workplace?: string;
+        jobDescription: string;
+        workStartTime: string;
+        workEndTime: string;
+        breakStartTime?: string | null;
+        breakEndTime?: string | null;
+        workDaysPerWeek: number;
+        weeklyHoliday: string;
+        wageType: 'HOURLY' | 'DAILY' | 'MONTHLY';
+        wageAmount: number;
+        hasBonus: boolean;
+        bonusAmount?: number | null;
+        hasOtherAllowance: boolean;
+        otherAllowanceDetails?: string | null;
+        payDayDescription: string;
+        employmentInsurance: boolean;
+        industrialAccidentInsurance: boolean;
+        nationalPension: boolean;
+        healthInsurance: boolean;
+        contractDate: string;
+        employeeAddress: string;
+      };
+      const now = new Date().toISOString();
+      const contract: DemoData['contracts'][number] = {
+        contractId: data.nextIds.contract++,
+        storeEmployeeId: employee.employeeId,
+        employerName: '데모 점주',
+        storeName: store.storeName,
+        storeAddress: store.address ?? '',
+        storePhone: store.phone ?? '',
+        employeeName: employee.name,
+        employeePhone: employee.phone ?? '',
+        employeeAddress: body.employeeAddress,
+        contractStartDate: body.contractStartDate,
+        contractEndDate: body.contractEndDate ?? null,
+        workplace: body.workplace ?? store.storeName,
+        jobDescription: body.jobDescription,
+        workStartTime: body.workStartTime,
+        workEndTime: body.workEndTime,
+        breakStartTime: body.breakStartTime ?? null,
+        breakEndTime: body.breakEndTime ?? null,
+        workDaysPerWeek: body.workDaysPerWeek,
+        weeklyHoliday: body.weeklyHoliday,
+        wageType: body.wageType,
+        wageAmount: body.wageAmount,
+        hasBonus: body.hasBonus,
+        bonusAmount: body.bonusAmount ?? null,
+        hasOtherAllowance: body.hasOtherAllowance,
+        otherAllowanceDetails: body.otherAllowanceDetails ?? null,
+        payDayDescription: body.payDayDescription,
+        paymentMethod: '계좌이체',
+        employmentInsurance: body.employmentInsurance,
+        industrialAccidentInsurance: body.industrialAccidentInsurance,
+        nationalPension: body.nationalPension,
+        healthInsurance: body.healthInsurance,
+        contractDate: body.contractDate,
+        status: 'DRAFT',
+        ownerSigned: false,
+        ownerSignedAt: null,
+        employeeSigned: false,
+        employeeSignedAt: null,
+        createdAt: now,
+      };
+      data.contracts.push(contract);
+      save(data);
+      return success(contract);
+    }
   ),
+  http.get(api('stores/:storeId/contracts/me'), () =>
+    success(
+      readDemoData()
+        .contracts.filter((contract) => contract.storeEmployeeId === 10)
+        .map(contractSummary)
+    )
+  ),
+  http.get(api('stores/:storeId/contracts/:contractId/pdf'), ({ params }) => {
+    const contract = readDemoData().contracts.find(
+      (item) => item.contractId === id(params.contractId)
+    );
+    return contract
+      ? pdf(`contract-${contract.contractId}.pdf`)
+      : error(404, 'CONTRACT_NOT_FOUND', 'Contract not found.');
+  }),
+  http.patch(
+    api('stores/:storeId/contracts/:contractId/sign/owner'),
+    ({ params }) => {
+      const data = readDemoData();
+      const contract = data.contracts.find(
+        (item) => item.contractId === id(params.contractId)
+      );
+      if (!contract)
+        return error(404, 'CONTRACT_NOT_FOUND', 'Contract not found.');
+      contract.ownerSigned = true;
+      contract.ownerSignedAt ??= new Date().toISOString();
+      contract.status = contract.employeeSigned ? 'COMPLETED' : 'OWNER_SIGNED';
+      save(data);
+      return success(contract);
+    }
+  ),
+  http.patch(
+    api('stores/:storeId/contracts/:contractId/sign/employee'),
+    ({ params }) => {
+      const data = readDemoData();
+      const contract = data.contracts.find(
+        (item) => item.contractId === id(params.contractId)
+      );
+      if (!contract)
+        return error(404, 'CONTRACT_NOT_FOUND', 'Contract not found.');
+      contract.employeeSigned = true;
+      contract.employeeSignedAt ??= new Date().toISOString();
+      contract.status = contract.ownerSigned ? 'COMPLETED' : 'DRAFT';
+      save(data);
+      return success(contract);
+    }
+  ),
+  http.get(api('stores/:storeId/contracts/:contractId'), ({ params }) => {
+    const contract = readDemoData().contracts.find(
+      (item) => item.contractId === id(params.contractId)
+    );
+    return contract
+      ? success(contract)
+      : error(404, 'CONTRACT_NOT_FOUND', 'Contract not found.');
+  }),
+  http.get(api('stores/:storeId/contracts'), () =>
+    success(readDemoData().contracts.map(contractSummary))
+  ),
+  http.get(api('auctions/store/:storeId/insights-report'), ({ request }) => {
+    const yearMonth =
+      new URL(request.url).searchParams.get('yearMonth') ??
+      demoAuctionInsightsReport.yearMonth;
+    return success({ ...demoAuctionInsightsReport, yearMonth });
+  }),
   http.get(api('auctions/store/:storeId'), ({ params }) =>
     success(
       readDemoData().auctions.filter(
@@ -357,6 +567,12 @@ export const handlers = [
       )
     )
   ),
+  http.get(api('auctions/:auctionId/insights'), ({ request }) => {
+    const yearMonth =
+      new URL(request.url).searchParams.get('yearMonth') ??
+      demoAuctionInsightsReport.yearMonth;
+    return success({ ...demoAuctionInsightsReport, yearMonth });
+  }),
   http.get(api('auctions/:auctionId'), ({ params }) => {
     const data = readDemoData();
     const auctionId = id(params.auctionId);

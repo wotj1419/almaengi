@@ -1,9 +1,15 @@
 import type { AttendanceResult, MyAttendanceLog } from '@/api/attendance';
-import type { AuctionBiddersDto, AuctionDto } from '@/api/auction.types';
+import type { ContractDetail } from '@/api/contract';
+import type {
+  AuctionBiddersDto,
+  AuctionDto,
+  AuctionInsightsReportDto,
+} from '@/api/auction.types';
 import type { MessageItem, RoomDetail } from '@/api/chat';
 import type { NotificationItem } from '@/api/notification.types';
-import type { PayrollSummary } from '@/api/payroll';
+import type { PayrollDetailViewResponse, PayrollSummary } from '@/api/payroll';
 import type { StorePayrollSummary } from '@/features/payroll/types';
+import type { MonthlyAttendanceReport } from '@/api/attendance';
 import type { ScheduleDto } from '@/api/schedule';
 import type { Employee, StoreInfo } from '@/api/store';
 
@@ -16,6 +22,8 @@ export interface DemoData {
   employees: Employee[];
   schedules: ScheduleDto[];
   attendances: DemoAttendance[];
+  payrolls: StorePayrollSummary;
+  contracts: ContractDetail[];
   auctions: AuctionDto[];
   biddersByAuction: Record<number, AuctionBiddersDto>;
   rooms: RoomDetail[];
@@ -28,6 +36,7 @@ export interface DemoData {
     auction: number;
     bid: number;
     room: number;
+    contract: number;
     message: number;
   };
 }
@@ -115,6 +124,148 @@ export const demoStorePayrolls: StorePayrollSummary = {
   ],
 };
 
+export const demoPayrollDetails: Record<number, PayrollDetailViewResponse> = {
+  1: {
+    payrollId: 1,
+    employeeName: '데모 직원',
+    targetMonth: '2026-09',
+    totalWorkMinutes: 9000,
+    nightWorkMinutes: 0,
+    basicPay: 1032000,
+    totalAllowance: 140000,
+    totalDeduction: 32000,
+    netPay: 1140000,
+    isApproved: true,
+    baseItems: [
+      {
+        detailId: 1,
+        detailType: 'BASE',
+        itemName: '기본급',
+        amount: 1032000,
+        calculationFormula: '86시간 × 12,000원',
+        workMinutes: 9000,
+      },
+    ],
+    allowanceItems: [
+      {
+        detailId: 2,
+        detailType: 'ALLOWANCE',
+        itemName: '주휴수당',
+        amount: 140000,
+        calculationFormula: null,
+        workMinutes: null,
+      },
+    ],
+    deductionItems: [
+      {
+        detailId: 3,
+        detailType: 'DEDUCTION',
+        itemName: '원천징수',
+        amount: 32000,
+        calculationFormula: null,
+        workMinutes: null,
+      },
+    ],
+  },
+};
+
+export const demoContracts: ContractDetail[] = [
+  {
+    contractId: 1,
+    storeEmployeeId: 10,
+    employerName: '데모 점주',
+    storeName: '알맹이 데모 카페',
+    storeAddress: '서울시 중구 데모로 1',
+    storePhone: '02-1234-5678',
+    employeeName: '데모 직원',
+    employeePhone: '010-1111-2222',
+    employeeAddress: '서울시 중구 데모동 10',
+    contractStartDate: '2026-01-02',
+    contractEndDate: null,
+    workplace: '알맹이 데모 카페',
+    jobDescription: '음료 제조 및 매장 관리',
+    workStartTime: '09:00',
+    workEndTime: '15:00',
+    breakStartTime: '12:00',
+    breakEndTime: '12:30',
+    workDaysPerWeek: 5,
+    weeklyHoliday: '일요일',
+    wageType: 'HOURLY',
+    wageAmount: 12000,
+    hasBonus: false,
+    bonusAmount: null,
+    hasOtherAllowance: false,
+    otherAllowanceDetails: null,
+    payDayDescription: '매월 25일',
+    paymentMethod: '계좌이체',
+    employmentInsurance: true,
+    industrialAccidentInsurance: true,
+    nationalPension: true,
+    healthInsurance: true,
+    contractDate: '2026-01-02',
+    status: 'OWNER_SIGNED',
+    ownerSigned: true,
+    ownerSignedAt: '2026-01-02T09:00:00',
+    employeeSigned: false,
+    employeeSignedAt: null,
+    createdAt: '2026-01-02T08:00:00',
+  },
+];
+
+export const demoAttendanceReport: MonthlyAttendanceReport = {
+  targetMonth: '2026-09',
+  employees: [
+    {
+      employeeId: 10,
+      employeeName: '데모 직원',
+      attendanceCount: 18,
+      lateCount: 1,
+      absentCount: 0,
+      totalWorkMinutes: 8100,
+    },
+    {
+      employeeId: 11,
+      employeeName: '김하늘',
+      attendanceCount: 19,
+      lateCount: 0,
+      absentCount: 0,
+      totalWorkMinutes: 8400,
+    },
+    {
+      employeeId: 12,
+      employeeName: '박도윤',
+      attendanceCount: 16,
+      lateCount: 2,
+      absentCount: 1,
+      totalWorkMinutes: 7200,
+    },
+  ],
+  diligentEmployees: [{ employeeId: 11, employeeName: '김하늘' }],
+  lateChampions: [{ employeeId: 12, employeeName: '박도윤' }],
+};
+
+export const demoAuctionInsightsReport: AuctionInsightsReportDto = {
+  yearMonth: '2026-09',
+  totalAuctionCount: 2,
+  closedAuctionCount: 1,
+  successRate: 50,
+  averageWinningWage: 12000,
+  timelinePage: {
+    content: [
+      {
+        dayOfWeek: 'MONDAY',
+        startTime: '10:00:00',
+        endTime: '14:00:00',
+        auctionCount: 1,
+      },
+    ],
+    page: 0,
+    size: 6,
+    totalElements: 1,
+    totalPages: 1,
+    hasNext: false,
+  },
+};
 export const demoAttendanceResult = (
   attendance: DemoAttendance
 ): AttendanceResult => ({
@@ -227,6 +378,8 @@ export function createSeedDemoData(): DemoData {
         exists: true,
       },
     ],
+    payrolls: demoStorePayrolls,
+    contracts: demoContracts,
     auctions: [
       {
         auctionId: 1,
@@ -364,6 +517,7 @@ export function createSeedDemoData(): DemoData {
       auction: 3,
       bid: 4,
       room: 2,
+      contract: 2,
       message: 2,
     },
   };
