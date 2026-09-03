@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -41,6 +41,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico'],
       devOptions: { enabled: true },
       workbox: {
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallbackDenylist: [
           /^\/api\//,
           /^\/v3\/api-docs(?:\/|$)/,
