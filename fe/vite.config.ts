@@ -1,84 +1,91 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
-export default defineConfig({
-  test: {
-    environment: 'jsdom',
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8090',
-        changeOrigin: true,
-      },
-      '/ws-chat': {
-        target: 'http://localhost:8090',
-        changeOrigin: true,
-        ws: true,
-      },
+export default defineConfig(({ mode }) => {
+  const isDemoBuild =
+    loadEnv(mode, process.cwd(), '').VITE_DEMO_MODE === 'true';
+
+  return {
+    test: {
+      environment: 'jsdom',
     },
-  },
-  // 빌드 시 파일 크기 경고 해결 및 성능 최적화를 위한 청크 분할 설정 추가
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            return 'vendor'; // 외부 라이브러리들을 'vendor'라는 별도 파일로 분리
-          }
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8090',
+          changeOrigin: true,
+        },
+        '/ws-chat': {
+          target: 'http://localhost:8090',
+          changeOrigin: true,
+          ws: true,
         },
       },
     },
-  },
-  plugins: [
-    react(),
-    tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
-      devOptions: { enabled: true },
-      workbox: {
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        navigateFallbackDenylist: [
-          /^\/api\//,
-          /^\/v3\/api-docs(?:\/|$)/,
-          /^\/swagger-ui(?:\/|$)/,
-          /^\/webjars(?:\/|$)/,
-          /^\/swagger-resources(?:\/|$)/,
-        ],
-      },
-      manifest: {
-        id: '/',
-        name: 'Almaengi',
-        short_name: 'Almaengi',
-        description: 'Store management service',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone',
-        start_url: '/',
-        icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable',
+    // 빌드 시 파일 크기 경고 해결 및 성능 최적화를 위한 청크 분할 설정 추가
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              return 'vendor'; // 외부 라이브러리들을 'vendor'라는 별도 파일로 분리
+            }
           },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-        ],
+        },
       },
-    }),
-  ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
-  },
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        disable: isDemoBuild,
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico'],
+        devOptions: { enabled: true },
+        workbox: {
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /^\/v3\/api-docs(?:\/|$)/,
+            /^\/swagger-ui(?:\/|$)/,
+            /^\/webjars(?:\/|$)/,
+            /^\/swagger-resources(?:\/|$)/,
+          ],
+        },
+        manifest: {
+          id: '/',
+          name: 'Almaengi',
+          short_name: 'Almaengi',
+          description: 'Store management service',
+          theme_color: '#ffffff',
+          background_color: '#ffffff',
+          display: 'standalone',
+          start_url: '/',
+          icons: [
+            {
+              src: '/pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+            {
+              src: '/pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+          ],
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
+  };
 });

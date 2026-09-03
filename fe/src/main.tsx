@@ -7,15 +7,17 @@ import './index.css';
 import App from './App.tsx';
 import { isDemoMode } from './demo/config';
 
-registerSW({
-  immediate: true,
-  onRegistered(registration) {
-    console.info('[PWA] SW registered', registration);
-  },
-  onRegisterError(error) {
-    console.error('[PWA] SW register error', error);
-  },
-});
+if (!isDemoMode()) {
+  registerSW({
+    immediate: true,
+    onRegistered(registration) {
+      console.info('[PWA] SW registered', registration);
+    },
+    onRegisterError(error) {
+      console.error('[PWA] SW register error', error);
+    },
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
