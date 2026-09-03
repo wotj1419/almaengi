@@ -84,3 +84,5 @@ __snapshots__/
 
 # FCM
 almaengi-c2bba-firebase-adminsdk-fbsvc-adedb0478d.json
+.vercel
+.env*

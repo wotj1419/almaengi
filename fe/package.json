@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "prepare": "cd .. && git config core.hooksPath .husky",
+    "prepare": "node -e \"const { spawnSync } = require('node:child_process'); if (spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' }).status === 0) spawnSync('git', ['config', 'core.hooksPath', '.husky'], { stdio: 'ignore' });\"",
     "test": "vitest run"
   },
   "dependencies": {
