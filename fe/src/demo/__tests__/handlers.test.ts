@@ -31,7 +31,7 @@ describe('demo storage', () => {
 });
 
 describe('demo document handlers', () => {
-  it('returns a contract PDF with the demo agreement details', async () => {
+  it('returns a standard contract PDF without demo labels', async () => {
     const response = await fetch(
       'http://localhost/api/v1/stores/1/contracts/1/pdf'
     );
@@ -41,8 +41,9 @@ describe('demo document handlers', () => {
     const pdfText = await response.text();
 
     expect(pdfText).toMatch(/^%PDF-1\.4/);
-    expect(pdfText).toContain('Almaengi Employment Contract');
-    expect(pdfText).toContain('Demonstration agreement');
+    expect(pdfText).toContain('Standard Employment Contract');
+    expect(pdfText).not.toContain('DEMO DOCUMENT');
+    expect(pdfText).not.toContain('Demonstration agreement');
   });
   it('returns a browser-renderable PDF payslip document', async () => {
     const response = await fetch(
