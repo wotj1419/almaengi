@@ -30,7 +30,7 @@ describe('demo storage', () => {
     ).toBe('CLOSED');
   });
   it('adds a newly introduced contract request to existing saved data', () => {
-    const existing = createSeedDemoData();
+    const existing = structuredClone(createSeedDemoData());
     existing.contracts = existing.contracts.filter(
       (contract) => contract.contractId !== 2
     );
@@ -46,6 +46,21 @@ describe('demo storage', () => {
       status: 'OWNER_SIGNED',
     });
     expect(migrated.nextIds.contract).toBe(3);
+  });
+  it('updates the additional contract name in existing saved data', () => {
+    const existing = structuredClone(createSeedDemoData());
+    const request = existing.contracts.find(
+      (contract) => contract.contractId === 2
+    );
+    expect(request).toBeDefined();
+    if (!request) throw new Error('contract request 2 is required');
+    request.employeeName = '데모 직원';
+    writeDemoData(existing);
+
+    const migrated = readDemoData();
+    expect(
+      migrated.contracts.find((contract) => contract.contractId === 2)
+    ).toMatchObject({ employeeName: '이서연' });
   });
 });
 
@@ -90,6 +105,7 @@ describe('demo document handlers', () => {
     expect(request).toMatchObject({
       contractId: 2,
       status: 'OWNER_SIGNED',
+      employeeName: '이서연',
     });
 
     const signed = await fetch(

@@ -217,7 +217,7 @@ export const demoContracts: ContractDetail[] = [
     storeName: '알맹이 커피 성수점',
     storeAddress: '서울특별시 성동구 성수이로 00',
     storePhone: '02-463-5821',
-    employeeName: '데모 직원',
+    employeeName: '이서연',
     employeePhone: '010-1111-2222',
     employeeAddress: '서울특별시 중구 데모동 10',
     contractStartDate: '2026-09-08',

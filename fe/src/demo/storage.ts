@@ -14,12 +14,23 @@ function mergeNewSeedContracts(data: DemoData): DemoData {
   const missingContracts = seed.contracts.filter(
     (contract) => !existingContractIds.has(contract.contractId)
   );
+  const updatedContracts = data.contracts.map((contract) => {
+    const seedContract = seed.contracts.find(
+      (item) => item.contractId === contract.contractId
+    );
+    return seedContract && contract.employeeName !== seedContract.employeeName
+      ? { ...contract, employeeName: seedContract.employeeName }
+      : contract;
+  });
+  const contractNamesChanged = updatedContracts.some(
+    (contract, index) => contract !== data.contracts[index]
+  );
 
-  if (!missingContracts.length) return data;
+  if (!missingContracts.length && !contractNamesChanged) return data;
 
   return {
     ...data,
-    contracts: [...data.contracts, ...missingContracts],
+    contracts: [...updatedContracts, ...missingContracts],
     nextIds: {
       ...data.nextIds,
       contract: Math.max(data.nextIds.contract, seed.nextIds.contract),
