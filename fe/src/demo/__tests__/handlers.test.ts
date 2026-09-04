@@ -31,14 +31,18 @@ describe('demo storage', () => {
 });
 
 describe('demo document handlers', () => {
-  it('returns a non-empty PDF payslip Blob', async () => {
+  it('returns a browser-renderable PDF payslip document', async () => {
     const response = await fetch(
       'http://localhost/api/v1/stores/1/payrolls/1/payslip'
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('application/pdf');
-    expect((await response.blob()).size).toBeGreaterThan(0);
+    const pdfText = await response.text();
+
+    expect(pdfText).toMatch(/^%PDF-1\.4/);
+    expect(pdfText).toContain('/Type /Page');
+    expect(pdfText).toContain('startxref');
   });
 
   it('persists an employee signature and completes an owner-signed contract', async () => {
