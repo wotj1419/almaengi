@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
+import demoEmploymentContractPdf from './assets/demo-employment-contract.pdf?inline';
 import {
   demoAttendanceReport,
   demoAttendanceResult,
@@ -126,6 +127,24 @@ function pdf(fileName: string) {
     },
   });
 }
+
+function inlinePdf(dataUri: string, fileName: string) {
+  const base64 = dataUri.slice(dataUri.indexOf(',') + 1);
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+
+  return new HttpResponse(bytes, {
+    headers: {
+      'content-type': 'application/pdf',
+      'content-disposition': `attachment; filename="${fileName}"`,
+    },
+  });
+}
+
+function contractPdf(fileName: string) {
+  return inlinePdf(demoEmploymentContractPdf, fileName);
+}
+
 export const handlers = [
   http.get(api('stores'), () => success(readDemoData().stores)),
   http.get(api('stores/employees/my'), () => success(readDemoData().stores)),
@@ -527,7 +546,7 @@ export const handlers = [
       (item) => item.contractId === id(params.contractId)
     );
     return contract
-      ? pdf(`contract-${contract.contractId}.pdf`)
+      ? contractPdf(`contract-${contract.contractId}.pdf`)
       : error(404, 'CONTRACT_NOT_FOUND', 'Contract not found.');
   }),
   http.patch(
