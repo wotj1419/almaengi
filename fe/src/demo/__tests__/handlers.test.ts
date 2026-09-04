@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { setupServer } from 'msw/node';
 
+import { createSeedDemoData } from '../data';
 import { handlers } from '../handlers';
 import { readDemoData, resetDemoData, writeDemoData } from '../storage';
 
@@ -27,6 +28,24 @@ describe('demo storage', () => {
     expect(
       readDemoData().auctions.find((item) => item.auctionId === 1)?.status
     ).toBe('CLOSED');
+  });
+  it('adds a newly introduced contract request to existing saved data', () => {
+    const existing = createSeedDemoData();
+    existing.contracts = existing.contracts.filter(
+      (contract) => contract.contractId !== 2
+    );
+    existing.nextIds.contract = 2;
+    writeDemoData(existing);
+
+    const migrated = readDemoData();
+
+    expect(
+      migrated.contracts.find((contract) => contract.contractId === 2)
+    ).toMatchObject({
+      contractId: 2,
+      status: 'OWNER_SIGNED',
+    });
+    expect(migrated.nextIds.contract).toBe(3);
   });
 });
 
@@ -57,6 +76,43 @@ describe('demo document handlers', () => {
     expect(pdfText).toMatch(/^%PDF-1\.4/);
     expect(pdfText).toContain('/Type /Page');
     expect(pdfText).toContain('startxref');
+  });
+
+  it('includes an additional contract request that an employee can complete', async () => {
+    const listed = await fetch('http://localhost/api/v1/stores/1/contracts/me');
+
+    expect(listed.status).toBe(200);
+    const body = (await listed.json()) as {
+      data: Array<Record<string, unknown>>;
+    };
+    const request = body.data.find((contract) => contract.contractId === 2);
+
+    expect(request).toMatchObject({
+      contractId: 2,
+      status: 'OWNER_SIGNED',
+    });
+
+    const signed = await fetch(
+      'http://localhost/api/v1/stores/1/contracts/2/sign/employee',
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature: 'demo-signature' }),
+      }
+    );
+
+    expect(signed.status).toBe(200);
+    const signedBody = (await signed.json()) as {
+      data: { employeeSigned: boolean; status: string };
+    };
+    expect(signedBody.data).toMatchObject({
+      employeeSigned: true,
+      status: 'COMPLETED',
+    });
+
+    const pdf = await fetch('http://localhost/api/v1/stores/1/contracts/2/pdf');
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get('content-type')).toContain('application/pdf');
   });
 
   it('persists an employee signature and completes an owner-signed contract', async () => {
