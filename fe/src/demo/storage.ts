@@ -1,6 +1,6 @@
 import { createSeedDemoData, type DemoData } from './data';
 
-export const DEMO_STORAGE_KEY = 'almaengi:portfolio-demo:v1';
+export const DEMO_STORAGE_KEY = 'almaengi:portfolio-demo:v2';
 
 function clone(data: DemoData): DemoData {
   return JSON.parse(JSON.stringify(data)) as DemoData;

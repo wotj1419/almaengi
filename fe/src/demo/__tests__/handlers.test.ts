@@ -12,6 +12,7 @@ afterAll(() => server.close());
 
 afterEach(() => {
   resetDemoData();
+  localStorage.removeItem('almaengi:portfolio-demo:v1');
 });
 
 describe('demo storage', () => {
@@ -61,6 +62,33 @@ describe('demo storage', () => {
     expect(
       migrated.contracts.find((contract) => contract.contractId === 2)
     ).toMatchObject({ employeeName: '이서연' });
+  });
+
+  it('starts a new signature flow instead of restoring a completed prior demo', () => {
+    const completed = structuredClone(createSeedDemoData());
+    const request = completed.contracts.find(
+      (contract) => contract.contractId === 2
+    );
+
+    expect(request).toBeDefined();
+    if (!request) throw new Error('contract request 2 is required');
+
+    request.status = 'COMPLETED';
+    request.employeeSigned = true;
+    request.employeeSignedAt = '2026-09-01T11:00:00';
+    localStorage.setItem(
+      'almaengi:portfolio-demo:v1',
+      JSON.stringify(completed)
+    );
+
+    const reset = readDemoData();
+    expect(
+      reset.contracts.find((contract) => contract.contractId === 2)
+    ).toMatchObject({
+      status: 'OWNER_SIGNED',
+      employeeSigned: false,
+      employeeSignedAt: null,
+    });
   });
 });
 
